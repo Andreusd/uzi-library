@@ -85,6 +85,7 @@ def list_books(
     library_id: Optional[str] = Query(None, description="Filter by library ID"),
     query: Optional[str] = Query(None, description="Search query across titles"),
     sort: Optional[str] = Query("title_asc", description="Sort order: title_asc, title_desc, size_desc, recent"),
+    format: Optional[str] = Query(None, description="Filter by book format: pdf, epub"),
     user: str = Depends(get_request_user),
     scanner: LibraryScanner = Depends(get_scanner),
     user_mgr: UserManager = Depends(get_user_mgr),
@@ -100,6 +101,7 @@ def list_books(
     query_val = query if isinstance(query, str) else None
     sort_val = sort if isinstance(sort, str) else "title_asc"
     lib_val = library_id if isinstance(library_id, str) else None
+    format_val = format.lower().strip() if isinstance(format, str) and format.strip() else None
 
     active_filter = folder_val or shelf_val
     if active_filter and active_filter.startswith("tag:"):
@@ -158,6 +160,13 @@ def list_books(
             or any(q in t.get("name", "").lower() for t in b.get("tags", []))
         ]
 
+    # Filter by format if provided
+    if format_val and format_val in ("pdf", "epub"):
+        books = [
+            b for b in books
+            if b.get("format") == format_val or b.get("path", "").lower().endswith(f".{format_val}")
+        ]
+
     # Sort
     if sort_val == "title_asc":
         if active_filter == "continue-reading":
@@ -183,6 +192,7 @@ def list_books(
 @router.get("/api/continue-reading")
 def continue_reading(
     library_id: Optional[str] = Query(None),
+    format: Optional[str] = Query(None, description="Filter by book format: pdf, epub"),
     user: str = Depends(get_request_user),
     scanner: LibraryScanner = Depends(get_scanner),
     user_mgr: UserManager = Depends(get_user_mgr)
@@ -193,6 +203,7 @@ def continue_reading(
     tags_mgr = user_mgr.get_tags_mgr(user)
 
     lib_val = library_id if isinstance(library_id, str) else None
+    format_val = format.lower().strip() if isinstance(format, str) and format.strip() else None
     recents = tracker.get_recent(limit=25)
     # Strictly isolate: only books physically belonging to this library
     lib_books = {b["id"]: b for b in scanner.get_books(library_id=lib_val)}
@@ -200,6 +211,9 @@ def continue_reading(
     for r in recents:
         b = lib_books.get(r["book_id"])
         if b:
+            if format_val and format_val in ("pdf", "epub"):
+                if b.get("format") != format_val and not b.get("path", "").lower().endswith(f".{format_val}"):
+                    continue
             b_copy = dict(b)
             r_pct = r.get("percent", 0)
             r_cfi = r.get("cfi")
@@ -424,6 +438,7 @@ def stream_book_file(book_id: str, scanner: LibraryScanner = Depends(get_scanner
 @router.get("/api/favorites")
 def get_favorites(
     library_id: Optional[str] = Query(None),
+    format: Optional[str] = Query(None, description="Filter by book format: pdf, epub"),
     user: str = Depends(get_request_user),
     scanner: LibraryScanner = Depends(get_scanner),
     user_mgr: UserManager = Depends(get_user_mgr)
@@ -434,6 +449,7 @@ def get_favorites(
     tags_mgr = user_mgr.get_tags_mgr(user)
 
     lib_val = library_id if isinstance(library_id, str) else None
+    format_val = format.lower().strip() if isinstance(format, str) and format.strip() else None
     fav_ids = set(favorites_mgr.get_favorite_ids())
     all_progress = tracker.get_all()
     # Strictly isolate: only books physically belonging to this library
@@ -441,6 +457,9 @@ def get_favorites(
     books = []
     for b in lib_books:
         if b["id"] in fav_ids:
+            if format_val and format_val in ("pdf", "epub"):
+                if b.get("format") != format_val and not b.get("path", "").lower().endswith(f".{format_val}"):
+                    continue
             b_copy = dict(b)
             prog = all_progress.get(b["id"])
             b_copy["progress"] = prog if prog else {"page": 1, "total_pages": 0, "percent": 0}

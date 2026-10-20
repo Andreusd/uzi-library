@@ -260,6 +260,28 @@ class TestBooksAPI(BaseAPITestCase):
         titles_asc = [b["title"] for b in resp_asc.json()["books"]]
         self.assertEqual(titles_asc, sorted(titles_asc))
 
+    def test_list_books_format_filtering(self):
+        # All books
+        resp_all = self.client.get("/api/books")
+        self.assertEqual(resp_all.status_code, 200)
+        self.assertEqual(resp_all.json()["count"], 3)
+
+        # PDF only
+        resp_pdf = self.client.get("/api/books?format=pdf")
+        self.assertEqual(resp_pdf.status_code, 200)
+        pdf_books = resp_pdf.json()["books"]
+        self.assertEqual(len(pdf_books), 2)
+        for b in pdf_books:
+            self.assertEqual(b["format"], "pdf")
+
+        # EPUB only
+        resp_epub = self.client.get("/api/books?format=epub")
+        self.assertEqual(resp_epub.status_code, 200)
+        epub_books = resp_epub.json()["books"]
+        self.assertEqual(len(epub_books), 1)
+        self.assertEqual(epub_books[0]["format"], "epub")
+        self.assertEqual(epub_books[0]["title"], "Foundation Series")
+
     def test_get_single_book_and_stream(self):
         books = self.client.get("/api/books").json()["books"]
         dune = next(b for b in books if "Dune" in b["title"])

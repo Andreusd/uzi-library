@@ -110,14 +110,20 @@ export const booksApi = {
       body: JSON.stringify({ book_id: bookId, status }),
     }),
 
-  getContinueReading: (libraryId) => {
-    const q = libraryId ? `?library_id=${encodeURIComponent(libraryId)}` : '';
-    return apiJson(`/api/continue-reading${q}`);
+  getContinueReading: (libraryId, format) => {
+    const q = new URLSearchParams();
+    if (libraryId) q.append('library_id', libraryId);
+    if (format && format !== 'all') q.append('format', format);
+    const qs = q.toString();
+    return apiJson(`/api/continue-reading${qs ? `?${qs}` : ''}`);
   },
 
-  getFavorites: (libraryId) => {
-    const q = libraryId ? `?library_id=${encodeURIComponent(libraryId)}` : '';
-    return apiJson(`/api/favorites${q}`);
+  getFavorites: (libraryId, format) => {
+    const q = new URLSearchParams();
+    if (libraryId) q.append('library_id', libraryId);
+    if (format && format !== 'all') q.append('format', format);
+    const qs = q.toString();
+    return apiJson(`/api/favorites${qs ? `?${qs}` : ''}`);
   },
 
   toggleFavorite: (bookId) =>

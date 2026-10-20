@@ -18,6 +18,12 @@ const translations = {
 
     // Header & Navigation
     searchPlaceholder: "Search books by title... (Press '/' to search)",
+    searchPlaceholderShort: "Search books... (/)",
+    collapseSearch: 'Collapse search',
+    allFormats: 'All Formats',
+    filterFormat: 'Filter by format',
+    formatPdf: 'PDF',
+    formatEpub: 'EPUB',
     sortNameAsc: 'Name (A-Z)',
     sortNameDesc: 'Name (Z-A)',
     sortSizeDesc: 'Largest Size',
@@ -429,6 +435,12 @@ const translations = {
 
     // Header & Navigation
     searchPlaceholder: "Pesquisar livros por título... (Pressione '/' para buscar)",
+    searchPlaceholderShort: "Buscar livros... (/)",
+    collapseSearch: 'Recolher pesquisa',
+    allFormats: 'Todos os formatos',
+    filterFormat: 'Filtrar por formato',
+    formatPdf: 'PDF',
+    formatEpub: 'EPUB',
     sortNameAsc: 'Nome (A-Z)',
     sortNameDesc: 'Nome (Z-A)',
     sortSizeDesc: 'Maior Tamanho',
@@ -840,6 +852,12 @@ const translations = {
 
     // Header & Navigation
     searchPlaceholder: "Buscar libros por título... (Presiona '/' para buscar)",
+    searchPlaceholderShort: "Buscar libros... (/)",
+    collapseSearch: 'Contraer búsqueda',
+    allFormats: 'Todos los formatos',
+    filterFormat: 'Filtrar por formato',
+    formatPdf: 'PDF',
+    formatEpub: 'EPUB',
     sortNameAsc: 'Nombre (A-Z)',
     sortNameDesc: 'Nombre (Z-A)',
     sortSizeDesc: 'Mayor tamaño',
@@ -1251,6 +1269,12 @@ const translations = {
 
     // Header & Navigation
     searchPlaceholder: "Rechercher des livres par titre... (Appuyez sur '/' pour rechercher)",
+    searchPlaceholderShort: "Rechercher... (/)",
+    collapseSearch: 'Réduire la recherche',
+    allFormats: 'Tous les formats',
+    filterFormat: 'Filtrer par format',
+    formatPdf: 'PDF',
+    formatEpub: 'EPUB',
     sortNameAsc: 'Nom (A-Z)',
     sortNameDesc: 'Nom (Z-A)',
     sortSizeDesc: 'Plus grande taille',

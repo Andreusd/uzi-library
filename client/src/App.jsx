@@ -54,6 +54,8 @@ export default function App() {
     tags,
     loading,
     debouncedQuery,
+    formatFilter,
+    setFormatFilter,
     activeBook,
     routeLoading,
     currentShelfObj,
@@ -261,6 +263,7 @@ export default function App() {
             <LibraryHome
               selectedShelf={selectedShelf}
               debouncedQuery={debouncedQuery}
+              formatFilter={formatFilter}
               continueReading={continueReading}
               favorites={favorites}
               shelves={shelves}
@@ -273,6 +276,7 @@ export default function App() {
             <ShelfHeader
               selectedShelf={selectedShelf}
               debouncedQuery={debouncedQuery}
+              formatFilter={formatFilter}
               shelves={shelves}
               tags={tags}
               books={books}
@@ -286,6 +290,8 @@ export default function App() {
             <LibraryContent
               selectedShelf={selectedShelf}
               debouncedQuery={debouncedQuery}
+              formatFilter={formatFilter}
+              setFormatFilter={setFormatFilter}
               shelves={shelves}
               tags={tags}
               books={books}

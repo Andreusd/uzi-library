@@ -104,7 +104,7 @@ export default function LibraryFolders({
         }
       >
         {folders.map((folder) => {
-          const covers = getFolderCovers(folder, books);
+          const covers = folder._covers !== undefined ? folder._covers : getFolderCovers(folder, books);
 
           return (
             <div

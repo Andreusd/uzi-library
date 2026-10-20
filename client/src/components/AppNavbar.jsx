@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Search, X, BookOpen,
   PanelLeftClose, PanelLeftOpen,
@@ -35,6 +35,8 @@ export default function AppNavbar({
   setSearchQuery: propSetSearchQuery,
   sortBy: propSortBy,
   setSortBy: propSetSortBy,
+  formatFilter: propFormatFilter,
+  setFormatFilter: propSetFormatFilter,
   isFullscreen: propIsFullscreen,
   toggleFullscreen: propToggleFullscreen,
   theme: propTheme,
@@ -45,6 +47,11 @@ export default function AppNavbar({
   const { t } = useI18n();
   const settings = useSettings();
   const fullscreen = useFullscreen();
+
+  const internalInputRef = useRef(null);
+  const effectiveInputRef = searchInputRef || internalInputRef;
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const sidebarOpen = propSidebarOpen !== undefined ? propSidebarOpen : settings.sidebarOpen;
   const toggleSidebar = propToggleSidebar || settings.toggleSidebar;
@@ -66,8 +73,12 @@ export default function AppNavbar({
   const setSearchQuery = propSetSearchQuery || libraryData?.setSearchQuery;
   const sortBy = propSortBy !== undefined ? propSortBy : (libraryData?.sortBy || 'title_asc');
   const setSortBy = propSetSortBy || libraryData?.setSortBy;
+  const formatFilter = propFormatFilter !== undefined ? propFormatFilter : (libraryData?.formatFilter || 'all');
+  const setFormatFilter = propSetFormatFilter || libraryData?.setFormatFilter;
   const selectAllLibraries = propSelectAllLibraries || libraryData?.selectAllLibraries;
   const navigateToShelf = propNavigateToShelf || libraryData?.navigateToShelf;
+
+  const isExpanded = isSearchOpen || Boolean(searchQuery);
 
   return (
     <header className="h-16 px-4 sm:px-6 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-30 flex items-center justify-between gap-4">
@@ -169,41 +180,105 @@ export default function AppNavbar({
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md mx-2">
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder={t('searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm bg-neutral-900 border border-neutral-800 rounded-xl text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery && setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Action Controls: Search, Sort Selector, Format/Type Filter, Fullscreen & Settings */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Minimized Expandable Search Bar */}
+        <div className="relative flex items-center">
+          <div
+            className={`relative flex items-center transition-all duration-200 ease-in-out ${
+              isExpanded
+                ? 'w-44 sm:w-60 md:w-72'
+                : 'w-8 h-8'
+            }`}
+          >
+            <input
+              ref={effectiveInputRef}
+              type="text"
+              placeholder={isExpanded ? (t('searchPlaceholderShort') || "Search books... (/)") : ''}
+              value={searchQuery}
+              onFocus={() => setIsSearchOpen(true)}
+              onBlur={() => {
+                if (!searchQuery) setIsSearchOpen(false);
+              }}
+              onChange={(e) => setSearchQuery && setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  if (searchQuery) setSearchQuery && setSearchQuery('');
+                  setIsSearchOpen(false);
+                  effectiveInputRef.current?.blur();
+                }
+              }}
+              className={`w-full py-1.5 text-xs bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 transition-all ${
+                isExpanded
+                  ? 'pl-8 pr-7 opacity-100 cursor-text shadow-inner'
+                  : 'pl-8 pr-0 opacity-0 pointer-events-none cursor-pointer'
+              }`}
+              title={!isExpanded ? `${t('searchPlaceholder')} (/)` : undefined}
+            />
 
-      {/* Sort Selector, Fullscreen & Settings Buttons */}
-      <div className="flex items-center gap-2.5">
+            {/* Minimized Search Trigger Button */}
+            {!isExpanded ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchOpen(true);
+                  effectiveInputRef.current?.focus();
+                }}
+                className="absolute inset-0 w-full h-full rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 flex items-center justify-center transition shadow-sm cursor-pointer group"
+                title={`${t('searchPlaceholder')} (/)`}
+                aria-label={t('searchPlaceholder')}
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            ) : (
+              <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none z-10" />
+            )}
+
+            {/* Clear / Close Button when expanded */}
+            {isExpanded && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (searchQuery) setSearchQuery && setSearchQuery('');
+                  setIsSearchOpen(false);
+                  effectiveInputRef.current?.blur();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 p-0.5 rounded cursor-pointer z-10"
+                title={searchQuery ? (t('clearSearch') || 'Clear') : (t('collapseSearch') || 'Close')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Name Ordering (Sort Selector) */}
         <div className="relative flex items-center">
           <select
             value={sortBy}
             onChange={(e) => setSortBy && setSortBy(e.target.value)}
-            className="bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500/60 cursor-pointer"
+            className="bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-2 sm:px-2.5 py-1.5 focus:outline-none focus:border-amber-500/60 cursor-pointer"
+            title={t('sortBy') || 'Sort order'}
           >
             <option value="title_asc">{t('sortNameAsc')}</option>
             <option value="title_desc">{t('sortNameDesc')}</option>
             <option value="size_desc">{t('sortSizeDesc')}</option>
             <option value="recent">{t('sortRecent')}</option>
+          </select>
+        </div>
+
+        {/* Format / Type Filter next to Name Ordering */}
+        <div className="relative flex items-center">
+          <select
+            value={formatFilter}
+            onChange={(e) => setFormatFilter && setFormatFilter(e.target.value)}
+            className="bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-2 sm:px-2.5 py-1.5 focus:outline-none focus:border-amber-500/60 cursor-pointer"
+            title={t('filterFormat') || 'Filter by format'}
+          >
+            <option value="all">{t('allFormats') || 'All Formats'}</option>
+            <option value="pdf">{t('formatPdf') || 'PDF'}</option>
+            <option value="epub">{t('formatEpub') || 'EPUB'}</option>
           </select>
         </div>
 

@@ -4,6 +4,7 @@ import {
   ChevronDown, Check, Plus, Tag, User, BookOpen
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
+import AppLogo from './AppLogo';
 import { useI18n } from '../i18n';
 import { getTagColorConfig } from '../utils/tagColors';
 
@@ -128,9 +129,7 @@ export default function Sidebar({
               className="flex items-center gap-3 min-w-0 text-left hover:opacity-90 transition cursor-pointer"
               title={t('allLibraries')}
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/20 text-neutral-950 shrink-0">
-                <Library className="w-5 h-5 font-bold" />
-              </div>
+              <AppLogo className="w-9 h-9" />
               <div className="min-w-0">
                 <h1 className="text-sm font-bold text-neutral-100 tracking-tight truncate">{t('appTitle')}</h1>
                 <p className="text-[11px] text-neutral-400 truncate">

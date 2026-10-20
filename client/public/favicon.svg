@@ -1,13 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24"/>
+    <linearGradient id="amberBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
       <stop offset="100%" stop-color="#d97706"/>
     </linearGradient>
+    <linearGradient id="pageGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <filter id="bookShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#78350f" flood-opacity="0.45"/>
+    </filter>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#amberGrad)"/>
-  <g transform="translate(11, 11) scale(1.75)" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" fill="#0f172a" fill-opacity="0.15"/>
-    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" fill="#0f172a" fill-opacity="0.15"/>
+  <!-- Background Squircle -->
+  <rect width="64" height="64" rx="16" fill="url(#amberBg)"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="15.5" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1"/>
+  
+  <!-- Authentic Open Book Emblem -->
+  <g filter="url(#bookShadow)" transform="translate(10, 13)">
+    <!-- Base page block depth -->
+    <path d="M4 11.5 C 13 8, 19.5 10.5, 22 14.5 C 24.5 10.5, 31 8, 40 11.5 L 40 31.5 C 31 28, 24.5 30.5, 22 34.5 C 19.5 30.5, 13 28, 4 31.5 Z" fill="#92400e" opacity="0.4"/>
+    <!-- Main open pages -->
+    <path d="M3 9.5 C 12 6, 19.5 8.5, 22 12.5 C 24.5 8.5, 32 6, 41 9.5 L 41 29.5 C 32 26, 24.5 28.5, 22 32.5 C 19.5 28.5, 12 26, 3 29.5 Z" fill="url(#pageGrad)"/>
+    <!-- Soft inner page creases -->
+    <path d="M3 9.5 C 12 6, 19.5 8.5, 22 12.5 L 22 32.5 C 19.5 28.5, 12 26, 3 29.5 Z" fill="#ffffff" fill-opacity="0.7"/>
+    <path d="M41 9.5 C 32 6, 24.5 8.5, 22 12.5 L 22 32.5 C 24.5 28.5, 32 26, 41 29.5 Z" fill="#fef3c7" fill-opacity="0.8"/>
+    <!-- Spine center shadow -->
+    <line x1="22" y1="12.5" x2="22" y2="32.5" stroke="#78350f" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.35"/>
+    <!-- Page text line hints -->
+    <path d="M7.5 15 C 12 13.5, 16.5 15, 19 16.5" stroke="#b45309" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.4"/>
+    <path d="M7.5 20 C 12 18.5, 16.5 20, 19 21.5" stroke="#b45309" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.4"/>
+    <path d="M25 16.5 C 27.5 15, 32 13.5, 36.5 15" stroke="#b45309" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.4"/>
+    <path d="M25 21.5 C 27.5 20, 32 18.5, 36.5 20" stroke="#b45309" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.4"/>
+    <!-- Elegant Ribbon Bookmark -->
+    <path d="M20.5 7.5 L 23.5 7.5 L 23.5 22 L 22 20.5 L 20.5 22 Z" fill="#92400e"/>
+    <path d="M21 7.5 L 23 7.5 L 23 21 L 22 20 L 21 21 Z" fill="#d97706"/>
   </g>
 </svg>

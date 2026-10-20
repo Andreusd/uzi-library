@@ -120,7 +120,7 @@ export default function LibraryTags({
         }
       >
         {tags.map((tag) => {
-          const covers = getTagCovers(tag, books);
+          const covers = tag._covers !== undefined ? tag._covers : getTagCovers(tag, books);
 
           return (
             <div

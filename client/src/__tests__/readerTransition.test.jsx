@@ -267,5 +267,77 @@ describe('SettingsModal animation toggle', () => {
     expect(onToggle).toHaveBeenCalledWith(false);
     fetchSpy.mockRestore();
   });
+
+  it('closes SettingsModal when clicking outside the dialog on the backdrop', () => {
+    const onClose = vi.fn();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ libraries: [], active_library_id: '' }),
+      })
+    );
+
+    render(
+      <I18nProvider>
+        <SettingsModal
+          isOpen={true}
+          onClose={onClose}
+        />
+      </I18nProvider>
+    );
+
+    const backdrop = screen.getByTestId('settings-modal-backdrop');
+    fireEvent.click(backdrop);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fetchSpy.mockRestore();
+  });
+
+  it('does not close SettingsModal when clicking inside the dialog content', () => {
+    const onClose = vi.fn();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ libraries: [], active_library_id: '' }),
+      })
+    );
+
+    render(
+      <I18nProvider>
+        <SettingsModal
+          isOpen={true}
+          onClose={onClose}
+        />
+      </I18nProvider>
+    );
+
+    // Click on title inside the modal
+    const title = screen.getByText(/library settings/i);
+    fireEvent.click(title);
+
+    expect(onClose).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('closes SettingsModal when pressing Escape', () => {
+    const onClose = vi.fn();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ libraries: [], active_library_id: '' }),
+      })
+    );
+
+    render(
+      <I18nProvider>
+        <SettingsModal
+          isOpen={true}
+          onClose={onClose}
+        />
+      </I18nProvider>
+    );
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fetchSpy.mockRestore();
+  });
 });
 

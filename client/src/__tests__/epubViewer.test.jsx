@@ -36,6 +36,9 @@ vi.mock('epubjs', () => {
         locations: {
           generate: vi.fn().mockResolvedValue([]),
           total: 100,
+          length: vi.fn().mockReturnValue(100),
+          save: vi.fn().mockReturnValue('mock-locations'),
+          load: vi.fn(),
           cfiFromPercentage: vi.fn(),
           percentageFromCfi: vi.fn().mockReturnValue(0.2),
           locationFromCfi: vi.fn().mockReturnValue(20),
@@ -94,6 +97,33 @@ describe('EpubViewer component', () => {
     await waitFor(() => {
       expect(screen.queryByText(/handleKeyDownRef is not defined/i)).not.toBeInTheDocument();
       expect(screen.queryByText(/Unable to Open EPUB/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders bottom progress bar smoothly based on page progress', async () => {
+    const mockBook = {
+      id: 101,
+      title: 'Progress Bar Test Book',
+      format: 'epub',
+      progress: {
+        page: 5,
+        total_pages: 100,
+        percent: 5,
+      },
+    };
+
+    const { container } = render(
+      <I18nProvider>
+        <EpubViewer book={mockBook} onClose={vi.fn()} onProgressUpdate={vi.fn()} />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      const progressBar = container.querySelector('footer div.bg-amber-500');
+      expect(progressBar).toBeInTheDocument();
+      expect(progressBar.style.width).toMatch(/%$/);
+      const widthVal = parseFloat(progressBar.style.width);
+      expect(widthVal).toBeGreaterThanOrEqual(5);
     });
   });
 });

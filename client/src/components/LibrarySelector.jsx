@@ -4,6 +4,7 @@ import {
   AlertTriangle, User, Users, Edit2, Check, Sparkles, Trash2
 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import AppLogo from './AppLogo';
 import LanguageSelector from './LanguageSelector';
 
 export default function LibrarySelector({
@@ -137,9 +138,7 @@ export default function LibrarySelector({
       {/* Top Header Bar */}
       <header className="h-15 sm:h-16 px-6 sm:px-8 border-b border-neutral-800/80 bg-neutral-900/60 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center shadow-md shadow-amber-500/20 text-neutral-950 shrink-0 font-bold">
-            <Library className="w-5 h-5 font-bold" />
-          </div>
+          <AppLogo className="w-9 h-9" />
           <div>
             <h1 className="text-sm sm:text-base font-bold text-neutral-100 tracking-tight leading-tight">
               {t('appTitle')}

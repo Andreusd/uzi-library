@@ -479,7 +479,28 @@ export default function EpubViewer({
         }
 
         // Percentage helper
-        const getAccuratePercentage = (location, cfi) => {
+        const getAccuratePercentage = (location, cfi, curPage = null, totalPages = null) => {
+          // 1. If locations are generated, use location percentage directly
+          if (
+            isLocationsReadyRef.current &&
+            epubBook.locations &&
+            epubBook.locations.total > 0 &&
+            typeof epubBook.locations.length === 'function' &&
+            epubBook.locations.length() > 0
+          ) {
+            try {
+              const locPct = epubBook.locations.percentageFromCfi(cfi);
+              if (typeof locPct === 'number' && !isNaN(locPct) && locPct >= 0) {
+                return Math.min(100, Math.max(0, Math.round(locPct * 100)));
+              }
+            } catch {}
+
+            if (curPage !== null && totalPages && totalPages > 0) {
+              return Math.min(100, Math.max(0, Math.round((curPage / totalPages) * 100)));
+            }
+          }
+
+          // 2. Spine/chapter-based percentage as fallback when locations aren't ready
           const spineItems = epubBook.spine?.items || [];
           const totalSpine = spineItems.length;
           let spineIndex = location?.start?.index;
@@ -492,7 +513,6 @@ export default function EpubViewer({
             }
           }
 
-          let spinePercent = null;
           if (totalSpine > 0 && spineIndex !== undefined && spineIndex >= 0) {
             const displayed = location?.start?.displayed;
             let intraFraction = 0;
@@ -500,31 +520,7 @@ export default function EpubViewer({
               intraFraction = (displayed.page - 1) / displayed.total;
             }
             const fraction = (spineIndex + intraFraction) / totalSpine;
-            spinePercent = Math.min(100, Math.max(0, Math.round(fraction * 100)));
-          }
-
-          if (
-            isLocationsReadyRef.current &&
-            epubBook.locations &&
-            epubBook.locations.total > 0 &&
-            typeof epubBook.locations.length === 'function' &&
-            epubBook.locations.length() > 0
-          ) {
-            try {
-              const locPct = epubBook.locations.percentageFromCfi(cfi);
-              if (typeof locPct === 'number' && !isNaN(locPct) && locPct >= 0) {
-                const computedPct = Math.min(100, Math.max(0, Math.round(locPct * 100)));
-                if (!(computedPct === 0 && (spineIndex > 0 || (spinePercent !== null && spinePercent > 0)))) {
-                  if (!(spinePercent !== null && Math.abs(computedPct - spinePercent) > 25)) {
-                    return computedPct;
-                  }
-                }
-              }
-            } catch {}
-          }
-
-          if (spinePercent !== null) {
-            return spinePercent;
+            return Math.min(100, Math.max(0, Math.round(fraction * 100)));
           }
 
           if (location?.start?.percentage !== undefined && typeof location.start.percentage === 'number' && !isNaN(location.start.percentage) && location.start.percentage > 0) {
@@ -586,7 +582,6 @@ export default function EpubViewer({
           }
 
           const currentCfi = rendition.currentLocation()?.start?.cfi || startCfi;
-          const pct = getAccuratePercentage(rendition.currentLocation(), currentCfi);
 
           let curPage = 1;
           if (currentCfi && totalLocs > 0) {
@@ -598,9 +593,7 @@ export default function EpubViewer({
             } catch {}
           }
 
-          if (pct > 1 && curPage <= 1 && totalLocs > 0) {
-            curPage = Math.max(1, Math.min(totalLocs, Math.round((pct / 100) * totalLocs)));
-          }
+          const pct = getAccuratePercentage(rendition.currentLocation(), currentCfi, curPage, totalLocs);
 
           if (totalLocs > 0 && isLocationsReadyRef.current) {
             setPageInfo({ page: curPage, total: totalLocs });
@@ -665,14 +658,7 @@ export default function EpubViewer({
           } catch {}
 
           const cfi = location.start.cfi;
-          const pct = getAccuratePercentage(location, cfi);
           const chapterName = findChapterLabel(tocRef.current, location.start.href);
-
-          setLocationInfo({
-            cfi: cfi,
-            percentage: pct,
-            chapter: chapterName
-          });
 
           let spineIndex = location.start.index;
           if (spineIndex === undefined && cfi) {
@@ -695,6 +681,14 @@ export default function EpubViewer({
             } catch {}
           }
 
+          const pct = getAccuratePercentage(location, cfi, curPage, totalPages);
+
+          setLocationInfo({
+            cfi: cfi,
+            percentage: pct,
+            chapter: chapterName
+          });
+
           const totalSpine = epubBook.spine?.items?.length || 0;
           const fallbackTotal = (pageInfoRef.current?.total > 0)
             ? pageInfoRef.current.total
@@ -704,7 +698,7 @@ export default function EpubViewer({
             totalPages = fallbackTotal;
           }
 
-          if (curPage === null || (curPage <= 1 && (pct > 1 || (spineIndex && spineIndex > 0)))) {
+          if (curPage === null) {
             curPage = Math.max(1, Math.min(totalPages, Math.round((pct / 100) * totalPages)));
           }
 
@@ -905,7 +899,13 @@ export default function EpubViewer({
         }`}>
           <div 
             className="h-full bg-amber-500 transition-all duration-300"
-            style={{ width: `${locationInfo.percentage}%` }}
+            style={{ 
+              width: `${Math.min(100, Math.max(0, 
+                pageInfo.total > 0 
+                  ? (pageInfo.page / pageInfo.total) * 100 
+                  : locationInfo.percentage
+              ))}%` 
+            }}
           />
         </footer>
       )}

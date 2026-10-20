@@ -6,6 +6,18 @@ import TagCard from './TagCard';
 import AllBooks from './AllBooks';
 import { useI18n } from '../i18n';
 
+const matchesFolder = (shelf, query) => {
+  if (!query) return true;
+  const q = query.toLowerCase().trim();
+  return Boolean(
+    (shelf.name && shelf.name.toLowerCase().includes(q)) ||
+    (shelf.custom_name && shelf.custom_name.toLowerCase().includes(q)) ||
+    (shelf.original_name && shelf.original_name.toLowerCase().includes(q)) ||
+    (shelf.folder && shelf.folder.toLowerCase().includes(q)) ||
+    (shelf.id && shelf.id.toLowerCase().includes(q))
+  );
+};
+
 /**
  * Main content body for the library view.
  * Renders folder grids, tag grids, loading skeletons, AllBooks carousel,
@@ -15,6 +27,8 @@ import { useI18n } from '../i18n';
 export default function LibraryContent({
   selectedShelf,
   debouncedQuery,
+  formatFilter,
+  setFormatFilter,
   shelves = [],
   tags = [],
   books = [],
@@ -33,9 +47,22 @@ export default function LibraryContent({
   const { t } = useI18n();
 
   if (selectedShelf === 'folders') {
-    const displayFolders = debouncedQuery
-      ? shelves.filter(s => s.name.toLowerCase().includes(debouncedQuery.toLowerCase()))
+    let displayFolders = debouncedQuery
+      ? shelves.filter(s => matchesFolder(s, debouncedQuery))
       : shelves;
+
+    if (formatFilter && formatFilter !== 'all') {
+      displayFolders = displayFolders
+        .map(folder => {
+          const matchingBooks = books.filter(b => b.shelf === folder.id || b.folder === folder.id);
+          return {
+            ...folder,
+            book_count: matchingBooks.length,
+            _covers: matchingBooks.slice(0, 4).map(b => b.cover_url)
+          };
+        })
+        .filter(folder => folder.book_count > 0);
+    }
 
     if (displayFolders.length === 0) {
       return (
@@ -47,6 +74,14 @@ export default function LibraryContent({
           <p className="text-xs text-neutral-500 mt-1 max-w-sm">
             {t('noBooksDesc')}
           </p>
+          {formatFilter && formatFilter !== 'all' && (
+            <button
+              onClick={() => setFormatFilter && setFormatFilter('all')}
+              className="mt-4 px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
+            >
+              {t('allFormats')}
+            </button>
+          )}
         </div>
       );
     }
@@ -57,6 +92,7 @@ export default function LibraryContent({
           <FolderCard
             key={folder.id}
             folder={folder}
+            covers={folder._covers}
             books={books}
             onSelectFolder={(folderId) => navigateToShelf && navigateToShelf(folderId)}
             onContextMenu={modals?.openShelfContextMenu}
@@ -68,9 +104,22 @@ export default function LibraryContent({
   }
 
   if (selectedShelf === 'tags') {
-    const displayTags = debouncedQuery
+    let displayTags = debouncedQuery
       ? tags.filter(tg => tg.name.toLowerCase().includes(debouncedQuery.toLowerCase()))
       : tags;
+
+    if (formatFilter && formatFilter !== 'all') {
+      displayTags = displayTags
+        .map(tag => {
+          const matchingBooks = books.filter(b => b.tags && b.tags.some(t => t.id === tag.id));
+          return {
+            ...tag,
+            book_count: matchingBooks.length,
+            _covers: matchingBooks.slice(0, 4).map(b => b.cover_url)
+          };
+        })
+        .filter(tag => tag.book_count > 0);
+    }
 
     if (displayTags.length === 0) {
       return (
@@ -84,14 +133,23 @@ export default function LibraryContent({
           <p className="text-xs text-neutral-500 mt-1 max-w-sm">
             {debouncedQuery ? t('noBooksDesc') : (t('noTagsDesc') || 'Create tags to organize and categorize your books across folders.')}
           </p>
-          <button
-            type="button"
-            onClick={() => modals?.openTagModal(null)}
-            className="mt-4 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500 text-white font-medium text-xs hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('createNewTag')}</span>
-          </button>
+          {formatFilter && formatFilter !== 'all' ? (
+            <button
+              onClick={() => setFormatFilter && setFormatFilter('all')}
+              className="mt-4 px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
+            >
+              {t('allFormats')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => modals?.openTagModal(null)}
+              className="mt-4 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500 text-white font-medium text-xs hover:bg-indigo-600 transition shadow-lg shadow-indigo-500/20 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{t('createNewTag')}</span>
+            </button>
+          )}
         </div>
       );
     }
@@ -102,6 +160,7 @@ export default function LibraryContent({
           <TagCard
             key={tag.id}
             tag={tag}
+            covers={tag._covers}
             books={books}
             onSelectTag={(tg) => navigateToShelf && navigateToShelf(`tag:${tg.id}`)}
             className="w-full"
@@ -125,8 +184,15 @@ export default function LibraryContent({
     );
   }
 
-  if (books.length > 0) {
-    if (!selectedShelf && !debouncedQuery) {
+  if (!selectedShelf) {
+    const hasMatchingFolders = debouncedQuery
+      ? shelves.some(s => matchesFolder(s, debouncedQuery))
+      : shelves.length > 0;
+    const hasMatchingTags = debouncedQuery
+      ? tags.some(t => t.name && t.name.toLowerCase().includes(debouncedQuery.toLowerCase().trim()))
+      : tags.length > 0;
+
+    if (books.length > 0) {
       return (
         <AllBooks
           books={books}
@@ -141,6 +207,13 @@ export default function LibraryContent({
         />
       );
     }
+
+    if (hasMatchingFolders || hasMatchingTags) {
+      return null;
+    }
+  }
+
+  if (books.length > 0) {
 
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
@@ -162,7 +235,7 @@ export default function LibraryContent({
     );
   }
 
-  if (totalBooks === 0 && !debouncedQuery) {
+  if (totalBooks === 0 && !debouncedQuery && (!formatFilter || formatFilter === 'all')) {
     return (
       <div className="text-center py-20 flex flex-col items-center justify-center max-w-md mx-auto">
         <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 shadow-lg shadow-amber-500/10">
@@ -192,14 +265,24 @@ export default function LibraryContent({
       <p className="text-xs text-neutral-500 mt-1 max-w-sm">
         {t('noBooksDesc')}
       </p>
-      {debouncedQuery && (
-        <button
-          onClick={() => setSearchQuery && setSearchQuery('')}
-          className="mt-4 px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition"
-        >
-          {t('clearSearch')}
-        </button>
-      )}
+      <div className="flex items-center gap-2 mt-4">
+        {formatFilter && formatFilter !== 'all' && (
+          <button
+            onClick={() => setFormatFilter && setFormatFilter('all')}
+            className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
+          >
+            {t('allFormats')}
+          </button>
+        )}
+        {debouncedQuery && (
+          <button
+            onClick={() => setSearchQuery && setSearchQuery('')}
+            className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition cursor-pointer"
+          >
+            {t('clearSearch')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

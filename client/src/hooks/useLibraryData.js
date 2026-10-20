@@ -25,6 +25,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortBy, setSortBy] = useState('title_asc');
+  const [formatFilter, setFormatFilter] = useState('all');
   const [activeBook, setActiveBook] = useState(null);
   const [routeLoading, setRouteLoading] = useState(() => Boolean(route.bookId));
 
@@ -61,7 +62,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     }
   }
 
-  const bookParamsKey = `${activeLibraryId}_${selectedShelf}_${debouncedQuery}_${sortBy}`;
+  const bookParamsKey = `${activeLibraryId}_${selectedShelf}_${debouncedQuery}_${sortBy}_${formatFilter}`;
   const [prevBookParamsKey, setPrevBookParamsKey] = useState(bookParamsKey);
   if (bookParamsKey !== prevBookParamsKey) {
     setPrevBookParamsKey(bookParamsKey);
@@ -100,27 +101,29 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   }, [activeLibraryId]);
 
   // Load Continue Reading
-  const loadContinueReading = useCallback((libId) => {
+  const loadContinueReading = useCallback((libId, fmt) => {
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
-    booksApi.getContinueReading(targetLib)
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    booksApi.getContinueReading(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
       .then(data => {
         setContinueReading(data.books || []);
       })
       .catch(err => console.error('Failed to load continue reading:', err));
-  }, [activeLibraryId]);
+  }, [activeLibraryId, formatFilter]);
 
   // Load Favorites
-  const loadFavorites = useCallback((libId) => {
+  const loadFavorites = useCallback((libId, fmt) => {
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
-    booksApi.getFavorites(targetLib)
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    booksApi.getFavorites(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
       .then(data => {
         setFavorites(data.books || []);
         setFavoriteIds(new Set(data.favorite_ids || []));
       })
       .catch(err => console.error('Failed to load favorites:', err));
-  }, [activeLibraryId]);
+  }, [activeLibraryId, formatFilter]);
 
   // Load Virtual Tags
   const loadTags = useCallback((libId) => {
@@ -142,14 +145,18 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   }, []);
 
   // Load Books
-  const loadBooks = useCallback((libId, targetShelf) => {
+  const loadBooks = useCallback((libId, targetShelf, fmt) => {
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
     const shelfToUse = targetShelf !== undefined ? targetShelf : selectedShelf;
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
     const params = {
       library_id: targetLib,
       sort: sortBy,
     };
+    if (formatToUse && formatToUse !== 'all') {
+      params.format = formatToUse;
+    }
     if (shelfToUse && shelfToUse.startsWith('tag:')) {
       params.tag = shelfToUse.slice(4);
     } else if (shelfToUse && shelfToUse !== 'folders' && shelfToUse !== 'tags' && shelfToUse !== 'all-books') {
@@ -168,7 +175,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         console.error('Failed to load books:', err);
         setLoading(false);
       });
-  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy]);
+  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter]);
 
   // Handle User Change (persists to storage and reloads user-specific data)
   const handleUserChange = useCallback((newUsername) => {
@@ -325,13 +332,13 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       loadFavorites(activeLibraryId);
       loadTags(activeLibraryId);
     }
-  }, [activeLibraryId, loadShelves, loadContinueReading, loadFavorites, loadTags]);
+  }, [activeLibraryId, formatFilter, loadShelves, loadContinueReading, loadFavorites, loadTags]);
 
   useEffect(() => {
     if (activeLibraryId) {
       loadBooks(activeLibraryId, selectedShelf);
     }
-  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, loadBooks]);
+  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, loadBooks]);
 
   // Handle book progress update from Reader or status change
   const handleProgressUpdate = useCallback((bookId, newProgress) => {
@@ -479,6 +486,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     debouncedQuery,
     sortBy,
     setSortBy,
+    formatFilter,
+    setFormatFilter,
     activeBook,
     routeLoading,
 
