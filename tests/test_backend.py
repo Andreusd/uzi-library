@@ -116,6 +116,27 @@ class TestUserManager(unittest.TestCase):
         users = self.mgr.list_users()
         self.assertNotIn("Charlie", [u["username"] for u in users])
 
+    def test_get_user_profile(self):
+        # Test getting an existing user
+        self.mgr.touch_user("Diana")
+        profile = self.mgr.get_user_profile("Diana")
+        self.assertEqual(profile["username"], "Diana")
+        self.assertEqual(profile["slug"], "diana")
+        self.assertIn("created_at", profile)
+        self.assertIn("last_active", profile)
+
+        # Test getting a non-existent user (should return a default-like profile)
+        profile2 = self.mgr.get_user_profile("Eve")
+        self.assertEqual(profile2["username"], "Eve")
+        self.assertEqual(profile2["slug"], "eve")
+        self.assertIn("created_at", profile2)
+        self.assertIn("last_active", profile2)
+
+        # Test edge case with empty username
+        profile3 = self.mgr.get_user_profile("")
+        self.assertEqual(profile3["username"], "Default")
+        self.assertEqual(profile3["slug"], "default")
+
 
 class TestProgressTracker(unittest.TestCase):
     def setUp(self):

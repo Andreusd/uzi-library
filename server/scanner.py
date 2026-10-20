@@ -2,7 +2,6 @@ import os
 import re
 import hashlib
 import zipfile
-import posixpath
 import html
 import threading
 from typing import List, Dict, Any, Optional, Tuple

@@ -7,19 +7,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .scanner import LibraryScanner
-from .covers import CoverManager
-from .progress import ProgressTracker
 from .annotations import AnnotationsManager
 from .favorites import FavoritesManager
 from .lookup import LookupManager
-from .tags import TagsManager
 from .users import UserManager
 from .deps import (
     get_scanner,
     get_cover_mgr,
     get_lookup_mgr,
     get_user_mgr,
-    get_request_user,
 )
 
 # Re-export schemas for backward compatibility
