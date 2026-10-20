@@ -700,10 +700,15 @@ class Database:
     def set_book_tags(self, user_slug: str, book_id: str, tag_ids: List[str]) -> List[Dict[str, Any]]:
         with self._lock, self.get_connection() as conn:
             conn.execute("DELETE FROM book_tags WHERE user_slug = ? AND book_id = ?", (user_slug, book_id))
-            for tid in tag_ids:
-                check = conn.execute("SELECT 1 FROM tags WHERE user_slug = ? AND id = ?", (user_slug, tid)).fetchone()
-                if check:
-                    conn.execute("INSERT OR IGNORE INTO book_tags (user_slug, book_id, tag_id) VALUES (?, ?, ?)", (user_slug, book_id, tid))
+            if tag_ids:
+                placeholders = ",".join(["?"] * len(tag_ids))
+                query = f"""
+                    INSERT OR IGNORE INTO book_tags (user_slug, book_id, tag_id)
+                    SELECT ?, ?, id FROM tags
+                    WHERE user_slug = ? AND id IN ({placeholders})
+                """
+                params = [user_slug, book_id, user_slug] + tag_ids
+                conn.execute(query, params)
             return self.get_book_tags(user_slug, book_id)
 
     def toggle_book_tag(self, user_slug: str, book_id: str, tag_id: str) -> bool:

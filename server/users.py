@@ -4,7 +4,7 @@ import threading
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
-from .database import get_db, Database
+from .database import get_db
 from .progress import ProgressTracker
 from .favorites import FavoritesManager
 from .annotations import AnnotationsManager
