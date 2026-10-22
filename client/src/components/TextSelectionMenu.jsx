@@ -86,9 +86,11 @@ export default function TextSelectionMenu({
     };
 
     document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
@@ -111,9 +113,11 @@ export default function TextSelectionMenu({
   const winW = typeof window !== 'undefined' ? window.innerWidth : 1024;
   const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
 
-  // Move menu up if it extends past the bottom margin of the screen, and clamp horizontally
-  const posX = Math.max(12, Math.min(x, winW - menuWidth - 12));
-  const posY = Math.max(12, Math.min(y, winH - menuHeight - 12));
+  // Center horizontally over target coordinates, and position above selection when space permits
+  const posX = Math.max(12, Math.min(x - menuWidth / 2, winW - menuWidth - 12));
+  const posY = y - menuHeight - 12 >= 12
+    ? (y - menuHeight - 12)
+    : Math.max(12, Math.min(y + 24, winH - menuHeight - 12));
 
   // Ensure DOM element stays strictly within viewport boundaries even if dynamic content expands
   useLayoutEffect(() => {

@@ -49,13 +49,19 @@ export function usePdfAnnotations({ bookId }) {
     const pageNumber = parseInt(pageEl.getAttribute('data-pdf-page'), 10);
     if (!pageNumber) return;
 
+    const isTouchOrMobile = typeof window !== 'undefined' && (
+      'ontouchstart' in window || 
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || 
+      window.innerWidth < 768
+    );
+
     const range = selection.getRangeAt(0);
     const wrapperRect = pageEl.getBoundingClientRect();
     const clientRects = Array.from(range.getClientRects());
     if (clientRects.length === 0) return;
 
-    // Verify right-click is on or near the selected text
-    const isInside = clientRects.some(r => 
+    // Verify right-click is on or near the selected text (or touch on mobile)
+    const isInside = isTouchOrMobile || clientRects.some(r => 
       e.clientX >= r.left - 12 && 
       e.clientX <= r.right + 12 && 
       e.clientY >= r.top - 8 && 
@@ -75,14 +81,84 @@ export function usePdfAnnotations({ bookId }) {
 
     if (rects.length === 0) return;
 
+    const rangeRect = range.getBoundingClientRect();
+    const posX = (isTouchOrMobile || !e.clientX)
+      ? (rangeRect.left + rangeRect.width / 2)
+      : e.clientX;
+    const posY = (isTouchOrMobile || !e.clientY)
+      ? rangeRect.top
+      : e.clientY;
+
     setSelectionMenu({
       isOpen: true,
-      x: e.clientX,
-      y: e.clientY,
+      x: posX,
+      y: posY,
       text: text,
       rects: rects,
       page: pageNumber,
     });
+  }, []);
+
+  // Automatic mobile selection listener for PDF
+  useEffect(() => {
+    const isTouchOrMobile = typeof window !== 'undefined' && (
+      'ontouchstart' in window || 
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || 
+      window.innerWidth < 768
+    );
+    if (!isTouchOrMobile) return;
+
+    let timer = null;
+    const handleSelectionChange = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const selection = window.getSelection();
+        const text = selection ? selection.toString().trim() : '';
+        if (!text || selection.rangeCount === 0) return;
+
+        const anchorNode = selection.anchorNode;
+        const pageEl = anchorNode?.parentElement?.closest?.('[data-pdf-page]');
+        if (!pageEl) return;
+
+        const pageNumber = parseInt(pageEl.getAttribute('data-pdf-page'), 10);
+        if (!pageNumber) return;
+
+        try {
+          const range = selection.getRangeAt(0);
+          const wrapperRect = pageEl.getBoundingClientRect();
+          const clientRects = Array.from(range.getClientRects());
+          if (clientRects.length === 0) return;
+
+          const rects = clientRects.map(r => ({
+            xPct: Math.max(0, (r.left - wrapperRect.left) / wrapperRect.width),
+            yPct: Math.max(0, (r.top - wrapperRect.top) / wrapperRect.height),
+            wPct: Math.min(1, r.width / wrapperRect.width),
+            hPct: Math.min(1, r.height / wrapperRect.height),
+          })).filter(r => r.wPct > 0.002 && r.hPct > 0.002);
+
+          if (rects.length === 0) return;
+
+          const rangeRect = range.getBoundingClientRect();
+          const posX = rangeRect.left + rangeRect.width / 2;
+          const posY = rangeRect.top;
+
+          setSelectionMenu({
+            isOpen: true,
+            x: posX,
+            y: posY,
+            text,
+            rects,
+            page: pageNumber,
+          });
+        } catch {}
+      }, 150);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
   }, []);
 
   // Create new highlight or comment

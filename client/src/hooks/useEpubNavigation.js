@@ -574,9 +574,15 @@ export function useEpubNavigation({
       const text = selection ? selection.toString().trim() : '';
       if (!text || selection.rangeCount === 0) return;
 
+      const isTouchOrMobile = typeof window !== 'undefined' && (
+        'ontouchstart' in window || 
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || 
+        window.innerWidth < 768
+      );
+
       const range = selection.getRangeAt(0);
       const clientRects = Array.from(range.getClientRects());
-      const isInside = clientRects.length === 0 || clientRects.some(r => 
+      const isInside = isTouchOrMobile || clientRects.length === 0 || clientRects.some(r => 
         e.clientX >= r.left - 12 && 
         e.clientX <= r.right + 12 && 
         e.clientY >= r.top - 8 && 
@@ -595,10 +601,18 @@ export function useEpubNavigation({
         }
       } catch {}
 
+      const rangeRect = range.getBoundingClientRect();
+      const posX = (isTouchOrMobile || !e.clientX)
+        ? (iframeRect.left + rangeRect.left + rangeRect.width / 2)
+        : (iframeRect.left + e.clientX);
+      const posY = (isTouchOrMobile || !e.clientY)
+        ? (iframeRect.top + rangeRect.top)
+        : (iframeRect.top + e.clientY);
+
       setSelectionMenu(prev => ({
         isOpen: true,
-        x: iframeRect.left + e.clientX,
-        y: iframeRect.top + e.clientY,
+        x: posX,
+        y: posY,
         text,
         cfi: cfiRange || prev.cfi
       }));
@@ -609,6 +623,51 @@ export function useEpubNavigation({
         setSelectionMenu(prev => prev.isOpen ? { isOpen: false, x: 0, y: 0, text: '', cfi: null } : prev);
       }
     });
+
+    // Mobile selection listener to automatically show highlight/note menu
+    const handleSelectionChange = () => {
+      const isTouchOrMobile = typeof window !== 'undefined' && (
+        'ontouchstart' in window || 
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || 
+        window.innerWidth < 768
+      );
+      if (!isTouchOrMobile) return;
+
+      setTimeout(() => {
+        const selection = targetWin.getSelection();
+        const text = selection ? selection.toString().trim() : '';
+        if (!text || selection.rangeCount === 0) return;
+
+        try {
+          const range = selection.getRangeAt(0);
+          const rangeRect = range.getBoundingClientRect();
+          if (rangeRect.width === 0 && rangeRect.height === 0) return;
+
+          const iframe = targetDoc.defaultView?.frameElement || viewerRef?.current?.querySelector('iframe');
+          const iframeRect = iframe ? iframe.getBoundingClientRect() : { left: 0, top: 0 };
+          let cfiRange = null;
+          try {
+            const cfiBase = contents?.cfiBase || contents?.section?.cfiBase;
+            if (cfiBase) {
+              cfiRange = new EpubCFI(range, cfiBase).toString();
+            }
+          } catch {}
+
+          const posX = iframeRect.left + rangeRect.left + (rangeRect.width / 2);
+          const posY = iframeRect.top + rangeRect.top;
+
+          setSelectionMenu(prev => ({
+            isOpen: true,
+            x: posX,
+            y: posY,
+            text,
+            cfi: cfiRange || prev.cfi
+          }));
+        } catch {}
+      }, 150);
+    };
+
+    targetDoc.addEventListener('selectionchange', handleSelectionChange);
   }, [showHeader, themeRef, viewerRef, setSelectionMenu]);
 
   useEffect(() => {

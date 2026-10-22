@@ -651,12 +651,43 @@ export default function EpubViewer({
           console.warn('Navigation TOC notice:', e);
         });
 
-        // Selection tracking (save selection state without opening menu by default; menu opens on right-click)
+        // Selection tracking: On mobile/touch devices, immediately open the highlight & comment menu above the selection!
+        // On desktop, save selection state and allow right-click context menu.
         rendition.on('selected', (cfiRange, contents) => {
           if (!cfiRange || !contents || !contents.window) return;
           const selection = contents.window.getSelection();
           const text = selection ? selection.toString().trim() : '';
           if (!text || selection.rangeCount === 0) return;
+
+          const isTouchOrMobile = typeof window !== 'undefined' && (
+            window.innerWidth < 768 ||
+            'ontouchstart' in window ||
+            (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
+          );
+
+          if (isTouchOrMobile) {
+            try {
+              const range = selection.getRangeAt(0);
+              const rect = range.getBoundingClientRect();
+              const iframe = contents.document?.defaultView?.frameElement || viewerRef?.current?.querySelector('iframe');
+              const iframeRect = iframe ? iframe.getBoundingClientRect() : { left: 0, top: 0 };
+
+              // Center horizontally over selected text, clamped inside viewport
+              const centerX = iframeRect.left + rect.left + (rect.width / 2);
+              const posY = iframeRect.top + rect.top;
+
+              setSelectionMenu({
+                isOpen: true,
+                x: centerX,
+                y: posY,
+                text,
+                cfi: cfiRange
+              });
+              return;
+            } catch (err) {
+              console.warn('Could not compute mobile selection menu position:', err);
+            }
+          }
 
           setSelectionMenu(prev => ({
             ...prev,
