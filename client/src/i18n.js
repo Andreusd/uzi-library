@@ -260,10 +260,10 @@ const translations = {
     saveOffline: 'Save for Offline',
     removeOffline: 'Remove from Device',
     downloadingOffline: 'Saving Offline...',
-    offlineBooks: 'Downloaded Books',
+    offlineBooks: 'Available Offline',
     offlineBadge: 'Offline',
     offlineDesc: 'Books stored in device memory for offline reading',
-    noOfflineBooks: 'No downloaded books yet',
+    noOfflineBooks: 'No books available offline',
     noOfflineBooksDesc: 'Use the menu on any book and choose "Save for Offline" to read without internet.',
 
     // Virtual Tags
@@ -700,10 +700,10 @@ const translations = {
     saveOffline: 'Disponibilizar Offline',
     removeOffline: 'Remover do Dispositivo',
     downloadingOffline: 'Salvando Offline...',
-    offlineBooks: 'Livros Baixados',
+    offlineBooks: 'Disponível Offline',
     offlineBadge: 'Offline',
     offlineDesc: 'Livros salvos na memória do aparelho para leitura sem internet',
-    noOfflineBooks: 'Nenhum livro baixado ainda',
+    noOfflineBooks: 'Nenhum livro disponível offline',
     noOfflineBooksDesc: 'Toque no menu de qualquer livro e selecione "Disponibilizar Offline" para ler mesmo sem conexão.',
 
     // Virtual Tags
@@ -1140,10 +1140,10 @@ const translations = {
     saveOffline: 'Guardar sin conexión',
     removeOffline: 'Eliminar del dispositivo',
     downloadingOffline: 'Guardando sin conexión...',
-    offlineBooks: 'Libros descargados',
+    offlineBooks: 'Disponible sin conexión',
     offlineBadge: 'Sin conexión',
     offlineDesc: 'Libros guardados en el dispositivo para lectura sin conexión',
-    noOfflineBooks: 'Aún no hay libros descargados',
+    noOfflineBooks: 'No hay libros disponibles sin conexión',
     noOfflineBooksDesc: 'Toca el menú de cualquier libro y selecciona "Guardar sin conexión" para leer sin internet.',
 
     // Virtual Tags
@@ -1580,10 +1580,10 @@ const translations = {
     saveOffline: 'Enregistrer hors ligne',
     removeOffline: 'Supprimer de l’appareil',
     downloadingOffline: 'Enregistrement hors ligne...',
-    offlineBooks: 'Livres téléchargés',
+    offlineBooks: 'Disponible hors ligne',
     offlineBadge: 'Hors ligne',
     offlineDesc: 'Livres enregistrés sur l’appareil pour lecture sans connexion',
-    noOfflineBooks: 'Aucun livre téléchargé pour le moment',
+    noOfflineBooks: 'Aucun livre disponible hors ligne',
     noOfflineBooksDesc: 'Touchez le menu de n’importe quel livre et choisissez "Enregistrer hors ligne" pour lire sans internet.',
 
     // Virtual Tags
