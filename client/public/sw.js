@@ -3,7 +3,7 @@
  * Provides offline caching for the App Shell (HTML, JS, CSS, fonts, icons, PDF.js assets).
  */
 
-const CACHE_NAME = 'uzi-library-shell-v1';
+const CACHE_NAME = 'uzi-library-shell-v2';
 
 // Core static assets to precache on installation
 const PRECACHE_URLS = [
@@ -47,19 +47,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Cover requests: Cache-first / Stale-While-Revalidate so covers load offline seamlessly
+  // 2. Cover requests: Cache-first so covers load offline seamlessly
   if (url.pathname.startsWith('/api/cover/')) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request).then((networkResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return networkResponse;
-        }).catch(() => null);
-
-        return cachedResponse || fetchPromise;
+        });
       })
     );
     return;
@@ -70,7 +71,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Navigation requests (HTML pages): Network-first with cache fallback to /index.html
+  // 4. Navigation requests (HTML pages): Network-first with cache fallback to /index.html
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -92,8 +93,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Static assets (JS, CSS, fonts, SVG icons, PDF.js workers and WASM):
-  // Stale-While-Revalidate: return cache quickly if available, update in background
+  // 5. Static assets (JS, CSS, fonts, SVG icons, PDF.js workers and WASM):
+  // Stale-While-Revalidate: return cache immediately if available, refresh in background
   if (
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/pdfjs-') ||
@@ -106,16 +107,27 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request).then((networkResponse) => {
+        if (cachedResponse) {
+          // Revalidate in background without blocking response
+          fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const clone = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+              }
+            })
+            .catch(() => {});
+          return cachedResponse;
+        }
+
+        // Not in cache: fetch from network and store in cache
+        return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return networkResponse;
-        }).catch(() => null);
-
-        // Return cached version immediately if found, otherwise wait for network
-        return cachedResponse || fetchPromise;
+        });
       })
     );
   }
