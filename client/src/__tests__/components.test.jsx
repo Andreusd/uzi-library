@@ -10,6 +10,7 @@ import LibraryContent from '../components/LibraryContent';
 import ShelfHeader from '../components/ShelfHeader';
 import MobileMoreMenu from '../components/MobileMoreMenu';
 import ReaderMoreMenu from '../components/ReaderMoreMenu';
+import ContextMenu from '../components/ContextMenu';
 import { I18nProvider } from '../i18n';
 import { SettingsProvider } from '../contexts/SettingsContext.jsx';
 
@@ -522,6 +523,36 @@ describe('ReaderMoreMenu component', () => {
       </I18nProvider>
     );
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('ContextMenu component', () => {
+  it('renders Copy File Path and Download File action link', () => {
+    const mockBook = {
+      id: 'book-123',
+      title: 'Test Book',
+      filename: 'test-book.epub',
+      path: '/path/to/test-book.epub',
+      shelf_display: 'Sci-Fi'
+    };
+
+    render(
+      <I18nProvider>
+        <ContextMenu
+          x={100}
+          y={100}
+          book={mockBook}
+          onClose={vi.fn()}
+          onOpenReader={vi.fn()}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('Copy File Path')).toBeInTheDocument();
+    const downloadLink = screen.getByText('Download File').closest('a');
+    expect(downloadLink).toBeInTheDocument();
+    expect(downloadLink).toHaveAttribute('href', '/api/book-file/book-123');
+    expect(downloadLink).toHaveAttribute('download', 'test-book.epub');
   });
 });
 

@@ -256,6 +256,7 @@ const translations = {
     markCompleted: 'Mark as Completed',
     copyFilePath: 'Copy File Path',
     pathCopied: 'Path Copied!',
+    downloadFile: 'Download File',
 
     // Virtual Tags
     tags: 'Tags',
@@ -687,6 +688,7 @@ const translations = {
     markCompleted: 'Marcar como Concluído',
     copyFilePath: 'Copiar Caminho do Arquivo',
     pathCopied: 'Caminho Copiado!',
+    downloadFile: 'Baixar Arquivo',
 
     // Virtual Tags
     tags: 'Tags',
@@ -1118,6 +1120,7 @@ const translations = {
     markCompleted: 'Marcar como completado',
     copyFilePath: 'Copiar ruta del archivo',
     pathCopied: '¡Ruta copiada!',
+    downloadFile: 'Descargar archivo',
 
     // Virtual Tags
     tags: 'Etiquetas',
@@ -1549,6 +1552,7 @@ const translations = {
     markCompleted: 'Marquer comme terminé',
     copyFilePath: 'Copier le chemin du fichier',
     pathCopied: 'Chemin copié !',
+    downloadFile: 'Télécharger le fichier',
 
     // Virtual Tags
     tags: 'Étiquettes',

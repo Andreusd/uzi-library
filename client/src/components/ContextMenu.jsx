@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   BookOpen, Heart, RotateCcw, CheckCircle2, 
-  Copy, Check, Tag, Info 
+  Copy, Check, Tag, Info, Download 
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -52,7 +52,7 @@ export default function ContextMenu({
 
   // Adjust coordinates to ensure the menu stays within viewport boundaries
   const menuWidth = 230;
-  const menuHeight = 300;
+  const menuHeight = 330;
   const posX = Math.min(Math.max(10, x), window.innerWidth - menuWidth - 10);
   const posY = Math.min(Math.max(10, y), window.innerHeight - menuHeight - 10);
 
@@ -178,7 +178,7 @@ export default function ContextMenu({
       {/* Copy Path Action */}
       <button
         onClick={handleCopyPath}
-        className="w-full px-3 py-1.5 flex items-center gap-2.5 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 text-left transition"
+        className="w-full px-3 py-1.5 flex items-center gap-2.5 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 text-left transition cursor-pointer"
       >
         {copied ? (
           <>
@@ -192,6 +192,19 @@ export default function ContextMenu({
           </>
         )}
       </button>
+
+      {/* Download File Action */}
+      {book?.id && (
+        <a
+          href={`/api/book-file/${encodeURIComponent(book.id)}`}
+          download={book.filename || `${book.title}.${book.format || 'epub'}`}
+          onClick={() => onClose()}
+          className="w-full px-3 py-1.5 flex items-center gap-2.5 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 text-left transition cursor-pointer"
+        >
+          <Download className="w-4 h-4 text-neutral-400 shrink-0" />
+          <span>{t('downloadFile')}</span>
+        </a>
+      )}
     </div>
   );
 }
