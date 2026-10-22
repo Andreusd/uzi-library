@@ -553,6 +553,18 @@ class Database:
                 results.append(item)
             return results
 
+    def get_completed_progress(self, user_slug: str, limit: int = 50) -> List[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            query = "SELECT * FROM reading_progress WHERE user_slug = ? AND (status = 'completed' OR percent >= 100.0) ORDER BY updated_at DESC LIMIT ?"
+            rows = conn.execute(query, (user_slug, limit)).fetchall()
+            results = []
+            for r in rows:
+                item = dict(r)
+                item.pop("user_slug", None)
+                item["invert_colors"] = bool(item.get("invert_colors", 0))
+                results.append(item)
+            return results
+
     # ----------------- Favorites -----------------
     def is_favorite(self, user_slug: str, book_id: str) -> bool:
         with self._lock, self.get_connection() as conn:

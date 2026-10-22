@@ -122,6 +122,13 @@ def list_books(
             and p.get("percent", 0) < 100
         }
         books = [b for b in scanner.get_books(library_id=lib_val) if b["id"] in in_prog_ids]
+    elif active_filter in ("read", "read-books", "completed"):
+        all_prog = tracker.get_all()
+        read_ids = {
+            b_id for b_id, p in all_prog.items()
+            if p.get("status") == "completed" or (p.get("percent") is not None and float(p.get("percent", 0)) >= 100)
+        }
+        books = [b for b in scanner.get_books(library_id=lib_val) if b["id"] in read_ids]
     else:
         books = scanner.get_books(folder_filter=active_filter, library_id=lib_val)
     all_progress = tracker.get_all()
@@ -169,7 +176,7 @@ def list_books(
 
     # Sort
     if sort_val == "title_asc":
-        if active_filter == "continue-reading":
+        if active_filter in ("continue-reading", "read", "read-books", "completed"):
             books.sort(key=lambda x: x["progress"].get("updated_at", ""), reverse=True)
         else:
             books.sort(key=lambda x: x["title"].lower())
@@ -181,7 +188,7 @@ def list_books(
         books.sort(key=lambda x: x["progress"].get("updated_at", ""), reverse=True)
 
     # Show favorites first inside each folder (stable sort preserves primary ordering)
-    if active_filter and active_filter not in ("continue-reading", "favorites"):
+    if active_filter and active_filter not in ("continue-reading", "favorites", "read", "read-books", "completed"):
         books.sort(key=lambda x: 0 if x.get("is_favorite") else 1)
 
     return {
@@ -249,6 +256,49 @@ def continue_reading(
             if len(results) >= 10:
                 break
     return {"books": results}
+
+@router.get("/api/read-books")
+def read_books(
+    library_id: Optional[str] = Query(None),
+    format: Optional[str] = Query(None, description="Filter by book format: pdf, epub"),
+    user: str = Depends(get_request_user),
+    scanner: LibraryScanner = Depends(get_scanner),
+    user_mgr: UserManager = Depends(get_user_mgr)
+):
+    """Returns read/completed books strictly scoped to library and user."""
+    tracker = user_mgr.get_tracker(user)
+    favorites_mgr = user_mgr.get_favorites_mgr(user)
+    tags_mgr = user_mgr.get_tags_mgr(user)
+
+    lib_val = library_id if isinstance(library_id, str) else None
+    format_val = format.lower().strip() if isinstance(format, str) and format.strip() else None
+    completed_recents = tracker.get_completed(limit=50)
+    lib_books = {b["id"]: b for b in scanner.get_books(library_id=lib_val)}
+    results = []
+    for r in completed_recents:
+        b = lib_books.get(r["book_id"])
+        if b:
+            if format_val and format_val in ("pdf", "epub"):
+                if b.get("format") != format_val and not b.get("path", "").lower().endswith(f".{format_val}"):
+                    continue
+            b_copy = dict(b)
+            prog = {
+                "page": r.get("page", 1),
+                "total_pages": r.get("total_pages", 100),
+                "percent": float(r.get("percent", 100.0)),
+                "status": r.get("status", "completed"),
+                "zoom": r.get("zoom", 1.2),
+                "invert_colors": r.get("invert_colors", False),
+                "updated_at": r.get("updated_at", "")
+            }
+            if r.get("cfi"):
+                prog["cfi"] = r["cfi"]
+            b_copy["progress"] = prog
+            b_copy["cover_url"] = f"/api/cover/{b['id']}"
+            b_copy["is_favorite"] = favorites_mgr.is_favorite(b["id"])
+            b_copy["tags"] = tags_mgr.get_book_tags(b["id"])
+            results.append(b_copy)
+    return {"books": results, "count": len(results)}
 
 @router.post("/api/progress")
 def save_progress(

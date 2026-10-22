@@ -1,0 +1,18 @@
+{
+  "short_name": "Uzi Library",
+  "name": "Uzi Library",
+  "description": "Personal Digital Library for PDF & EPUB books",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512 any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "display": "standalone",
+  "display_override": ["fullscreen", "window-controls-overlay", "standalone"],
+  "orientation": "any"
+}

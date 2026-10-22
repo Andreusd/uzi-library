@@ -21,6 +21,7 @@ describe('Sidebar component', () => {
       totalBooks: 12,
       favoriteCount: 3,
       continueReadingCount: 2,
+      readCount: 5,
       selectedShelf: null,
       onSelectShelf: vi.fn(),
       onShelfContextMenu: vi.fn(),
@@ -58,7 +59,9 @@ describe('Sidebar component', () => {
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Continue Reading')).toBeInTheDocument();
     expect(screen.getByText('Favorites')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // favorite count badge
+    expect(screen.getByText('5')).toBeInTheDocument(); // read count badge
     expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1); // count badges
   });
 
@@ -70,6 +73,9 @@ describe('Sidebar component', () => {
 
     fireEvent.click(screen.getByText('Favorites'));
     expect(props.onSelectShelf).toHaveBeenCalledWith('favorites');
+
+    fireEvent.click(screen.getByText('Completed'));
+    expect(props.onSelectShelf).toHaveBeenCalledWith('read-books');
 
     fireEvent.click(screen.getByText('Science Fiction'));
     expect(props.onSelectShelf).toHaveBeenCalledWith('Sci-Fi');

@@ -2,10 +2,13 @@ import React, { useState, useRef } from 'react';
 import {
   Search, X, BookOpen,
   PanelLeftClose, PanelLeftOpen,
-  Settings, Heart, Bookmark, Maximize2, Minimize2, Library, Folder, Tag, Palette
+  Settings, Heart, Bookmark, Maximize2, Minimize2, Library, Folder, Tag, Palette,
+  SlidersHorizontal, MoreVertical
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import ThemeMenu from './ThemeMenu';
+import MobileFilterPopover from './MobileFilterPopover';
+import MobileMoreMenu from './MobileMoreMenu';
 import { getTagColorConfig } from '../utils/tagColors';
 import { useI18n } from '../i18n';
 import { useSettings } from '../hooks/useSettings';
@@ -52,6 +55,8 @@ export default function AppNavbar({
   const effectiveInputRef = searchInputRef || internalInputRef;
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   const sidebarOpen = propSidebarOpen !== undefined ? propSidebarOpen : settings.sidebarOpen;
   const toggleSidebar = propToggleSidebar || settings.toggleSidebar;
@@ -79,10 +84,11 @@ export default function AppNavbar({
   const navigateToShelf = propNavigateToShelf || libraryData?.navigateToShelf;
 
   const isExpanded = isSearchOpen || Boolean(searchQuery);
+  const isFilterActive = (sortBy && sortBy !== 'title_asc') || (formatFilter && formatFilter !== 'all');
 
   return (
-    <header className="h-16 px-4 sm:px-6 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-30 flex items-center justify-between gap-4">
-      <div className="flex items-center gap-2.5">
+    <header className="h-16 px-3 sm:px-6 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-40 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 sm:flex-initial">
         <button
           onClick={toggleSidebar}
           className={`p-2 rounded-lg transition-colors border ${
@@ -181,13 +187,13 @@ export default function AppNavbar({
       </div>
 
       {/* Action Controls: Search, Sort Selector, Format/Type Filter, Fullscreen & Settings */}
-      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         {/* Minimized Expandable Search Bar */}
         <div className="relative flex items-center">
           <div
             className={`relative flex items-center transition-all duration-200 ease-in-out ${
               isExpanded
-                ? 'w-44 sm:w-60 md:w-72'
+                ? 'w-36 sm:w-60 md:w-72'
                 : 'w-8 h-8'
             }`}
           >
@@ -253,8 +259,42 @@ export default function AppNavbar({
           </div>
         </div>
 
-        {/* Name Ordering (Sort Selector) */}
-        <div className="relative flex items-center">
+        {/* Mobile Filter & Sort Popover Trigger */}
+        <div className="relative sm:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileFilterOpen(prev => !prev);
+              setMobileMoreOpen(false);
+            }}
+            className={`p-1.5 rounded-lg border transition shadow-sm cursor-pointer relative ${
+              isFilterActive
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                : mobileFilterOpen
+                ? 'bg-neutral-800 border-neutral-700 text-neutral-100'
+                : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30'
+            }`}
+            title={t('filterAndSort')}
+            aria-label={t('filterAndSort')}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {isFilterActive && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-neutral-900" />
+            )}
+          </button>
+
+          <MobileFilterPopover
+            isOpen={mobileFilterOpen}
+            onClose={() => setMobileFilterOpen(false)}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            formatFilter={formatFilter}
+            setFormatFilter={setFormatFilter}
+          />
+        </div>
+
+        {/* Name Ordering (Sort Selector - Desktop) */}
+        <div className="hidden sm:flex relative items-center">
           <select
             value={sortBy}
             onChange={(e) => setSortBy && setSortBy(e.target.value)}
@@ -268,8 +308,8 @@ export default function AppNavbar({
           </select>
         </div>
 
-        {/* Format / Type Filter next to Name Ordering */}
-        <div className="relative flex items-center">
+        {/* Format / Type Filter next to Name Ordering (Desktop) */}
+        <div className="hidden sm:flex relative items-center">
           <select
             value={formatFilter}
             onChange={(e) => setFormatFilter && setFormatFilter(e.target.value)}
@@ -282,10 +322,10 @@ export default function AppNavbar({
           </select>
         </div>
 
-        {/* Toggle Fullscreen Button */}
+        {/* Toggle Fullscreen Button (Desktop) */}
         <button
           onClick={toggleFullscreen}
-          className="p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
+          className="hidden sm:inline-flex p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
           title={t('fullscreenTitle')}
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -296,7 +336,7 @@ export default function AppNavbar({
           <button
             type="button"
             onClick={() => modals?.setThemeMenuOpen(prev => !prev)}
-            className={`p-1.5 rounded-lg border transition shadow-sm cursor-pointer ${
+            className={`hidden sm:inline-flex p-1.5 rounded-lg border transition shadow-sm cursor-pointer ${
               modals?.themeMenuOpen 
                 ? 'bg-amber-500/15 border-amber-500/30 text-amber-400' 
                 : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30'
@@ -318,14 +358,43 @@ export default function AppNavbar({
           )}
         </div>
 
-        {/* Settings Button */}
+        {/* Settings Button (Desktop) */}
         <button
           onClick={() => modals?.setSettingsOpen(true)}
-          className="p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
+          className="hidden sm:inline-flex p-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 transition shadow-sm cursor-pointer"
           title={t('settings')}
         >
           <Settings className="w-4 h-4" />
         </button>
+
+        {/* Mobile More Options Menu Trigger */}
+        <div className="relative sm:hidden">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMoreOpen(prev => !prev);
+              setMobileFilterOpen(false);
+            }}
+            className={`p-1.5 rounded-lg border transition shadow-sm cursor-pointer ${
+              mobileMoreOpen
+                ? 'bg-neutral-800 border-neutral-700 text-neutral-100'
+                : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30'
+            }`}
+            title={t('moreOptions')}
+            aria-label={t('moreOptions')}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+
+          <MobileMoreMenu
+            isOpen={mobileMoreOpen}
+            onClose={() => setMobileMoreOpen(false)}
+            onOpenTheme={() => modals?.setThemeMenuOpen(true)}
+            onOpenSettings={() => modals?.setSettingsOpen(true)}
+            isFullscreen={isFullscreen}
+            toggleFullscreen={toggleFullscreen}
+          />
+        </div>
       </div>
     </header>
   );

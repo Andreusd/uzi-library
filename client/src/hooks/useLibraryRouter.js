@@ -32,6 +32,9 @@ export function parseRoute() {
   if (segments[0] === 'favorites') {
     return { view: 'favorites', libraryId: null, shelfId: 'favorites', bookId: null };
   }
+  if (segments[0] === 'read-books' || segments[0] === 'read' || segments[0] === 'completed') {
+    return { view: 'read-books', libraryId: null, shelfId: 'read-books', bookId: null };
+  }
   if (segments[0] === 'folders' || segments[0] === 'shelves') {
     return { view: 'folders', libraryId: null, shelfId: 'folders', bookId: null };
   }
@@ -69,6 +72,9 @@ export function parseRoute() {
   if (rest[0] === 'favorites') {
     return { view: 'favorites', libraryId: libId, shelfId: 'favorites', bookId: null };
   }
+  if (rest[0] === 'read-books' || rest[0] === 'read' || rest[0] === 'completed') {
+    return { view: 'read-books', libraryId: libId, shelfId: 'read-books', bookId: null };
+  }
   if (rest[0] === 'folders' || rest[0] === 'shelves') {
     return { view: 'folders', libraryId: libId, shelfId: 'folders', bookId: null };
   }
@@ -94,6 +100,7 @@ export function getPathForShelf(shelfId, libraryId) {
   if (!shelfId) return base;
   if (shelfId === 'continue-reading') return `${base}/continue-reading`;
   if (shelfId === 'favorites') return `${base}/favorites`;
+  if (shelfId === 'read-books' || shelfId === 'read') return `${base}/read-books`;
   if (shelfId === 'folders' || shelfId === 'shelves') return `${base}/folders`;
   if (shelfId === 'all-books' || shelfId === 'all') return `${base}/all-books`;
   if (shelfId === 'tags') return `${base}/tags`;

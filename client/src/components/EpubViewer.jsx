@@ -332,8 +332,13 @@ export default function EpubViewer({
       }
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    // Trigger resize smoothly when entering or exiting fullscreen
+    const timer = setTimeout(handleResize, 150);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const originalBodyOverflow = document.body.style.overflow;
@@ -376,11 +381,13 @@ export default function EpubViewer({
 
         viewerRef.current.innerHTML = '';
 
+        const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
         const rendition = epubBook.renderTo(viewerRef.current, {
           width: '100%',
           height: '100%',
           flow: 'paginated',
-          spread: 'auto'
+          spread: isMobileScreen ? 'none' : 'auto',
+          gap: 0
         });
         renditionRef.current = rendition;
 
@@ -394,6 +401,18 @@ export default function EpubViewer({
 
           try {
             contents.addStylesheetCss(`
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              *, *::before, *::after {
+                box-sizing: border-box !important;
+              }
+              #book-content, #sbo-rt-content, .epub-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+              }
               .hl-annotation, .epubjs-hl, [ref="hl-annotation"] {
                 cursor: pointer !important;
                 transition: fill-opacity 0.15s ease;
@@ -776,7 +795,7 @@ export default function EpubViewer({
 
   return (
     <div 
-      className={`fixed inset-0 z-50 flex flex-col ${themeSystem.viewerBgClass} text-neutral-200 select-none overflow-hidden transition-colors duration-300`}
+      className={`fixed inset-0 h-[100dvh] z-50 flex flex-col ${themeSystem.viewerBgClass} text-neutral-200 select-none overflow-hidden transition-colors duration-300`}
     >
       {/* Top Header Bar */}
       <EpubToolbar
@@ -814,6 +833,8 @@ export default function EpubViewer({
         handleClose={handleClose}
         onMouseEnterHeader={navSystem.onMouseEnterHeader}
         onMouseLeaveHeader={navSystem.onMouseLeaveHeader}
+        onTouchStartHeader={navSystem.onTouchStartHeader}
+        onTouchEndHeader={navSystem.onTouchEndHeader}
         readerSettingsOpen={navSystem.readerSettingsOpen}
         setReaderSettingsOpen={navSystem.setReaderSettingsOpen}
         showBottomProgress={navSystem.showBottomProgress}
@@ -827,7 +848,9 @@ export default function EpubViewer({
       />
 
       {/* Main EPUB Reader Stage + Side Drawers */}
-      <div className="relative flex-1 flex w-full h-full overflow-hidden min-h-0 pt-14 pb-4">
+      <div className={`relative flex-1 flex w-full h-full overflow-hidden min-h-0 pt-14 ${
+        isFullscreen ? 'pb-2 sm:pb-3' : 'pb-14 sm:pb-3'
+      }`}>
         {/* Toggleable Left Table of Contents Drawer */}
         <PdfOutline
           outline={toc}

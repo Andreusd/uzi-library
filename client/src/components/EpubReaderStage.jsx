@@ -77,7 +77,7 @@ export default function EpubReaderStage({
       )}
 
       {/* Expanded Document Viewport */}
-      <div className="w-full h-full px-14 sm:px-20 py-2 flex flex-col overflow-hidden">
+      <div className="w-full h-full px-4 sm:px-12 md:px-16 lg:px-20 py-2 sm:py-3 flex flex-col items-center justify-center overflow-hidden">
         <div 
           ref={viewerRef} 
           className="flex-1 w-full h-full overflow-hidden select-none" 

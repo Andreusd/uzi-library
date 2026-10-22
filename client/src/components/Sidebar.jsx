@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Library, Search, Folder, Heart, Bookmark, Home,
-  ChevronDown, Check, Plus, Tag, User, BookOpen
+  ChevronDown, Check, Plus, Tag, User, BookOpen, BookCheck
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import AppLogo from './AppLogo';
@@ -13,6 +13,7 @@ export default function Sidebar({
   totalBooks,
   favoriteCount = 0,
   continueReadingCount = 0,
+  readCount = 0,
   selectedShelf,
   onSelectShelf,
   onShelfContextMenu,
@@ -389,6 +390,38 @@ export default function Sidebar({
                   ${selectedShelf === 'favorites' ? 'bg-rose-500/20 text-rose-300' : 'bg-neutral-800 text-neutral-400'}
                 `}>
                   {favoriteCount}
+                </span>
+              </button>
+            )}
+
+            {/* Read Books Option (if any or selected) */}
+            {(readCount > 0 || selectedShelf === 'read-books') && (
+              <button
+                data-sidebar-item="true"
+                data-item-id="menu-read-books"
+                data-highlighted={highlightedMenuItemId === 'menu-read-books' ? 'true' : undefined}
+                tabIndex={0}
+                onClick={() => {
+                  onSelectShelf('read-books');
+                }}
+                className={`
+                  w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all
+                  ${highlightedMenuItemId === 'menu-read-books'
+                    ? 'ring-2 ring-amber-400 border-amber-400 bg-teal-500/20 text-teal-300 shadow-md'
+                    : selectedShelf === 'read-books'
+                    ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30'
+                    : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'}
+                `}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <BookCheck className={`w-4 h-4 shrink-0 ${selectedShelf === 'read-books' ? 'text-teal-400' : 'text-teal-400'}`} />
+                  <span className="truncate">{t('readBooks')}</span>
+                </div>
+                <span className={`
+                  text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold
+                  ${selectedShelf === 'read-books' ? 'bg-teal-500/20 text-teal-300' : 'bg-neutral-800 text-neutral-400'}
+                `}>
+                  {readCount}
                 </span>
               </button>
             )}

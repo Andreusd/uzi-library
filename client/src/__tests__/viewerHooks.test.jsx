@@ -363,6 +363,30 @@ describe('Reader Sub-System Isolated Components', () => {
     expect(screen.queryByText('continuousScroll')).not.toBeInTheDocument();
   });
 
+  it('renders ReaderToolbar settings popover with Fullscreen toggle and triggers toggleFullscreen', () => {
+    const toggleFullscreen = vi.fn();
+    render(
+      <I18nProvider>
+        <ReaderToolbar
+          book={{ title: 'Test Book Title' }}
+          format="pdf"
+          onClose={vi.fn()}
+          isHeaderShowing={true}
+          headerPinned={true}
+          readerSettingsOpen={true}
+          setReaderSettingsOpen={vi.fn()}
+          isFullscreen={false}
+          toggleFullscreen={toggleFullscreen}
+        />
+      </I18nProvider>
+    );
+
+    const fullscreenOption = screen.getByText('Toggle Fullscreen');
+    expect(fullscreenOption).toBeInTheDocument();
+    fireEvent.click(fullscreenOption);
+    expect(toggleFullscreen).toHaveBeenCalledTimes(1);
+  });
+
   it('renders ReaderLayout container with children', () => {
     const { container } = render(
       <I18nProvider>

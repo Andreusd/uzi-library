@@ -177,11 +177,15 @@ export function useEpubNavigation({
     }
   }, []);
 
-  const showHeader = useCallback(() => {
-    clearHideTimer();
-    setIsHeaderVisible(true);
-    isHeaderVisibleRef.current = true;
-  }, [clearHideTimer]);
+  const isAnyDrawerOpen = useCallback(() => (
+    Boolean(
+      tocOpenRef.current ||
+      commentsDrawerOpenRef.current ||
+      searchOpenRef.current ||
+      ttsOpenRef.current ||
+      readerSettingsOpenRef.current
+    )
+  ), []);
 
   const startHideTimer = useCallback((delay = 3000, reset = false) => {
     if (hideTimerRef.current && !reset) return;
@@ -189,11 +193,7 @@ export function useEpubNavigation({
     hideTimerRef.current = setTimeout(() => {
       if (
         isMouseOverHeaderRef.current ||
-        tocOpenRef.current ||
-        commentsDrawerOpenRef.current ||
-        searchOpenRef.current ||
-        ttsOpenRef.current ||
-        readerSettingsOpenRef.current
+        isAnyDrawerOpen()
       ) {
         return;
       }
@@ -201,7 +201,16 @@ export function useEpubNavigation({
       isHeaderVisibleRef.current = false;
       hideTimerRef.current = null;
     }, delay);
-  }, [clearHideTimer]);
+  }, [clearHideTimer, isAnyDrawerOpen]);
+
+  const showHeader = useCallback(() => {
+    clearHideTimer();
+    setIsHeaderVisible(true);
+    isHeaderVisibleRef.current = true;
+    if (!headerPinned) {
+      startHideTimer(3500, true);
+    }
+  }, [clearHideTimer, headerPinned, startHideTimer]);
 
   const toggleHeaderPinned = useCallback(() => {
     setHeaderPinned(prev => {
@@ -223,6 +232,31 @@ export function useEpubNavigation({
     });
   }, [clearHideTimer, showHeader, startHideTimer]);
 
+  const onMouseEnterHeader = useCallback((e) => {
+    if (!e || e.pointerType === 'mouse' || (!('touches' in e) && !('pointerType' in e))) {
+      isMouseOverHeaderRef.current = true;
+    }
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const onMouseLeaveHeader = useCallback(() => {
+    isMouseOverHeaderRef.current = false;
+    if (!headerPinned) {
+      startHideTimer(2000, true);
+    }
+  }, [headerPinned, startHideTimer]);
+
+  const onTouchStartHeader = useCallback(() => {
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const onTouchEndHeader = useCallback(() => {
+    isMouseOverHeaderRef.current = false;
+    if (!headerPinned && !isAnyDrawerOpen()) {
+      startHideTimer(3000, true);
+    }
+  }, [headerPinned, isAnyDrawerOpen, startHideTimer]);
+
   useEffect(() => {
     if (headerPinned) {
       clearHideTimer();
@@ -230,31 +264,28 @@ export function useEpubNavigation({
     }
 
     if (!isMouseOverHeaderRef.current) {
-      startHideTimer(3000, false);
+      startHideTimer(3000, true);
     }
 
     const handleMouseMove = (e) => {
       if (e.clientY <= 56) {
         showHeader();
       } else {
-        if (
-          isHeaderVisibleRef.current &&
-          !isMouseOverHeaderRef.current &&
-          !tocOpenRef.current &&
-          !commentsDrawerOpenRef.current &&
-          !searchOpenRef.current &&
-          !ttsOpenRef.current &&
-          !readerSettingsOpenRef.current
-        ) {
+        if (isHeaderVisibleRef.current && !isMouseOverHeaderRef.current && !isAnyDrawerOpen()) {
           startHideTimer(3000, false);
         }
       }
     };
 
     const handleTouchStart = (e) => {
-      const touch = e.touches[0];
+      const touch = e.touches?.[0];
       if (touch && touch.clientY <= 56) {
         showHeader();
+      } else {
+        isMouseOverHeaderRef.current = false;
+        if (isHeaderVisibleRef.current && !headerPinned && !isAnyDrawerOpen()) {
+          startHideTimer(2500, true);
+        }
       }
     };
 
@@ -265,7 +296,14 @@ export function useEpubNavigation({
       window.removeEventListener('touchstart', handleTouchStart);
       clearHideTimer();
     };
-  }, [headerPinned, showHeader, startHideTimer, clearHideTimer]);
+  }, [headerPinned, showHeader, startHideTimer, clearHideTimer, isAnyDrawerOpen]);
+
+  // When drawers close, auto-hide header after delay if unpinned
+  useEffect(() => {
+    if (!headerPinned && !isAnyDrawerOpen() && isHeaderVisibleRef.current) {
+      startHideTimer(2500, true);
+    }
+  }, [tocOpen, commentsDrawerOpen, searchOpen, ttsOpen, readerSettingsOpen, headerPinned, isAnyDrawerOpen, startHideTimer]);
 
   // Page flip controls
   const flipNext = useCallback(() => {
@@ -382,9 +420,28 @@ export function useEpubNavigation({
     if (!touchStartXRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
-    const diffX = touchEndX - touchStartXRef.current;
-    const diffY = touchEndY - touchStartYRef.current;
+    const startX = touchStartXRef.current;
+    const startY = touchStartYRef.current;
+    const diffX = touchEndX - startX;
+    const diffY = touchEndY - startY;
     const duration = Date.now() - touchStartTimeRef.current;
+
+    touchStartXRef.current = 0;
+    touchStartYRef.current = 0;
+
+    // Never intercept touches that originated on the header, buttons, drawers, or interactive elements
+    if (
+      startY <= 60 ||
+      e.target?.closest?.('header') ||
+      e.target?.closest?.('button') ||
+      e.target?.closest?.('aside') ||
+      e.target?.closest?.('nav') ||
+      e.target?.closest?.('[role="dialog"]')
+    ) {
+      return;
+    }
+
+    const anyOpen = isAnyDrawerOpen();
 
     if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.3 && duration < 600) {
       if (diffX < 0) {
@@ -392,10 +449,32 @@ export function useEpubNavigation({
       } else {
         flipPrev();
       }
+      // When flipping pages on mobile, hide the header if unpinned
+      if (!headerPinned && !anyOpen) {
+        setIsHeaderVisible(false);
+        isHeaderVisibleRef.current = false;
+        clearHideTimer();
+      }
+    } else if (Math.abs(diffX) < 15 && Math.abs(diffY) < 15 && duration < 350) {
+      // Single tap on page
+      if (anyOpen) {
+        if (readerSettingsOpenRef.current) {
+          setReaderSettingsOpen(false);
+        }
+        return;
+      }
+
+      if (isHeaderVisibleRef.current) {
+        if (!headerPinned) {
+          setIsHeaderVisible(false);
+          isHeaderVisibleRef.current = false;
+          clearHideTimer();
+        }
+      } else {
+        showHeader();
+      }
     }
-    touchStartXRef.current = 0;
-    touchStartYRef.current = 0;
-  }, [flipNext, flipPrev]);
+  }, [flipNext, flipPrev, headerPinned, isAnyDrawerOpen, showHeader, clearHideTimer, setReaderSettingsOpen]);
 
   useEffect(() => {
     handleTouchEndRef.current = handleTouchEnd;
@@ -461,6 +540,7 @@ export function useEpubNavigation({
 
     const onTouchStart = (e) => {
       handleTouchStartRef.current?.(e);
+      isMouseOverHeaderRef.current = false;
       const touch = e.touches?.[0];
       if (touch) {
         const iframe = targetDoc.defaultView?.frameElement || viewerRef?.current?.querySelector('iframe');
@@ -468,6 +548,10 @@ export function useEpubNavigation({
         const windowTouchY = iframeRect.top + touch.clientY;
         if (windowTouchY <= 56) {
           showHeader();
+        } else {
+          if (isHeaderVisibleRef.current && !headerPinned && !isAnyDrawerOpen()) {
+            startHideTimer(2500, true);
+          }
         }
       }
     };
@@ -618,18 +702,6 @@ export function useEpubNavigation({
     setTocOpen,
   ]);
 
-  const onMouseEnterHeader = useCallback(() => {
-    isMouseOverHeaderRef.current = true;
-    clearHideTimer();
-  }, [clearHideTimer]);
-
-  const onMouseLeaveHeader = useCallback(() => {
-    isMouseOverHeaderRef.current = false;
-    if (!headerPinned) {
-      startHideTimer(2000, true);
-    }
-  }, [headerPinned, startHideTimer]);
-
   const isHeaderShowing =
     headerPinned ||
     isHeaderVisible ||
@@ -649,6 +721,8 @@ export function useEpubNavigation({
     toggleHeaderPinned,
     onMouseEnterHeader,
     onMouseLeaveHeader,
+    onTouchStartHeader,
+    onTouchEndHeader,
     attachListenersToIframe,
     attachListenersToIframeRef,
     // Settings

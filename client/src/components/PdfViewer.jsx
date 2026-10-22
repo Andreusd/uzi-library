@@ -206,6 +206,10 @@ export default function PdfViewer({
     showHeader,
     startHideTimer,
     toggleHeaderPinned,
+    onMouseEnterHeader,
+    onMouseLeaveHeader,
+    onTouchStartHeader,
+    onTouchEndHeader,
     isMouseOverHeaderRef,
   } = useReaderHeaderPin();
 
@@ -595,6 +599,7 @@ export default function PdfViewer({
       handlePageInputBlur={nav.handlePageInputBlur}
       totalPages={nav.totalPages}
       progressPercent={progressPercent}
+      zoomScale={zoom.zoomScale}
       handleZoomIn={zoom.handleZoomIn}
       handleZoomOut={zoom.handleZoomOut}
       handleResetZoom={() => zoom.handleResetZoom(nav.currentPage)}
@@ -640,8 +645,10 @@ export default function PdfViewer({
       isHeaderShowing={isHeaderShowing}
       headerPinned={headerPinned}
       toggleHeaderPinned={toggleHeaderPinned}
-      onMouseEnterHeader={() => { isMouseOverHeaderRef.current = true; showHeader(); }}
-      onMouseLeaveHeader={() => { isMouseOverHeaderRef.current = false; if (!headerPinned) startHideTimer(2500); }}
+      onMouseEnterHeader={onMouseEnterHeader}
+      onMouseLeaveHeader={onMouseLeaveHeader}
+      onTouchStartHeader={onTouchStartHeader}
+      onTouchEndHeader={onTouchEndHeader}
     />
   );
 
@@ -649,6 +656,7 @@ export default function PdfViewer({
     <ReaderLayout
       invertColors={invertColors}
       headerPinned={headerPinned}
+      isFullscreen={isFullscreen}
       toolbar={toolbarElement}
       hasOutline={hasOutline}
       outline={outline}

@@ -38,10 +38,12 @@ export function useZoomControls({ book, pdfDoc, containerRef, isDualPage }) {
     const activeDual = forcedDual !== undefined ? forcedDual : isDualPage;
     pdfDoc.getPage(pageNumber).then(page => {
       const vp = page.getViewport({ scale: 1 });
-      const containerWidth = containerRef.current.clientWidth - 48;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      const padding = isMobile ? 8 : 48;
+      const containerWidth = Math.max(100, containerRef.current.clientWidth - padding);
       const targetScale = activeDual 
         ? Math.max(0.4, Math.min((containerWidth - 24) / (2 * vp.width), 2.5))
-        : Math.max(0.5, Math.min(containerWidth / vp.width, 2.5));
+        : Math.max(0.4, Math.min(containerWidth / vp.width, 2.5));
       setScale(Number(targetScale.toFixed(2)));
     }).catch(() => {});
   }, [pdfDoc, containerRef, isDualPage]);

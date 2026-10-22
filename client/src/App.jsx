@@ -50,6 +50,7 @@ export default function App() {
     books,
     continueReading,
     favorites,
+    readBooks,
     favoriteIds,
     tags,
     loading,
@@ -223,6 +224,7 @@ export default function App() {
           totalBooks={totalBooks}
           favoriteCount={favorites.length}
           continueReadingCount={continueReading.length}
+          readCount={readBooks.length}
           selectedShelf={selectedShelf}
           onSelectShelf={(id) => {
             navigateToShelf(id);
@@ -266,6 +268,7 @@ export default function App() {
               formatFilter={formatFilter}
               continueReading={continueReading}
               favorites={favorites}
+              readBooks={readBooks}
               shelves={shelves}
               tags={tags}
               books={books}

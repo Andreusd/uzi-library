@@ -306,8 +306,17 @@ function buildThemeCss(themeName, cfg) {
         color: ${cfg.text} !important;
         font-family: ${cfg.fontFamily} !important;
         line-height: 1.8 !important;
-        padding: 0 24px !important;
+        margin: 0 !important;
+        padding: 0 !important;
         font-weight: 400 !important;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box !important;
+      }
+      #book-content, #sbo-rt-content, .epub-container {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
       }
       div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
         background-color: transparent !important;
@@ -526,8 +535,17 @@ function buildThemeCss(themeName, cfg) {
       color: ${cfg.text} !important;
       font-family: ${cfg.fontFamily} !important;
       line-height: 1.8 !important;
-      padding: 0 24px !important;
+      margin: 0 !important;
+      padding: 0 !important;
       font-weight: 400 !important;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box !important;
+    }
+    #book-content, #sbo-rt-content, .epub-container {
+      margin: 0 !important;
+      padding: 0 !important;
+      max-width: 100% !important;
     }
     div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
       background-color: transparent !important;

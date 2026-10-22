@@ -105,10 +105,16 @@ export default function ThemeMenu({
   }, [onClose]);
 
   return (
-    <div
-      ref={popoverRef}
-      className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-neutral-800 shadow-2xl shadow-black/80 p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none"
-    >
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity"
+        onClick={onClose}
+        onTouchStart={onClose}
+      />
+      <div
+        ref={popoverRef}
+        className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-neutral-750 shadow-2xl shadow-black/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none"
+      >
       {/* Popover Header */}
       <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
         <div className="flex items-center gap-2">
@@ -225,5 +231,6 @@ export default function ThemeMenu({
         })}
       </div>
     </div>
+    </>
   );
 }

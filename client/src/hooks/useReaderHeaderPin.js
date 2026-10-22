@@ -29,11 +29,6 @@ export function useReaderHeaderPin({
     }
   }, []);
 
-  const showHeader = useCallback(() => {
-    clearHideTimer();
-    setIsHeaderVisible(true);
-  }, [clearHideTimer]);
-
   const startHideTimer = useCallback((delay = 3000, reset = false) => {
     if (hideTimerRef.current && !reset) return;
     clearHideTimer();
@@ -43,6 +38,14 @@ export function useReaderHeaderPin({
       hideTimerRef.current = null;
     }, delay);
   }, [clearHideTimer]);
+
+  const showHeader = useCallback(() => {
+    clearHideTimer();
+    setIsHeaderVisible(true);
+    if (!headerPinned) {
+      startHideTimer(3500, true);
+    }
+  }, [clearHideTimer, headerPinned, startHideTimer]);
 
   const toggleHeaderPinned = useCallback(() => {
     setHeaderPinned(prev => {
@@ -63,6 +66,31 @@ export function useReaderHeaderPin({
     });
   }, [clearHideTimer, showHeader, startHideTimer, storageKey]);
 
+  const onMouseEnterHeader = useCallback((e) => {
+    if (!e || e.pointerType === 'mouse' || (!('touches' in e) && !('pointerType' in e))) {
+      isMouseOverHeaderRef.current = true;
+    }
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const onMouseLeaveHeader = useCallback(() => {
+    isMouseOverHeaderRef.current = false;
+    if (!headerPinned) {
+      startHideTimer(2000, true);
+    }
+  }, [headerPinned, startHideTimer]);
+
+  const onTouchStartHeader = useCallback(() => {
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const onTouchEndHeader = useCallback(() => {
+    isMouseOverHeaderRef.current = false;
+    if (!headerPinned) {
+      startHideTimer(3000, true);
+    }
+  }, [headerPinned, startHideTimer]);
+
   // Window mousemove / touchstart listener to re-show header near screen top
   useEffect(() => {
     if (headerPinned) return;
@@ -77,6 +105,9 @@ export function useReaderHeaderPin({
       const touch = e.touches[0];
       if (touch && touch.clientY <= hoverThresholdY) {
         showHeader();
+      } else {
+        isMouseOverHeaderRef.current = false;
+        startHideTimer(2500, true);
       }
     };
 
@@ -106,6 +137,10 @@ export function useReaderHeaderPin({
     clearHideTimer,
     startHideTimer,
     toggleHeaderPinned,
+    onMouseEnterHeader,
+    onMouseLeaveHeader,
+    onTouchStartHeader,
+    onTouchEndHeader,
     isMouseOverHeaderRef,
   };
 }

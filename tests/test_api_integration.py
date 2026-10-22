@@ -341,6 +341,16 @@ class TestProgressAndFavoritesAPI(BaseAPITestCase):
         self.assertEqual(stat_resp.status_code, 200)
         self.assertEqual(stat_resp.json()["progress"]["status"], "completed")
 
+        # Verify book appears in /api/read-books and /api/books?shelf=read-books
+        read_resp = self.client.get("/api/read-books")
+        self.assertEqual(read_resp.status_code, 200)
+        read_books = read_resp.json()["books"]
+        self.assertTrue(any(b["id"] == book_id for b in read_books))
+
+        shelf_read_resp = self.client.get("/api/books?shelf=read-books")
+        self.assertEqual(shelf_read_resp.status_code, 200)
+        self.assertTrue(any(b["id"] == book_id for b in shelf_read_resp.json()["books"]))
+
         reset_resp = self.client.post("/api/book/status", json={"book_id": book_id, "status": "not_started"})
         self.assertEqual(reset_resp.status_code, 200)
         self.assertEqual(reset_resp.json()["progress"]["status"], "not_started")

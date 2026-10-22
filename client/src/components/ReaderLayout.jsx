@@ -15,6 +15,7 @@ import TextSelectionMenu from './TextSelectionMenu';
 export default function ReaderLayout({
   invertColors,
   headerPinned,
+  isFullscreen = false,
   toolbar,
   // Outline drawer
   hasOutline,
@@ -124,12 +125,12 @@ export default function ReaderLayout({
     : 'bg-white/90 hover:bg-white border-neutral-300 hover:border-amber-500/60 text-neutral-700 hover:text-neutral-900 shadow-xl';
 
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col font-sans select-none overscroll-none touch-none transition-colors duration-300 ${invertColors ? 'bg-black text-neutral-200' : 'bg-white text-neutral-800'}`}>
+    <div className={`fixed inset-0 h-[100dvh] z-50 flex flex-col font-sans select-none overscroll-none touch-none transition-colors duration-300 ${invertColors ? 'bg-black text-neutral-200' : 'bg-white text-neutral-800'}`}>
       {/* Top Header Toolbar Slot */}
       {toolbar}
 
       {/* Main Reader Stage */}
-      <div className={`relative flex-1 flex overflow-hidden ${invertColors ? 'bg-black' : 'bg-white'} ${!headerPinned ? 'pt-14' : ''}`}>
+      <div className={`relative flex-1 flex overflow-hidden ${invertColors ? 'bg-black' : 'bg-white'} pt-14`}>
         {/* Toggleable Left Index / Table of Contents Drawer */}
         {hasOutline && (
           <PdfOutline
@@ -149,7 +150,9 @@ export default function ReaderLayout({
             tabIndex={0}
             onScroll={onContainerScroll}
             onContextMenu={onTextContextMenu}
-            className="relative flex-1 overflow-y-auto overflow-x-auto p-4 sm:p-6 focus:outline-none select-text overscroll-none touch-pan-y"
+            className={`relative flex-1 overflow-y-auto overflow-x-auto p-0 sm:p-4 md:p-6 ${
+              isFullscreen ? 'pb-2 sm:pb-6' : 'pb-16 sm:pb-6'
+            } focus:outline-none select-text overscroll-none touch-pan-y`}
           >
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-3 text-neutral-400 select-none">

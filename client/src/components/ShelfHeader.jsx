@@ -49,22 +49,24 @@ export default function ShelfHeader({
             ? t('continueReading')
             : selectedShelf === 'favorites' 
               ? t('favorites') 
-              : selectedShelf === 'folders'
-                ? t('folders')
-                : selectedShelf === 'all-books'
-                  ? t('allBooksLibrary')
-                  : selectedShelf === 'tags'
-                    ? t('tags')
-                  : isTagFilter && currentTagObj
-                    ? (
-                      <>
-                        <span className={`w-3 h-3 rounded-full ${getTagColorConfig(currentTagObj.color).dot} shrink-0`} />
-                        <span>{currentTagObj.name}</span>
-                      </>
-                    )
-                    : currentShelfObj 
-                      ? currentShelfObj.name 
-                      : t('allBooksLibrary')}
+              : (selectedShelf === 'read-books' || selectedShelf === 'read')
+                ? t('readBooks')
+                : selectedShelf === 'folders'
+                  ? t('folders')
+                  : selectedShelf === 'all-books'
+                    ? t('allBooksLibrary')
+                    : selectedShelf === 'tags'
+                      ? t('tags')
+                    : isTagFilter && currentTagObj
+                      ? (
+                        <>
+                          <span className={`w-3 h-3 rounded-full ${getTagColorConfig(currentTagObj.color).dot} shrink-0`} />
+                          <span>{currentTagObj.name}</span>
+                        </>
+                      )
+                      : currentShelfObj 
+                        ? currentShelfObj.name 
+                        : t('allBooksLibrary')}
           {formatBadge && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400">
               {formatBadge}
@@ -83,6 +85,8 @@ export default function ShelfHeader({
               })
             : selectedShelf === 'folders'
               ? t('foldersCount', { count: shelves.length })
+              : (selectedShelf === 'read-books' || selectedShelf === 'read')
+                ? (books.length === 1 ? (t('readBooksCount_one') || t('readBooksCount', { count: 1 })) : t('readBooksCount', { count: books.length }))
               : (selectedShelf === 'all-books' || (!selectedShelf && isFormatFiltered))
                 ? t('allBooksCount', { count: isFormatFiltered ? books.length : (totalBooks || books.length) })
                 : selectedShelf === 'tags'

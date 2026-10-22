@@ -126,6 +126,14 @@ export const booksApi = {
     return apiJson(`/api/favorites${qs ? `?${qs}` : ''}`);
   },
 
+  getReadBooks: (libraryId, format) => {
+    const q = new URLSearchParams();
+    if (libraryId) q.append('library_id', libraryId);
+    if (format && format !== 'all') q.append('format', format);
+    const qs = q.toString();
+    return apiJson(`/api/read-books${qs ? `?${qs}` : ''}`);
+  },
+
   toggleFavorite: (bookId) =>
     apiJson('/api/favorites/toggle', {
       method: 'POST',

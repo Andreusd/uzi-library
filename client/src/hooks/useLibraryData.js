@@ -18,6 +18,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const [books, setBooks] = useState([]);
   const [continueReading, setContinueReading] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [readBooks, setReadBooks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       setBooks([]);
       setContinueReading([]);
       setFavorites([]);
+      setReadBooks([]);
       setFavoriteIds(new Set());
       setTags([]);
     } else {
@@ -125,6 +127,18 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       .catch(err => console.error('Failed to load favorites:', err));
   }, [activeLibraryId, formatFilter]);
 
+  // Load Read Books
+  const loadReadBooks = useCallback((libId, fmt) => {
+    const targetLib = libId !== undefined ? libId : activeLibraryId;
+    if (!targetLib) return;
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    booksApi.getReadBooks(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
+      .then(data => {
+        setReadBooks(data.books || []);
+      })
+      .catch(err => console.error('Failed to load read books:', err));
+  }, [activeLibraryId, formatFilter]);
+
   // Load Virtual Tags
   const loadTags = useCallback((libId) => {
     const targetLib = libId !== undefined ? libId : activeLibraryId;
@@ -141,6 +155,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     setBooks(prev => prev.map(b => b.id === bookId ? { ...b, tags: updatedTags } : b));
     setContinueReading(prev => prev.map(b => b.id === bookId ? { ...b, tags: updatedTags } : b));
     setFavorites(prev => prev.map(b => b.id === bookId ? { ...b, tags: updatedTags } : b));
+    setReadBooks(prev => prev.map(b => b.id === bookId ? { ...b, tags: updatedTags } : b));
     setActiveBook(prev => (prev && prev.id === bookId ? { ...prev, tags: updatedTags } : prev));
   }, []);
 
@@ -183,10 +198,11 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     if (activeLibraryId) {
       loadContinueReading(activeLibraryId);
       loadFavorites(activeLibraryId);
+      loadReadBooks(activeLibraryId);
       loadTags(activeLibraryId);
       loadBooks(activeLibraryId);
     }
-  }, [activeLibraryId, setCurrentUser, loadContinueReading, loadFavorites, loadTags, loadBooks]);
+  }, [activeLibraryId, setCurrentUser, loadContinueReading, loadFavorites, loadReadBooks, loadTags, loadBooks]);
 
   // Select Library from selector screen
   const selectLibrary = useCallback((libraryId) => {
@@ -198,8 +214,9 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     loadBooks(libraryId, null);
     loadContinueReading(libraryId);
     loadFavorites(libraryId);
+    loadReadBooks(libraryId);
     loadTags(libraryId);
-  }, [routerNavigateToShelf, loadShelves, loadBooks, loadContinueReading, loadFavorites, loadTags]);
+  }, [routerNavigateToShelf, loadShelves, loadBooks, loadContinueReading, loadFavorites, loadReadBooks, loadTags]);
 
   // Return to All Libraries selection screen
   const selectAllLibraries = useCallback(() => {
@@ -240,6 +257,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
             return updated;
           });
           setContinueReading(prev => prev.map(b => b.id === targetBook.id ? { ...b, is_favorite: data.is_favorite } : b));
+          setReadBooks(prev => prev.map(b => b.id === targetBook.id ? { ...b, is_favorite: data.is_favorite } : b));
           loadFavorites(activeLibraryId);
         }
       })
@@ -270,7 +288,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     routerNavigateToShelf(selectedShelf, activeLibraryId);
     loadContinueReading(activeLibraryId);
     loadFavorites(activeLibraryId);
-  }, [selectedShelf, activeLibraryId, routerNavigateToShelf, loadContinueReading, loadFavorites]);
+    loadReadBooks(activeLibraryId);
+  }, [selectedShelf, activeLibraryId, routerNavigateToShelf, loadContinueReading, loadFavorites, loadReadBooks]);
 
   // Synchronize route state with URL router
   useEffect(() => {
@@ -305,6 +324,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       if (activeBook) {
         loadContinueReading(route.libraryId || activeLibraryId);
         loadFavorites(route.libraryId || activeLibraryId);
+        loadReadBooks(route.libraryId || activeLibraryId);
         loadTags(route.libraryId || activeLibraryId);
       }
     }
@@ -318,6 +338,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     selectedShelf,
     loadContinueReading,
     loadFavorites,
+    loadReadBooks,
     loadTags
   ]);
 
@@ -330,9 +351,10 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       loadShelves(activeLibraryId);
       loadContinueReading(activeLibraryId);
       loadFavorites(activeLibraryId);
+      loadReadBooks(activeLibraryId);
       loadTags(activeLibraryId);
     }
-  }, [activeLibraryId, formatFilter, loadShelves, loadContinueReading, loadFavorites, loadTags]);
+  }, [activeLibraryId, formatFilter, loadShelves, loadContinueReading, loadFavorites, loadReadBooks, loadTags]);
 
   useEffect(() => {
     if (activeLibraryId) {
@@ -354,6 +376,17 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         return prev.filter(b => b.id !== bookId);
       }
       return prev.map(b => (b.id === bookId ? { ...b, progress: newProgress } : b));
+    });
+    setReadBooks(prev => {
+      const isFinished = newProgress && (newProgress.status === 'completed' || (newProgress.percent || 0) >= 100);
+      if (!isFinished) {
+        return prev.filter(b => b.id !== bookId);
+      }
+      const existing = prev.find(b => b.id === bookId);
+      if (existing) {
+        return prev.map(b => (b.id === bookId ? { ...b, progress: newProgress } : b));
+      }
+      return prev;
     });
   }, []);
 
@@ -384,14 +417,16 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         if (data.status === 'ok') {
           handleProgressUpdate(targetBook.id, data.progress);
           loadContinueReading();
+          loadReadBooks();
         }
       })
       .catch(err => {
         console.error('Failed to update book status:', err);
         loadContinueReading();
+        loadReadBooks();
         loadBooks();
       });
-  }, [handleProgressUpdate, loadContinueReading, loadBooks]);
+  }, [handleProgressUpdate, loadContinueReading, loadReadBooks, loadBooks]);
 
   // Save renamed shelf
   const handleSaveShelfName = useCallback((shelfId, customName) => {
@@ -451,6 +486,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       document.title = `${t('continueReading')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'favorites') {
       document.title = `${t('favorites')} - ${activeLibraryObj?.name || t('appTitle')}`;
+    } else if (selectedShelf === 'read-books' || selectedShelf === 'read') {
+      document.title = `${t('readBooks')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'folders') {
       document.title = `${t('folders')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'tags') {
@@ -478,6 +515,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     books,
     continueReading,
     favorites,
+    readBooks,
     favoriteIds,
     tags,
     loading,
@@ -504,6 +542,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     loadBooks,
     loadContinueReading,
     loadFavorites,
+    loadReadBooks,
     loadTags,
     selectLibrary,
     selectAllLibraries,

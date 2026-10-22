@@ -83,7 +83,7 @@ export function useLibraryKeyboardNavigation({
     setHighlightedMenuItemId(null);
   }
 
-  const { books = [], continueReading = [], favorites = [] } = libraryData;
+  const { books = [], continueReading = [], favorites = [], readBooks = [] } = libraryData;
 
   const findBookById = useCallback(
     (bookId) => {
@@ -92,11 +92,12 @@ export function useLibraryKeyboardNavigation({
       return (
         continueReading.find((b) => b && String(b.id) === strId) ||
         favorites.find((b) => b && String(b.id) === strId) ||
+        readBooks.find((b) => b && String(b.id) === strId) ||
         books.find((b) => b && String(b.id) === strId) ||
         null
       );
     },
-    [books, continueReading, favorites]
+    [books, continueReading, favorites, readBooks]
   );
 
   // Helper to open highlighted card (book, folder, or tag)
@@ -267,6 +268,8 @@ export function useLibraryKeyboardNavigation({
         initialItem = menuItems.find((m) => m.id === 'menu-continue-reading');
       } else if (selectedShelf === 'favorites') {
         initialItem = menuItems.find((m) => m.id === 'menu-favorites');
+      } else if (selectedShelf === 'read-books' || selectedShelf === 'read') {
+        initialItem = menuItems.find((m) => m.id === 'menu-read-books');
       } else if (selectedShelf === 'folders') {
         initialItem = menuItems.find((m) => m.id === 'menu-folders');
       } else if (selectedShelf === 'tags') {

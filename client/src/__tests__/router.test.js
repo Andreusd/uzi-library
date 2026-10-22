@@ -62,6 +62,19 @@ describe('useLibraryRouter', () => {
       expect(route.libraryId).toBe('lib_123');
     });
 
+    it('parses read-books route', () => {
+      setLocation('/lib_123/read-books');
+      const route = parseRoute();
+      expect(route.view).toBe('read-books');
+      expect(route.libraryId).toBe('lib_123');
+      expect(route.shelfId).toBe('read-books');
+
+      setLocation('/lib_123/completed');
+      const routeCompleted = parseRoute();
+      expect(routeCompleted.view).toBe('read-books');
+      expect(routeCompleted.shelfId).toBe('read-books');
+    });
+
     it('supports hash navigation (e.g. #/lib_123/folders)', () => {
       setLocation('/', '#/lib_123/folders');
       const route = parseRoute();
@@ -79,6 +92,7 @@ describe('useLibraryRouter', () => {
       expect(getPathForShelf(null, 'lib_1')).toBe('/lib_1');
       expect(getPathForShelf('continue-reading', 'lib_1')).toBe('/lib_1/continue-reading');
       expect(getPathForShelf('favorites', 'lib_1')).toBe('/lib_1/favorites');
+      expect(getPathForShelf('read-books', 'lib_1')).toBe('/lib_1/read-books');
       expect(getPathForShelf('folders', 'lib_1')).toBe('/lib_1/folders');
       expect(getPathForShelf('all-books', 'lib_1')).toBe('/lib_1/all-books');
       expect(getPathForShelf('tags', 'lib_1')).toBe('/lib_1/tags');

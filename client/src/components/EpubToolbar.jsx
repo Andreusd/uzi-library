@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   Maximize2, Minimize2, Moon, Sun, ListTree,
   Heart, PanelTopClose, PanelTopOpen, Palette,
-  MessageSquare, Search, Headphones, Settings
+  MessageSquare, Search, Headphones, Settings, MoreVertical
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import ReaderSettingsPopover from './ReaderSettingsPopover';
+import ReaderMoreMenu from './ReaderMoreMenu';
 
 /**
  * Dedicated top navigation and controls toolbar for the EPUB reader.
@@ -46,6 +47,8 @@ export default function EpubToolbar({
   handleClose,
   onMouseEnterHeader,
   onMouseLeaveHeader,
+  onTouchStartHeader,
+  onTouchEndHeader,
   readerSettingsOpen,
   setReaderSettingsOpen,
   showBottomProgress,
@@ -58,6 +61,7 @@ export default function EpubToolbar({
   toggleUpDownFlip,
 }) {
   const { t } = useI18n();
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const headerTheme = {
     dark: {
@@ -116,17 +120,27 @@ export default function EpubToolbar({
   const ht = headerTheme[theme] || headerTheme.dark;
 
   return (
-    <header
-      onMouseEnter={onMouseEnterHeader}
-      onMouseLeave={onMouseLeaveHeader}
-      className={`fixed top-0 inset-x-0 z-40 h-14 border-b px-4 flex items-center justify-between select-none transition-all duration-300 ease-in-out ${
-        ht.bar
-      } ${
-        isHeaderShowing ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
-      }`}
-    >
+    <>
+      {/* Invisible top hover zone to trigger header when hidden and unpinned */}
+      {!headerPinned && !isHeaderShowing && (
+        <div
+          onMouseEnter={onMouseEnterHeader}
+          className="fixed top-0 inset-x-0 h-4 z-40 bg-transparent pointer-events-auto"
+        />
+      )}
+      <header
+        onMouseEnter={onMouseEnterHeader}
+        onMouseLeave={onMouseLeaveHeader}
+        onTouchStart={onTouchStartHeader}
+        onTouchEnd={onTouchEndHeader}
+        className={`fixed top-0 inset-x-0 z-40 h-14 border-b px-3 sm:px-4 flex items-center justify-between select-none transition-all duration-300 ease-in-out ${
+          ht.bar
+        } ${
+          isHeaderShowing ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
       {/* Left: Back, TOC & Book Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(50%-90px)] sm:max-w-[calc(50%-110px)] md:max-w-[calc(50%-130px)] z-10">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 md:flex-initial md:max-w-[calc(50%-130px)] z-10 mr-2 sm:mr-3 md:mr-0">
         <button
           onClick={handleClose}
           className={`h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition text-xs font-medium shrink-0 cursor-pointer ${ht.btn}`}
@@ -170,8 +184,8 @@ export default function EpubToolbar({
         </div>
       </div>
 
-      {/* Center Page Controls - Always Centralized */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
+      {/* Center Page Controls - Centralized on tablet/desktop, hidden on mobile */}
+      <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-2 z-10">
         <button
           onClick={flipPrev}
           disabled={pageInfo?.total > 0 && pageInfo?.page <= 1}
@@ -212,9 +226,9 @@ export default function EpubToolbar({
       </div>
 
       {/* Right: Actions (Font Scaling, Theme, Fullscreen) */}
-      <div className="flex items-center gap-1 sm:gap-2 ml-auto z-10">
+      <div className="flex items-center gap-1 sm:gap-2 ml-auto z-10 shrink-0">
         {/* Font Size Adjustments */}
-        <div className={`flex items-center rounded-lg p-0.5 border ${ht.toolGroup}`}>
+        <div className={`hidden md:flex items-center rounded-lg p-0.5 border ${ht.toolGroup}`}>
           <button
             onClick={() => changeFontSize(-10)}
             className={`p-1 rounded transition cursor-pointer ${ht.toolBtn}`}
@@ -245,7 +259,7 @@ export default function EpubToolbar({
         </div>
 
         {/* Reading Theme Picker (Dark, Light, Sepia) */}
-        <div className={`flex items-center rounded-lg p-0.5 border ${ht.toolGroup}`}>
+        <div className={`hidden sm:flex items-center rounded-lg p-0.5 border ${ht.toolGroup}`}>
           <button
             onClick={() => applyTheme('dark')}
             className={`p-1 rounded transition cursor-pointer ${
@@ -296,7 +310,7 @@ export default function EpubToolbar({
               setSearchOpen(true);
             }
           }}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-lg border transition-colors cursor-pointer hidden sm:block ${
             searchOpen ? ht.iconBtnActive : ht.iconBtn
           }`}
           title={searchOpen ? t('searchClose') : t('searchInBook')}
@@ -307,7 +321,7 @@ export default function EpubToolbar({
         {/* Read Aloud (Text-to-Speech) Toggle */}
         <button
           onClick={toggleTts}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-lg border transition-colors cursor-pointer hidden sm:block ${
             ttsOpen ? ht.iconBtnActive : ht.iconBtn
           }`}
           title={ttsOpen ? t('stopSpeech') : t('readAloudTitle')}
@@ -318,7 +332,7 @@ export default function EpubToolbar({
         {/* Favorite Toggle */}
         <button
           onClick={handleFavToggle}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-lg border transition-colors cursor-pointer hidden sm:block ${
             favState
               ? 'bg-rose-500/10 border-rose-500/40 text-rose-500'
               : ht.iconBtn
@@ -333,7 +347,7 @@ export default function EpubToolbar({
           onClick={() => {
             setCommentsDrawerOpen(prev => !prev);
           }}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-lg border transition-colors cursor-pointer hidden sm:block ${
             commentsDrawerOpen ? ht.iconBtnActive : ht.iconBtn
           }`}
           title={commentsDrawerOpen ? t('hideComments') : (annotationsCount > 0 ? `${t('showComments')} (${annotationsCount})` : t('showComments'))}
@@ -351,7 +365,7 @@ export default function EpubToolbar({
         {/* Header Pin Toggle */}
         <button
           onClick={toggleHeaderPinned}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+          className={`p-1.5 rounded-lg border transition-colors hidden sm:block cursor-pointer ${
             headerPinned ? ht.iconBtnActive : ht.iconBtn
           }`}
           title={headerPinned ? t('unpinHeaderTitle') : t('pinHeaderTitle')}
@@ -362,10 +376,13 @@ export default function EpubToolbar({
         {/* Fullscreen Button */}
         <button
           onClick={toggleFullscreen}
-          className={`p-1.5 rounded-lg border transition-colors hidden sm:block cursor-pointer ${ht.iconBtn}`}
-          title={t('fullscreenTitle')}
+          className={`p-1.5 rounded-lg border transition-colors flex items-center justify-center cursor-pointer ${
+            isFullscreen ? ht.iconBtnActive : ht.iconBtn
+          }`}
+          title={isFullscreen ? t('exitFullscreen') : t('fullscreenTitle')}
+          aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreenTitle')}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
         </button>
 
         {/* Reader Settings Popover */}
@@ -384,6 +401,10 @@ export default function EpubToolbar({
             isOpen={readerSettingsOpen}
             onClose={() => setReaderSettingsOpen(false)}
             theme={theme}
+            fontSize={fontSize}
+            changeFontSize={changeFontSize}
+            resetFontSize={resetFontSize}
+            applyTheme={applyTheme}
             showBottomProgress={showBottomProgress}
             toggleBottomProgress={toggleBottomProgress}
             trackpadSwipeEnabled={trackpadSwipeEnabled}
@@ -394,9 +415,49 @@ export default function EpubToolbar({
             toggleUpDownFlip={toggleUpDownFlip}
             headerPinned={headerPinned}
             toggleHeaderPinned={toggleHeaderPinned}
+            isFullscreen={isFullscreen}
+            toggleFullscreen={toggleFullscreen}
+          />
+        </div>
+
+        {/* Mobile More Actions Menu (Search, TTS, Fav, Comments, Pin) */}
+        <div className="relative sm:hidden">
+          <button
+            onClick={() => setMoreMenuOpen(prev => !prev)}
+            className={`p-1.5 rounded-lg border transition-colors flex items-center justify-center cursor-pointer ${
+              moreMenuOpen ? ht.iconBtnActive : ht.iconBtn
+            }`}
+            title={t('moreOptions') || 'Mais opções'}
+            aria-label={t('moreOptions') || 'Mais opções'}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+
+          <ReaderMoreMenu
+            isOpen={moreMenuOpen}
+            onClose={() => setMoreMenuOpen(false)}
+            theme={theme}
+            onToggleSearch={() => {
+              if (searchOpen) {
+                handleCloseSearch();
+              } else {
+                setSearchOpen(true);
+              }
+            }}
+            searchOpen={searchOpen}
+            onToggleTts={toggleTts}
+            ttsOpen={ttsOpen}
+            onToggleFavorite={handleFavToggle}
+            isFavorite={favState}
+            onToggleComments={() => setCommentsDrawerOpen(prev => !prev)}
+            commentsDrawerOpen={commentsDrawerOpen}
+            annotationsCount={annotationsCount}
+            onToggleHeaderPinned={toggleHeaderPinned}
+            headerPinned={headerPinned}
           />
         </div>
       </div>
     </header>
+    </>
   );
 }

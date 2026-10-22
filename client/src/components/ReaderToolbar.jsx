@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, 
   Maximize2, Minimize2, Moon, Sun, ListTree,
-  MessageSquare, Heart, Settings,
+  MessageSquare, Heart, Settings, MoreVertical,
   RotateCcw, StretchHorizontal,
   Search, Headphones
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import ReaderSettingsPopover from './ReaderSettingsPopover';
+import ReaderMoreMenu from './ReaderMoreMenu';
 
 /**
  * Isolated Reader Toolbar component containing all navigation,
@@ -30,6 +31,7 @@ export default function ReaderToolbar({
   handlePageInputBlur,
   totalPages,
   progressPercent,
+  zoomScale,
   handleZoomIn,
   handleZoomOut,
   handleResetZoom,
@@ -76,8 +78,11 @@ export default function ReaderToolbar({
   toggleHeaderPinned,
   onMouseEnterHeader,
   onMouseLeaveHeader,
+  onTouchStartHeader,
+  onTouchEndHeader,
 }) {
   const { t } = useI18n();
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const btnClass = invertColors 
     ? 'bg-neutral-800/80 hover:bg-neutral-700 text-neutral-300 hover:text-white' 
@@ -111,6 +116,8 @@ export default function ReaderToolbar({
       <header 
         onMouseEnter={onMouseEnterHeader}
         onMouseLeave={onMouseLeaveHeader}
+        onTouchStart={onTouchStartHeader}
+        onTouchEnd={onTouchEndHeader}
       className={`fixed top-0 left-0 right-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 transition-all duration-300 select-none ${
         invertColors 
           ? 'bg-neutral-900/95 border-neutral-800 backdrop-blur shadow-md' 
@@ -126,7 +133,7 @@ export default function ReaderToolbar({
       }`}
     >
       {/* Left: Navigation & Book Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[calc(50%-90px)] sm:max-w-[calc(50%-110px)] md:max-w-[calc(50%-130px)] z-10">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 md:flex-initial md:max-w-[calc(50%-130px)] z-10 mr-2 sm:mr-3 md:mr-0">
         <button 
           onClick={onClose}
           className={`h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition text-xs font-medium shrink-0 cursor-pointer ${btnClass}`}
@@ -166,8 +173,8 @@ export default function ReaderToolbar({
         </div>
       </div>
 
-      {/* Center Page Controls - Always Centralized */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
+      {/* Center Page Controls - Centralized on tablet/desktop, hidden on mobile */}
+      <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-2 z-10">
         <button 
           onClick={goToPrevPage}
           disabled={!hasPrev}
@@ -204,11 +211,11 @@ export default function ReaderToolbar({
       </div>
 
       {/* Right Tools */}
-      <div className="flex items-center gap-1.5 ml-auto z-10">
+      <div className="flex items-center gap-1.5 ml-auto z-10 shrink-0">
         {/* Zoom controls */}
         <button 
           onClick={() => handleZoomOut()}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition cursor-pointer ${btnClass}`}
+          className={`h-7 w-7 items-center justify-center rounded-lg transition cursor-pointer hidden sm:inline-flex ${btnClass}`}
           title={t('zoomOutTitle')}
         >
           <ZoomOut className="w-4 h-4" />
@@ -232,7 +239,7 @@ export default function ReaderToolbar({
 
         <button 
           onClick={() => handleZoomIn()}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition cursor-pointer ${btnClass}`}
+          className={`h-7 w-7 items-center justify-center rounded-lg transition cursor-pointer hidden sm:inline-flex ${btnClass}`}
           title={t('zoomInTitle')}
         >
           <ZoomIn className="w-4 h-4" />
@@ -243,7 +250,7 @@ export default function ReaderToolbar({
         {/* In-Book Full-Text Search Toggle */}
         <button 
           onClick={onToggleSearch}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+          className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
             searchOpen ? btnActiveClass : btnClass
           }`}
           title={searchOpen ? t('searchClose') : t('searchInBook')}
@@ -254,7 +261,7 @@ export default function ReaderToolbar({
         {/* Read Aloud (Text-to-Speech) Toggle */}
         <button 
           onClick={toggleTts}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+          className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
             ttsOpen ? btnActiveClass : btnClass
           }`}
           title={ttsOpen ? t('stopSpeech') : t('readAloudTitle')}
@@ -265,7 +272,7 @@ export default function ReaderToolbar({
         {/* Invert Dark / Light */}
         <button 
           onClick={onToggleInvertColors}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+          className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
             invertColors ? btnActiveClass : btnClass
           }`}
           title={t('nightModeTitle')}
@@ -276,7 +283,7 @@ export default function ReaderToolbar({
         {/* Favorite Toggle */}
         <button 
           onClick={handleToggleFav}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+          className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
             favState 
               ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30' 
               : btnClass
@@ -289,7 +296,7 @@ export default function ReaderToolbar({
         {/* Comments & Highlights Drawer Toggle */}
         <button 
           onClick={() => setCommentsDrawerOpen(prev => !prev)}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+          className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
             commentsDrawerOpen ? btnActiveClass : btnClass
           }`}
           title={commentsDrawerOpen ? t('hideComments') : (annotationsCount > 0 ? `${t('showComments')} (${annotationsCount})` : t('showComments'))}
@@ -300,10 +307,13 @@ export default function ReaderToolbar({
         {/* Fullscreen */}
         <button 
           onClick={toggleFullscreen}
-          className={`h-7 w-7 flex items-center justify-center rounded-lg transition cursor-pointer ${btnClass}`}
-          title={t('fullscreenTitle')}
+          className={`h-7 w-7 flex items-center justify-center rounded-lg border transition cursor-pointer ${
+            isFullscreen ? btnActiveClass : btnClass
+          }`}
+          title={isFullscreen ? t('exitFullscreen') : t('fullscreenTitle')}
+          aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreenTitle')}
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? <Minimize2 className="w-4 h-4 text-amber-400" /> : <Maximize2 className="w-4 h-4" />}
         </button>
 
         {/* Reader Settings Popover */}
@@ -322,6 +332,11 @@ export default function ReaderToolbar({
             isOpen={readerSettingsOpen}
             onClose={() => setReaderSettingsOpen(false)}
             invertColors={invertColors}
+            zoomScale={zoomScale}
+            handleZoomIn={handleZoomIn}
+            handleZoomOut={handleZoomOut}
+            handleResetZoom={handleResetZoom}
+            fitWidth={fitWidth}
             centerVertically={centerVertically}
             toggleCenterVertically={toggleCenterVertically}
             showBottomProgress={showBottomProgress}
@@ -362,6 +377,41 @@ export default function ReaderToolbar({
             toggleContinuousPageSpacing={toggleContinuousPageSpacing}
             headerPinned={headerPinned}
             toggleHeaderPinned={toggleHeaderPinned}
+            isFullscreen={isFullscreen}
+            toggleFullscreen={toggleFullscreen}
+          />
+        </div>
+
+        {/* Mobile More Actions Menu (Search, TTS, Invert, Fav, Comments, Pin) */}
+        <div className="relative sm:hidden">
+          <button 
+            onClick={() => setMoreMenuOpen(prev => !prev)}
+            className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
+              moreMenuOpen ? btnActiveClass : btnClass
+            }`}
+            title={t('moreOptions') || 'Mais opções'}
+            aria-label={t('moreOptions') || 'Mais opções'}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+
+          <ReaderMoreMenu
+            isOpen={moreMenuOpen}
+            onClose={() => setMoreMenuOpen(false)}
+            theme={invertColors ? 'dark' : 'light'}
+            invertColors={invertColors}
+            onToggleSearch={onToggleSearch}
+            searchOpen={searchOpen}
+            onToggleTts={toggleTts}
+            ttsOpen={ttsOpen}
+            onToggleFavorite={handleToggleFav}
+            isFavorite={favState}
+            onToggleComments={() => setCommentsDrawerOpen(prev => !prev)}
+            commentsDrawerOpen={commentsDrawerOpen}
+            annotationsCount={annotationsCount}
+            onToggleInvertColors={onToggleInvertColors}
+            onToggleHeaderPinned={toggleHeaderPinned}
+            headerPinned={headerPinned}
           />
         </div>
       </div>

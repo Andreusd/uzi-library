@@ -1,6 +1,7 @@
 import React from 'react';
 import ContinueReading from './ContinueReading';
 import FavoriteBooks from './FavoriteBooks';
+import ReadBooks from './ReadBooks';
 import LibraryFolders from './LibraryFolders';
 import LibraryTags from './LibraryTags';
 
@@ -46,6 +47,7 @@ export default function LibraryHome({
   formatFilter,
   continueReading = [],
   favorites = [],
+  readBooks = [],
   shelves = [],
   tags = [],
   books = [],
@@ -74,6 +76,11 @@ export default function LibraryHome({
     if (!debouncedQuery) return favorites;
     return favorites.filter(book => matchesBook(book, debouncedQuery));
   }, [favorites, debouncedQuery]);
+
+  const displayReadBooks = React.useMemo(() => {
+    if (!debouncedQuery) return readBooks;
+    return readBooks.filter(book => matchesBook(book, debouncedQuery));
+  }, [readBooks, debouncedQuery]);
 
   const displayShelves = React.useMemo(() => {
     let result = shelves;
@@ -142,6 +149,20 @@ export default function LibraryHome({
           onContextMenu={modals?.openBookContextMenu}
           onToggleFavorite={handleToggleFavorite}
           onViewAll={() => navigateToShelf && navigateToShelf('favorites')}
+          onSelectTag={(tg) => navigateToShelf && navigateToShelf(`tag:${tg.id}`)}
+          showFileExtension={showFileExtension}
+        />
+      )}
+
+      {/* Read Books Shelf */}
+      {displayReadBooks.length > 0 && (
+        <ReadBooks
+          books={displayReadBooks}
+          onSelectBook={openReader} 
+          onOpenDetails={handleOpenDetails}
+          onContextMenu={modals?.openBookContextMenu}
+          onToggleFavorite={handleToggleFavorite}
+          onViewAll={() => navigateToShelf && navigateToShelf('read-books')}
           onSelectTag={(tg) => navigateToShelf && navigateToShelf(`tag:${tg.id}`)}
           showFileExtension={showFileExtension}
         />

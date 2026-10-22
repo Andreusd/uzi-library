@@ -1,35 +1,86 @@
 import { useState, useEffect, useCallback } from 'react';
 
 /**
- * Custom hook to monitor and toggle browser fullscreen state.
+ * Custom hook to monitor and toggle browser fullscreen state,
+ * with cross-browser support for mobile (WebKit / Safari / Chrome).
  */
 export function useFullscreen() {
-  const [isFullscreen, setIsFullscreen] = useState(() => {
-    return typeof document !== 'undefined' ? Boolean(document.fullscreenElement) : false;
-  });
+  const getFullscreenElement = () => {
+    if (typeof document === 'undefined') return null;
+    return (
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement ||
+      null
+    );
+  };
+
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(getFullscreenElement()));
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      setIsFullscreen(Boolean(getFullscreenElement()));
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    const events = [
+      'fullscreenchange',
+      'webkitfullscreenchange',
+      'mozfullscreenchange',
+      'MSFullscreenChange'
+    ];
+
+    events.forEach(evt => document.addEventListener(evt, handleFullscreenChange));
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      events.forEach(evt => document.removeEventListener(evt, handleFullscreenChange));
     };
   }, []);
 
   const toggleFullscreen = useCallback(() => {
     if (typeof document === 'undefined') return;
 
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.warn('Failed to enter fullscreen mode:', err);
-      });
+    const fsElement = getFullscreenElement();
+    const docEl = document.documentElement;
+
+    if (!fsElement) {
+      const requestFs =
+        docEl.requestFullscreen ||
+        docEl.webkitRequestFullscreen ||
+        docEl.mozRequestFullScreen ||
+        docEl.msRequestFullscreen;
+
+      if (requestFs) {
+        try {
+          let res;
+          try {
+            res = requestFs.call(docEl, { navigationUI: 'hide' });
+          } catch {
+            res = requestFs.call(docEl);
+          }
+          if (res && res.catch) {
+            res.catch((err) => console.warn('Failed to enter fullscreen mode:', err));
+          }
+        } catch (err) {
+          console.warn('Fullscreen call failed:', err);
+        }
+      }
     } else {
-      document.exitFullscreen().catch((err) => {
-        console.warn('Failed to exit fullscreen mode:', err);
-      });
+      const exitFs =
+        document.exitFullscreen ||
+        document.webkitExitFullscreen ||
+        document.mozCancelFullScreen ||
+        document.msExitFullscreen;
+
+      if (exitFs) {
+        try {
+          const res = exitFs.call(document);
+          if (res && res.catch) {
+            res.catch((err) => console.warn('Failed to exit fullscreen mode:', err));
+          }
+        } catch (err) {
+          console.warn('Exit fullscreen failed:', err);
+        }
+      }
     }
   }, []);
 

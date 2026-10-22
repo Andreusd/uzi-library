@@ -142,3 +142,8 @@ class ProgressTracker:
         """Returns list of books sorted by most recently read."""
         with self._lock:
             return self.db.get_recent_progress(self.user_slug, limit=limit, include_completed=include_completed)
+
+    def get_completed(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Returns list of read/completed books sorted by most recently updated."""
+        with self._lock:
+            return self.db.get_completed_progress(self.user_slug, limit=limit)

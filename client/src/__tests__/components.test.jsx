@@ -8,6 +8,8 @@ import AppNavbar from '../components/AppNavbar';
 import LibraryHome from '../components/LibraryHome';
 import LibraryContent from '../components/LibraryContent';
 import ShelfHeader from '../components/ShelfHeader';
+import MobileMoreMenu from '../components/MobileMoreMenu';
+import ReaderMoreMenu from '../components/ReaderMoreMenu';
 import { I18nProvider } from '../i18n';
 import { SettingsProvider } from '../contexts/SettingsContext.jsx';
 
@@ -208,6 +210,53 @@ describe('AppNavbar component', () => {
     fireEvent.change(formatSelect, { target: { value: 'epub' } });
     expect(setFormatFilter).toHaveBeenCalledWith('epub');
   });
+
+  it('opens mobile filter popover and allows selecting sort and format', () => {
+    const setSortBy = vi.fn();
+    const setFormatFilter = vi.fn();
+
+    renderNavbar({ setSortBy, setFormatFilter, sortBy: 'title_asc', formatFilter: 'all' });
+
+    const filterBtn = screen.getByRole('button', { name: /filter & sort/i });
+    expect(filterBtn).toBeInTheDocument();
+
+    fireEvent.click(filterBtn);
+
+    // Options inside mobile filter popover
+    const sortRecentBtn = screen.getByRole('button', { name: /recently read/i });
+    fireEvent.click(sortRecentBtn);
+    expect(setSortBy).toHaveBeenCalledWith('recent');
+
+    const pdfFilterBtn = screen.getByRole('button', { name: /^pdf$/i });
+    fireEvent.click(pdfFilterBtn);
+    expect(setFormatFilter).toHaveBeenCalledWith('pdf');
+  });
+
+  it('opens mobile more options menu and triggers theme and settings callbacks', () => {
+    const setThemeMenuOpen = vi.fn();
+    const setSettingsOpen = vi.fn();
+
+    renderNavbar({
+      modals: {
+        setThemeMenuOpen,
+        setSettingsOpen,
+      }
+    });
+
+    const moreBtn = screen.getByRole('button', { name: /more options/i });
+    expect(moreBtn).toBeInTheDocument();
+
+    fireEvent.click(moreBtn);
+
+    const themeBtns = screen.getAllByRole('button', { name: /themes/i });
+    fireEvent.click(themeBtns[themeBtns.length - 1]);
+    expect(setThemeMenuOpen).toHaveBeenCalledWith(true);
+
+    fireEvent.click(moreBtn);
+    const settingsBtns = screen.getAllByRole('button', { name: /settings/i });
+    fireEvent.click(settingsBtns[settingsBtns.length - 1]);
+    expect(setSettingsOpen).toHaveBeenCalledWith(true);
+  });
 });
 
 describe('Format filtering across home sections', () => {
@@ -376,6 +425,102 @@ describe('Format filtering across home sections', () => {
     );
 
     // Should return null (suppressing the giant "No books found" container so LibraryHome can show the matching folder)
+    expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('MobileMoreMenu component', () => {
+  it('renders fullscreen toggle and triggers toggleFullscreen and onClose when clicked', () => {
+    const handleClose = vi.fn();
+    const handleToggleFullscreen = vi.fn();
+
+    render(
+      <I18nProvider>
+        <MobileMoreMenu
+          isOpen={true}
+          onClose={handleClose}
+          isFullscreen={false}
+          toggleFullscreen={handleToggleFullscreen}
+        />
+      </I18nProvider>
+    );
+
+    const fullscreenBtn = screen.getByText('Toggle Fullscreen');
+    expect(fullscreenBtn).toBeInTheDocument();
+    fireEvent.click(fullscreenBtn);
+
+    expect(handleToggleFullscreen).toHaveBeenCalledTimes(1);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ReaderMoreMenu component', () => {
+  it('renders all options and calls their handlers', () => {
+    const handleClose = vi.fn();
+    const handleToggleSearch = vi.fn();
+    const handleToggleTts = vi.fn();
+    const handleToggleFavorite = vi.fn();
+    const handleToggleComments = vi.fn();
+    const handleToggleInvert = vi.fn();
+    const handleTogglePin = vi.fn();
+
+    render(
+      <I18nProvider>
+        <ReaderMoreMenu
+          isOpen={true}
+          onClose={handleClose}
+          theme="dark"
+          onToggleSearch={handleToggleSearch}
+          searchOpen={false}
+          onToggleTts={handleToggleTts}
+          ttsOpen={false}
+          onToggleFavorite={handleToggleFavorite}
+          isFavorite={false}
+          onToggleComments={handleToggleComments}
+          commentsDrawerOpen={false}
+          annotationsCount={3}
+          onToggleInvertColors={handleToggleInvert}
+          invertColors={false}
+          onToggleHeaderPinned={handleTogglePin}
+          headerPinned={false}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('Search in book')).toBeInTheDocument();
+    expect(screen.getByText('Read Aloud')).toBeInTheDocument();
+    expect(screen.getByText('Add to Favorites')).toBeInTheDocument();
+    expect(screen.getByText('Comments & Highlights')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('Night Reading Mode')).toBeInTheDocument();
+    expect(screen.getByText('Keep Header Pinned')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Search in book'));
+    expect(handleToggleSearch).toHaveBeenCalledTimes(1);
+    expect(handleClose).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('Read Aloud'));
+    expect(handleToggleTts).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('Add to Favorites'));
+    expect(handleToggleFavorite).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('Comments & Highlights'));
+    expect(handleToggleComments).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('Night Reading Mode'));
+    expect(handleToggleInvert).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('Keep Header Pinned'));
+    expect(handleTogglePin).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders nothing when isOpen is false', () => {
+    const { container } = render(
+      <I18nProvider>
+        <ReaderMoreMenu isOpen={false} onClose={vi.fn()} />
+      </I18nProvider>
+    );
     expect(container.firstChild).toBeNull();
   });
 });
