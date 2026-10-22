@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import AppLogo from './AppLogo';
-import LanguageSelector from './LanguageSelector';
 
 export default function LibrarySelector({
   libraries = [],
@@ -182,9 +181,6 @@ export default function LibrarySelector({
               <span>{t('whoIsReading')}</span>
             </button>
           )}
-
-          {/* Language Switcher with Flags */}
-          <LanguageSelector />
 
           {/* Settings / Manage Button */}
           <button
