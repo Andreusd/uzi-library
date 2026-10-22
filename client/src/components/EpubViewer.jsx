@@ -13,6 +13,7 @@ import { useEpubSearch } from '../hooks/useEpubSearch';
 import { useEpubTts } from '../hooks/useEpubTts';
 import { useEpubAnnotations } from '../hooks/useEpubAnnotations';
 import { useEpubNavigation } from '../hooks/useEpubNavigation';
+import { getOfflineBookArrayBuffer, saveOfflineProgress } from '../services/offlineStorage';
 import {
   findChapterLabel,
   getInitialCfi,
@@ -235,7 +236,10 @@ export default function EpubViewer({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    }).catch(err => console.error('Failed to flush EPUB progress on exit:', err));
+    }).catch(err => {
+      console.warn('Network progress sync failed on exit, saving offline:', err);
+      saveOfflineProgress(book.id, payload).catch(e => console.error(e));
+    });
 
     if (onProgressUpdate) {
       onProgressUpdate(book.id, payload);
@@ -309,7 +313,10 @@ export default function EpubViewer({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      }).catch(err => console.error('Failed to save EPUB progress:', err));
+      }).catch(err => {
+        console.warn('Network progress sync failed, saving offline:', err);
+        saveOfflineProgress(book.id, payload).catch(e => console.error(e));
+      });
 
       if (onProgressUpdate) {
         onProgressUpdate(book.id, payload);
@@ -366,12 +373,15 @@ export default function EpubViewer({
 
     async function initEpub() {
       try {
-        const bookUrl = `/api/epub/${encodeURIComponent(book.id)}.epub`;
-        const res = await fetch(bookUrl);
-        if (!res.ok) {
-          throw new Error(`Failed to load book file (HTTP ${res.status})`);
+        let arrayBuffer = await getOfflineBookArrayBuffer(book.id);
+        if (!arrayBuffer) {
+          const bookUrl = `/api/epub/${encodeURIComponent(book.id)}.epub`;
+          const res = await fetch(bookUrl);
+          if (!res.ok) {
+            throw new Error(`Failed to load book file (HTTP ${res.status})`);
+          }
+          arrayBuffer = await res.arrayBuffer();
         }
-        const arrayBuffer = await res.arrayBuffer();
         if (isCancelled) return;
 
         const epubBook = ePub(arrayBuffer);

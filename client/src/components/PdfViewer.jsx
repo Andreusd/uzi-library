@@ -19,6 +19,7 @@ import { useReaderHeaderPin } from '../hooks/useReaderHeaderPin';
 import { usePdfKeyboardGestures } from '../hooks/usePdfKeyboardGestures';
 import { SimpleLinkService } from '../utils/SimpleLinkService';
 import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
+import { getOfflineBookArrayBuffer } from '../services/offlineStorage';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -368,22 +369,35 @@ export default function PdfViewer({
   // Load PDF Document
   useEffect(() => {
     let active = true;
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const loadingTask = pdfjsLib.getDocument({
-      url: `/api/pdf/${bookId}`,
-      cMapUrl: `${origin}/pdfjs-cmaps/`,
-      cMapPacked: true,
-      wasmUrl: `${origin}/pdfjs-wasm/`,
-    });
+    let currentLoadingTask = null;
 
-    loadingTask.promise.then(
-      (doc) => {
+    async function loadDoc() {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const docParams = {
+        cMapUrl: `${origin}/pdfjs-cmaps/`,
+        cMapPacked: true,
+        wasmUrl: `${origin}/pdfjs-wasm/`,
+      };
+
+      try {
+        const offlineBuffer = await getOfflineBookArrayBuffer(bookId);
         if (!active) return;
+        if (offlineBuffer) {
+          docParams.data = new Uint8Array(offlineBuffer);
+        } else {
+          docParams.url = `/api/pdf/${bookId}`;
+        }
+
+        currentLoadingTask = pdfjsLib.getDocument(docParams);
+        const doc = await currentLoadingTask.promise;
+        if (!active) return;
+
         setPdfDoc(doc);
         initializeDocument(doc.numPages, initialPage);
         setLoading(false);
 
-        doc.getOutline().then((outlineData) => {
+        try {
+          const outlineData = await doc.getOutline();
           if (!active) return;
           if (Array.isArray(outlineData) && outlineData.length > 0) {
             setOutline(outlineData);
@@ -392,23 +406,28 @@ export default function PdfViewer({
             setOutline([]);
             setHasOutline(false);
           }
-        }).catch(() => {
+        } catch {
           if (active) {
             setOutline([]);
             setHasOutline(false);
           }
-        });
-      },
-      (error) => {
+        }
+      } catch (error) {
         if (!active) return;
         console.error('Error loading PDF:', error);
         setLoading(false);
       }
-    );
+    }
+
+    loadDoc();
 
     return () => {
       active = false;
-      loadingTask.destroy();
+      if (currentLoadingTask) {
+        try {
+          currentLoadingTask.destroy();
+        } catch {}
+      }
       clearPageRenderCache();
     };
   }, [bookId, initialPage, initializeDocument]);

@@ -53,6 +53,7 @@ export default function App() {
     readBooks,
     favoriteIds,
     tags,
+    offlineBooksCount,
     loading,
     debouncedQuery,
     formatFilter,
@@ -225,6 +226,7 @@ export default function App() {
           favoriteCount={favorites.length}
           continueReadingCount={continueReading.length}
           readCount={readBooks.length}
+          downloadedCount={offlineBooksCount}
           selectedShelf={selectedShelf}
           onSelectShelf={(id) => {
             navigateToShelf(id);

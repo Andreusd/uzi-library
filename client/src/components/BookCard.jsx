@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, CheckCircle, Heart, Info } from 'lucide-react';
+import { BookOpen, CheckCircle, Heart, Info, CloudDownload } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { useBookActions } from '../hooks/useBookActions';
 import { getTagColorConfig } from '../utils/tagColors';
@@ -182,6 +182,16 @@ export default function BookCard({
                 <span>{percent}%</span>
               </>
             )}
+          </div>
+        )}
+
+        {/* Offline Saved Indicator Badge */}
+        {book.is_offline && (
+          <div 
+            className="absolute bottom-2 left-2 p-1 rounded-md bg-neutral-900/90 backdrop-blur-md border border-sky-500/40 text-sky-400 shadow-md z-10"
+            title={t('offlineBadge')}
+          >
+            <CloudDownload className="w-3 h-3" />
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
+import { saveOfflineProgress } from '../services/offlineStorage';
 
 /**
  * Custom hook to manage PDF page navigation, dual-page layout calculations,
@@ -391,17 +392,18 @@ export function usePageNavigation({
   const saveProgress = useCallback((page, total) => {
     if (!page || !total || !book?.id) return;
     const calcPercent = Number(((page / total) * 100).toFixed(1));
+    const payload = {
+      book_id: book.id,
+      page: page,
+      total_pages: total,
+      percent: calcPercent,
+      zoom: scaleRef?.current || 1.2,
+      invert_colors: invertColorsRef?.current || false,
+    };
     fetch('/api/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        book_id: book.id,
-        page: page,
-        total_pages: total,
-        percent: calcPercent,
-        zoom: scaleRef?.current || 1.2,
-        invert_colors: invertColorsRef?.current || false,
-      })
+      body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(data => {
@@ -409,7 +411,13 @@ export function usePageNavigation({
         onProgressUpdateRef.current(book.id, data.progress);
       }
     })
-    .catch(err => console.error('Failed to save progress:', err));
+    .catch(err => {
+      console.warn('Network progress sync failed, saving offline:', err);
+      saveOfflineProgress(book.id, payload).catch(e => console.error(e));
+      if (onProgressUpdateRef.current) {
+        onProgressUpdateRef.current(book.id, payload);
+      }
+    });
   }, [book, scaleRef, invertColorsRef]);
 
   // Persist progress to backend with debounce (only when progressed past page 1)

@@ -257,6 +257,14 @@ const translations = {
     copyFilePath: 'Copy File Path',
     pathCopied: 'Path Copied!',
     downloadFile: 'Download File',
+    saveOffline: 'Save for Offline',
+    removeOffline: 'Remove from Device',
+    downloadingOffline: 'Saving Offline...',
+    offlineBooks: 'Downloaded Books',
+    offlineBadge: 'Offline',
+    offlineDesc: 'Books stored in device memory for offline reading',
+    noOfflineBooks: 'No downloaded books yet',
+    noOfflineBooksDesc: 'Use the menu on any book and choose "Save for Offline" to read without internet.',
 
     // Virtual Tags
     tags: 'Tags',
@@ -689,6 +697,14 @@ const translations = {
     copyFilePath: 'Copiar Caminho do Arquivo',
     pathCopied: 'Caminho Copiado!',
     downloadFile: 'Baixar Arquivo',
+    saveOffline: 'Disponibilizar Offline',
+    removeOffline: 'Remover do Dispositivo',
+    downloadingOffline: 'Salvando Offline...',
+    offlineBooks: 'Livros Baixados',
+    offlineBadge: 'Offline',
+    offlineDesc: 'Livros salvos na memória do aparelho para leitura sem internet',
+    noOfflineBooks: 'Nenhum livro baixado ainda',
+    noOfflineBooksDesc: 'Toque no menu de qualquer livro e selecione "Disponibilizar Offline" para ler mesmo sem conexão.',
 
     // Virtual Tags
     tags: 'Tags',
@@ -1121,6 +1137,14 @@ const translations = {
     copyFilePath: 'Copiar ruta del archivo',
     pathCopied: '¡Ruta copiada!',
     downloadFile: 'Descargar archivo',
+    saveOffline: 'Guardar sin conexión',
+    removeOffline: 'Eliminar del dispositivo',
+    downloadingOffline: 'Guardando sin conexión...',
+    offlineBooks: 'Libros descargados',
+    offlineBadge: 'Sin conexión',
+    offlineDesc: 'Libros guardados en el dispositivo para lectura sin conexión',
+    noOfflineBooks: 'Aún no hay libros descargados',
+    noOfflineBooksDesc: 'Toca el menú de cualquier libro y selecciona "Guardar sin conexión" para leer sin internet.',
 
     // Virtual Tags
     tags: 'Etiquetas',
@@ -1553,6 +1577,14 @@ const translations = {
     copyFilePath: 'Copier le chemin du fichier',
     pathCopied: 'Chemin copié !',
     downloadFile: 'Télécharger le fichier',
+    saveOffline: 'Enregistrer hors ligne',
+    removeOffline: 'Supprimer de l’appareil',
+    downloadingOffline: 'Enregistrement hors ligne...',
+    offlineBooks: 'Livres téléchargés',
+    offlineBadge: 'Hors ligne',
+    offlineDesc: 'Livres enregistrés sur l’appareil pour lecture sans connexion',
+    noOfflineBooks: 'Aucun livre téléchargé pour le moment',
+    noOfflineBooksDesc: 'Touchez le menu de n’importe quel livre et choisissez "Enregistrer hors ligne" pour lire sans internet.',
 
     // Virtual Tags
     tags: 'Étiquettes',

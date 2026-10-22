@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, BookOpen, Heart, 
   Tag, Copy, Check, FileText, Clock, 
-  Folder, Layers, MessageSquare
+  Folder, Layers, MessageSquare,
+  CloudDownload, Download, Loader2, CheckCircle2
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { getTagColorConfig } from '../utils/tagColors';
+import { isBookOffline, saveBookOffline, removeBookOffline } from '../services/offlineStorage';
 
 export default function BookDetailsModal({
   isOpen,
@@ -23,11 +25,23 @@ export default function BookDetailsModal({
   const [prevBook, setPrevBook] = useState(book);
   const [details, setDetails] = useState(book);
   const [copied, setCopied] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [isSavingOffline, setIsSavingOffline] = useState(false);
 
   if (book !== prevBook) {
     setPrevBook(book);
     setDetails(book);
   }
+
+  useEffect(() => {
+    let active = true;
+    if (book?.id) {
+      isBookOffline(book.id).then((saved) => {
+        if (active) setIsOffline(saved);
+      });
+    }
+    return () => { active = false; };
+  }, [book?.id]);
 
   useEffect(() => {
     if (!isOpen || !book?.id) return;
@@ -77,6 +91,28 @@ export default function BookDetailsModal({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
+    }
+  };
+
+  const handleToggleOffline = async () => {
+    if (!details?.id || isSavingOffline) return;
+    if (isOffline) {
+      try {
+        await removeBookOffline(details.id);
+        setIsOffline(false);
+      } catch (err) {
+        console.error('Failed to remove book offline:', err);
+      }
+    } else {
+      setIsSavingOffline(true);
+      try {
+        await saveBookOffline(details);
+        setIsOffline(true);
+      } catch (err) {
+        console.error('Failed to save book offline:', err);
+      } finally {
+        setIsSavingOffline(false);
+      }
     }
   };
 
@@ -202,6 +238,47 @@ export default function BookDetailsModal({
                     <Tag className="w-3.5 h-3.5" />
                   </button>
                 </div>
+
+                {/* Offline Availability Toggle */}
+                <button
+                  type="button"
+                  onClick={handleToggleOffline}
+                  disabled={isSavingOffline}
+                  className={`w-full py-1.5 px-2 rounded-lg border text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                    isOffline
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                      : 'bg-neutral-800/80 border-neutral-700/60 text-neutral-300 hover:text-sky-300 hover:bg-neutral-800'
+                  }`}
+                >
+                  {isSavingOffline ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                      <span className="text-amber-400">{t('downloadingOffline')}</span>
+                    </>
+                  ) : isOffline ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{t('removeOffline')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudDownload className="w-3.5 h-3.5 text-sky-400" />
+                      <span>{t('saveOffline')}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Direct File Download */}
+                {details?.id && (
+                  <a
+                    href={`/api/book-file/${encodeURIComponent(details.id)}`}
+                    download={details.filename || `${details.title}.${details.format || 'epub'}`}
+                    className="w-full py-1.5 px-2 rounded-lg border border-neutral-700/60 bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>{t('downloadFile')}</span>
+                  </a>
+                )}
               </div>
             </div>
 

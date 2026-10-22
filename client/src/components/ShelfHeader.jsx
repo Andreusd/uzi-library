@@ -49,7 +49,9 @@ export default function ShelfHeader({
             ? t('continueReading')
             : selectedShelf === 'favorites' 
               ? t('favorites') 
-              : (selectedShelf === 'read-books' || selectedShelf === 'read')
+              : selectedShelf === 'downloaded'
+                ? t('offlineBooks')
+                : (selectedShelf === 'read-books' || selectedShelf === 'read')
                 ? t('readBooks')
                 : selectedShelf === 'folders'
                   ? t('folders')
@@ -85,6 +87,8 @@ export default function ShelfHeader({
               })
             : selectedShelf === 'folders'
               ? t('foldersCount', { count: shelves.length })
+              : selectedShelf === 'downloaded'
+                ? (t('offlineDesc', { count: books.length }) || `${books.length} books stored offline`)
               : (selectedShelf === 'read-books' || selectedShelf === 'read')
                 ? (books.length === 1 ? (t('readBooksCount_one') || t('readBooksCount', { count: 1 })) : t('readBooksCount', { count: books.length }))
               : (selectedShelf === 'all-books' || (!selectedShelf && isFormatFiltered))

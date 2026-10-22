@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import {
   Library, Search, Folder, Heart, Bookmark, Home,
-  ChevronDown, Check, Plus, Tag, User, BookOpen, BookCheck
+  ChevronDown, Check, Plus, Tag, User, BookOpen, BookCheck,
+  CloudDownload
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import AppLogo from './AppLogo';
@@ -14,6 +15,7 @@ export default function Sidebar({
   favoriteCount = 0,
   continueReadingCount = 0,
   readCount = 0,
+  downloadedCount = 0,
   selectedShelf,
   onSelectShelf,
   onShelfContextMenu,
@@ -422,6 +424,38 @@ export default function Sidebar({
                   ${selectedShelf === 'read-books' ? 'bg-teal-500/20 text-teal-300' : 'bg-neutral-800 text-neutral-400'}
                 `}>
                   {readCount}
+                </span>
+              </button>
+            )}
+
+            {/* Downloaded / Offline Books Option (if any or selected) */}
+            {(downloadedCount > 0 || selectedShelf === 'downloaded') && (
+              <button
+                data-sidebar-item="true"
+                data-item-id="menu-downloaded"
+                data-highlighted={highlightedMenuItemId === 'menu-downloaded' ? 'true' : undefined}
+                tabIndex={0}
+                onClick={() => {
+                  onSelectShelf('downloaded');
+                }}
+                className={`
+                  w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all
+                  ${highlightedMenuItemId === 'menu-downloaded'
+                    ? 'ring-2 ring-amber-400 border-amber-400 bg-sky-500/20 text-sky-300 shadow-md'
+                    : selectedShelf === 'downloaded'
+                    ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                    : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'}
+                `}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <CloudDownload className={`w-4 h-4 shrink-0 ${selectedShelf === 'downloaded' ? 'text-sky-400' : 'text-sky-400'}`} />
+                  <span className="truncate">{t('offlineBooks')}</span>
+                </div>
+                <span className={`
+                  text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold
+                  ${selectedShelf === 'downloaded' ? 'bg-sky-500/20 text-sky-300' : 'bg-neutral-800 text-neutral-400'}
+                `}>
+                  {downloadedCount}
                 </span>
               </button>
             )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Folder, FolderOpen, Plus, Settings, Tag } from 'lucide-react';
+import { BookOpen, Folder, FolderOpen, Plus, Settings, Tag, CloudDownload } from 'lucide-react';
 import BookCard from './BookCard';
 import FolderCard from './FolderCard';
 import TagCard from './TagCard';
@@ -252,6 +252,40 @@ export default function LibraryContent({
           <Settings className="w-4 h-4" />
           <span>{t('configureLibrary')}</span>
         </button>
+      </div>
+    );
+  }
+
+  if (selectedShelf === 'downloaded') {
+    return (
+      <div className="text-center py-20 flex flex-col items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-4">
+          <CloudDownload className="w-8 h-8 text-sky-400" />
+        </div>
+        <h3 className="text-base font-semibold text-neutral-300">
+          {debouncedQuery ? t('noBooksFound') : t('noOfflineBooks')}
+        </h3>
+        <p className="text-xs text-neutral-500 mt-1 max-w-sm">
+          {debouncedQuery ? t('noBooksDesc') : t('noOfflineBooksDesc')}
+        </p>
+        <div className="flex items-center gap-2 mt-4">
+          {formatFilter && formatFilter !== 'all' && (
+            <button
+              onClick={() => setFormatFilter && setFormatFilter('all')}
+              className="px-3 py-1.5 text-xs rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition cursor-pointer"
+            >
+              {t('allFormats')}
+            </button>
+          )}
+          {debouncedQuery && (
+            <button
+              onClick={() => setSearchQuery && setSearchQuery('')}
+              className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition cursor-pointer"
+            >
+              {t('clearSearch')}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
