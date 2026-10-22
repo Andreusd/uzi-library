@@ -463,7 +463,6 @@ describe('ReaderMoreMenu component', () => {
     const handleToggleFavorite = vi.fn();
     const handleToggleComments = vi.fn();
     const handleToggleInvert = vi.fn();
-    const handleTogglePin = vi.fn();
 
     render(
       <I18nProvider>
@@ -482,8 +481,6 @@ describe('ReaderMoreMenu component', () => {
           annotationsCount={3}
           onToggleInvertColors={handleToggleInvert}
           invertColors={false}
-          onToggleHeaderPinned={handleTogglePin}
-          headerPinned={false}
         />
       </I18nProvider>
     );
@@ -494,7 +491,7 @@ describe('ReaderMoreMenu component', () => {
     expect(screen.getByText('Comments & Highlights')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('Night Reading Mode')).toBeInTheDocument();
-    expect(screen.getByText('Keep Header Pinned')).toBeInTheDocument();
+    expect(screen.queryByText('Keep Header Pinned')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Search in book'));
     expect(handleToggleSearch).toHaveBeenCalledTimes(1);
@@ -511,9 +508,6 @@ describe('ReaderMoreMenu component', () => {
 
     fireEvent.click(screen.getByText('Night Reading Mode'));
     expect(handleToggleInvert).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByText('Keep Header Pinned'));
-    expect(handleTogglePin).toHaveBeenCalledTimes(1);
   });
 
   it('renders nothing when isOpen is false', () => {

@@ -410,8 +410,6 @@ export default function ReaderToolbar({
             commentsDrawerOpen={commentsDrawerOpen}
             annotationsCount={annotationsCount}
             onToggleInvertColors={onToggleInvertColors}
-            onToggleHeaderPinned={toggleHeaderPinned}
-            headerPinned={headerPinned}
           />
         </div>
       </div>

@@ -6,8 +6,6 @@ import {
   MessageSquare,
   Moon,
   Sun,
-  PanelTopClose,
-  PanelTopOpen,
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -35,9 +33,6 @@ export default function ReaderMoreMenu({
   // Night Mode (PDF)
   onToggleInvertColors,
   invertColors,
-  // Header Pin
-  onToggleHeaderPinned,
-  headerPinned,
 }) {
   const { t } = useI18n();
   const menuRef = useRef(null);
@@ -202,30 +197,6 @@ export default function ReaderMoreMenu({
               <>
                 <Moon className="w-4 h-4 shrink-0 text-amber-500" />
                 <span className="truncate">{cleanLabel(t('nightModeTitle'))}</span>
-              </>
-            )}
-          </button>
-        )}
-
-        {/* Pin Header */}
-        {onToggleHeaderPinned && (
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onToggleHeaderPinned();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${itemHover}`}
-          >
-            {headerPinned ? (
-              <>
-                <PanelTopClose className="w-4 h-4 shrink-0 text-amber-400" />
-                <span className="truncate">{cleanLabel(t('unpinHeaderTitle'))}</span>
-              </>
-            ) : (
-              <>
-                <PanelTopOpen className="w-4 h-4 shrink-0 text-neutral-400" />
-                <span className="truncate">{t('pinHeader') || cleanLabel(t('pinHeaderTitle'))}</span>
               </>
             )}
           </button>

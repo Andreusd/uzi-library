@@ -452,8 +452,6 @@ export default function EpubToolbar({
             onToggleComments={() => setCommentsDrawerOpen(prev => !prev)}
             commentsDrawerOpen={commentsDrawerOpen}
             annotationsCount={annotationsCount}
-            onToggleHeaderPinned={toggleHeaderPinned}
-            headerPinned={headerPinned}
           />
         </div>
       </div>
