@@ -334,6 +334,8 @@ export default function EpubViewer({
     const handleResize = () => {
       if (renditionRef.current) {
         try {
+          const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+          renditionRef.current.spread(isMobile ? 'none' : 'auto');
           renditionRef.current.resize();
         } catch {}
       }
@@ -397,7 +399,7 @@ export default function EpubViewer({
           height: '100%',
           flow: 'paginated',
           spread: isMobileScreen ? 'none' : 'auto',
-          gap: 0
+          gap: isMobileScreen ? 20 : 60
         });
         renditionRef.current = rendition;
 
@@ -410,19 +412,25 @@ export default function EpubViewer({
           attachListenersToIframeRef.current?.(contents.document, contents.window, contents);
 
           try {
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
             contents.addStylesheetCss(`
-              html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-              }
               *, *::before, *::after {
                 box-sizing: border-box !important;
               }
-              #book-content, #sbo-rt-content, .epub-container {
-                margin: 0 !important;
-                padding: 0 !important;
-                max-width: 100% !important;
-              }
+              ${isMobile ? `
+                html, body {
+                  margin: 0 !important;
+                  padding-left: 10px !important;
+                  padding-right: 10px !important;
+                }
+                #book-content, #sbo-rt-content, .epub-container {
+                  margin-left: 0 !important;
+                  margin-right: 0 !important;
+                  padding-left: 0 !important;
+                  padding-right: 0 !important;
+                  max-width: 100% !important;
+                }
+              ` : ''}
               .hl-annotation, .epubjs-hl, [ref="hl-annotation"] {
                 cursor: pointer !important;
                 transition: fill-opacity 0.15s ease;
