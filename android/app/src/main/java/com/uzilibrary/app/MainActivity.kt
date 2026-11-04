@@ -4,14 +4,19 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -24,9 +29,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -61,7 +63,7 @@ class MainActivity : AppCompatActivity() {
                 if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
-                    finish()
+                    showExitOrConfigDialog()
                 }
             }
         })
@@ -76,13 +78,14 @@ class MainActivity : AppCompatActivity() {
                 prefill = DEFAULT_URL
             )
         } else {
-            loadAndVerifyUrl(savedUrl)
+            loadUrl(savedUrl)
         }
     }
 
     override fun onResume() {
         super.onResume()
         enableImmersiveMode()
+        updateCacheMode()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -105,6 +108,34 @@ class MainActivity : AppCompatActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun updateCacheMode() {
+        val isOnline = isNetworkAvailable()
+        val cacheMode = if (isOnline) {
+            WebSettings.LOAD_DEFAULT
+        } else {
+            WebSettings.LOAD_CACHE_ELSE_NETWORK
+        }
+        webView.settings.cacheMode = cacheMode
+    }
+
+    private fun loadUrl(url: String) {
+        activeUrl = url
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_SERVER_URL, url).apply()
+
+        updateCacheMode()
+        progressBar.visibility = View.VISIBLE
+        webView.loadUrl(url)
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView(root: FrameLayout) {
         webView = WebView(this).apply {
@@ -125,8 +156,22 @@ class MainActivity : AppCompatActivity() {
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        settings.cacheMode = WebSettings.LOAD_DEFAULT
         settings.mediaPlaybackRequiresUserGesture = false
+
+        updateCacheMode()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val swController = ServiceWorkerController.getInstance()
+                swController.setServiceWorkerClient(object : ServiceWorkerClient() {
+                    override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                        return null
+                    }
+                })
+            } catch (e: Exception) {
+                // Ignore if service worker unsupported
+            }
+        }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -148,12 +193,20 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     val failingUrl = request.url.toString()
-                    runOnUiThread {
-                        promptServerUrl(
-                            title = "Falha na Conexão",
-                            message = "Não foi possível conectar ao servidor em:\n$failingUrl\n\nVerifique se o computador/servidor está ligado ou informe o novo endereço:",
-                            prefill = failingUrl
-                        )
+                    // If network failed while in LOAD_DEFAULT, immediately try loading from cache
+                    if (webView.settings.cacheMode != WebSettings.LOAD_CACHE_ONLY) {
+                        runOnUiThread {
+                            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
+                            webView.loadUrl(failingUrl)
+                        }
+                    } else {
+                        runOnUiThread {
+                            promptServerUrl(
+                                title = "Servidor Inacessível",
+                                message = "Não foi possível conectar ao servidor e ainda não há cópia offline armazenada de:\n$failingUrl\n\nVerifique se o computador/servidor está ligado ou informe o novo endereço:",
+                                prefill = failingUrl
+                            )
+                        }
                     }
                 }
             }
@@ -173,6 +226,24 @@ class MainActivity : AppCompatActivity() {
             visibility = View.GONE
         }
         root.addView(progressBar)
+    }
+
+    private fun showExitOrConfigDialog() {
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Uzi Library")
+            .setMessage("O que você gostaria de fazer?")
+            .setPositiveButton("Sair") { _, _ -> finish() }
+            .setNeutralButton("Alterar Servidor") { _, _ ->
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val currentUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_URL) ?: DEFAULT_URL
+                promptServerUrl(
+                    title = "Configurar Servidor",
+                    message = "Endereço atual do servidor:",
+                    prefill = currentUrl
+                )
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun promptServerUrl(title: String, message: String, prefill: String) {
@@ -196,7 +267,7 @@ class MainActivity : AppCompatActivity() {
             addView(input)
         }
 
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val builder = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(title)
             .setMessage(message)
             .setView(container)
@@ -213,48 +284,23 @@ class MainActivity : AppCompatActivity() {
                     while (formatted.endsWith("/")) {
                         formatted = formatted.substring(0, formatted.length - 1)
                     }
-                    loadAndVerifyUrl(formatted)
+                    loadUrl(formatted)
                 } else {
                     promptServerUrl(title, message, prefill)
                 }
             }
-            .show()
-    }
 
-    private fun loadAndVerifyUrl(url: String) {
-        activeUrl = url
-        progressBar.visibility = View.VISIBLE
-        progressBar.isIndeterminate = true
-
-        thread {
-            var reachable = false
-            try {
-                val conn = URL(url).openConnection() as HttpURLConnection
-                conn.connectTimeout = 4000
-                conn.readTimeout = 4000
-                conn.requestMethod = "GET"
-                conn.instanceFollowRedirects = true
-                val code = conn.responseCode
-                reachable = (code in 200..399)
-                conn.disconnect()
-            } catch (e: Exception) {
-                reachable = false
-            }
-
-            runOnUiThread {
-                progressBar.isIndeterminate = false
-                if (reachable) {
-                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    prefs.edit().putString(KEY_SERVER_URL, url).apply()
-                    webView.loadUrl(url)
-                } else {
-                    promptServerUrl(
-                        title = "Servidor Inacessível",
-                        message = "Não foi possível obter resposta de:\n$url\n\nVerifique se o serviço está rodando ou digite o endereço correto:",
-                        prefill = url
-                    )
-                }
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val saved = prefs.getString(KEY_SERVER_URL, null)
+        if (!saved.isNullOrBlank()) {
+            builder.setNeutralButton("Modo Offline") { dialog, _ ->
+                isPromptShowing = false
+                dialog.dismiss()
+                webView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
+                webView.loadUrl(saved)
             }
         }
+
+        builder.show()
     }
 }

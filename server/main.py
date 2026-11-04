@@ -115,7 +115,7 @@ if os.path.exists(CLIENT_DIST):
     async def serve_root():
         return FileResponse(
             os.path.join(CLIENT_DIST, "index.html"),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+            headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
     @app.get("/{full_path:path}")
@@ -126,11 +126,15 @@ if os.path.exists(CLIENT_DIST):
         if os.path.isfile(file_path):
             headers = {}
             if full_path in ("sw.js", "index.html"):
-                headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+                headers = {"Cache-Control": "no-cache, must-revalidate"}
+            elif full_path.startswith("assets/"):
+                headers = {"Cache-Control": "public, max-age=31536000, immutable"}
+            elif full_path in ("manifest.json", "favicon.svg", "icons.svg"):
+                headers = {"Cache-Control": "public, max-age=86400"}
             return FileResponse(file_path, headers=headers)
         return FileResponse(
             os.path.join(CLIENT_DIST, "index.html"),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+            headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
 if __name__ == "__main__":
