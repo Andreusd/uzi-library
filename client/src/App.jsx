@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { WifiOff } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import LibrarySelector from './components/LibrarySelector';
 import Reader from './components/Reader';
@@ -72,6 +73,10 @@ export default function App() {
     handleToggleFavorite,
     handleProgressUpdate,
     handleUserChange,
+    isOffline,
+    isOnline,
+    isServerReachable,
+    checkReachability,
   } = libraryData;
 
   const [isTransitionActive, setIsTransitionActive] = useState(false);
@@ -199,6 +204,13 @@ export default function App() {
           onAddNewLibrary={() => modals.setSettingsOpen(true)}
           currentUser={currentUser}
           onUserChange={handleUserChange}
+          isOffline={isOffline}
+          offlineBooksCount={offlineBooksCount}
+          onSelectOffline={() => {
+            selectLibrary(libraries[0]?.id || 'offline');
+            navigateToShelf('downloaded');
+          }}
+          onRetryReachability={checkReachability}
         />
 
         <AppModals modals={modals} libraryData={libraryData} />
@@ -264,6 +276,25 @@ export default function App() {
 
           {/* Books Content */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full relative z-0">
+            {isOffline && (
+              <div className="mb-6 p-3.5 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-300 shadow-sm">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <WifiOff className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-amber-200">
+                      {t('offlineBannerNotice')}
+                    </p>
+                    <p className="text-[11px] text-amber-400/80 mt-0.5 hidden sm:block">
+                      {t('offlineDesc')}
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                  {offlineBooksCount} {offlineBooksCount === 1 ? (t('bookCountBadge_one') || '1 livro') : (t('bookCountBadge', { count: offlineBooksCount }) || `${offlineBooksCount} livros`)}
+                </span>
+              </div>
+            )}
+
             <LibraryHome
               selectedShelf={selectedShelf}
               debouncedQuery={debouncedQuery}

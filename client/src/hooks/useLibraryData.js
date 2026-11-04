@@ -1,7 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { booksApi, foldersApi, librariesApi, tagsApi } from '../api';
 import { useI18n } from '../i18n';
 import { getOfflineBooksList, syncPendingProgress } from '../services/offlineStorage';
+import { useNetworkStatus } from './useNetworkStatus';
+
+const LIBRARIES_CACHE_KEY = 'uzi_cached_libraries';
+
+function getCachedLibraries() {
+  try {
+    const raw = localStorage.getItem(LIBRARIES_CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setCachedLibraries(libs) {
+  try {
+    if (Array.isArray(libs) && libs.length > 0) {
+      localStorage.setItem(LIBRARIES_CACHE_KEY, JSON.stringify(libs));
+    }
+  } catch {}
+}
 
 /**
  * Custom hook managing library data, shelves, books, favorites, tags,
@@ -11,9 +31,12 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const { t } = useI18n();
   const { route, navigateToShelf: routerNavigateToShelf, navigateToBook, navigateToLibraries } = router;
 
+  const network = useNetworkStatus();
+  const { isOffline, isOnline, isServerReachable, checkReachability } = network;
+
   const [shelves, setShelves] = useState([]);
   const [totalBooks, setTotalBooks] = useState(0);
-  const [libraries, setLibraries] = useState([]);
+  const [libraries, setLibraries] = useState(() => getCachedLibraries());
   const [activeLibraryId, setActiveLibraryId] = useState(() => route.libraryId || '');
   const [selectedShelf, setSelectedShelf] = useState(() => route.shelfId);
   const [books, setBooks] = useState([]);
@@ -21,6 +44,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const [favorites, setFavorites] = useState([]);
   const [readBooks, setReadBooks] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const favoriteIdsRef = useRef(favoriteIds);
+  favoriteIdsRef.current = favoriteIds;
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [offlineBooksCount, setOfflineBooksCount] = useState(0);
@@ -87,14 +112,44 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const loadLibraries = useCallback(() => {
     librariesApi.getLibraries()
       .then(data => {
-        setLibraries(data.libraries || []);
+        const libs = data.libraries || [];
+        setLibraries(libs);
+        setCachedLibraries(libs);
       })
-      .catch(err => console.error('Failed to load libraries:', err));
+      .catch(err => {
+        console.error('Failed to load libraries:', err);
+        const cached = getCachedLibraries();
+        if (cached && cached.length > 0) {
+          setLibraries(cached);
+        }
+      });
   }, []);
 
   // Load Shelves & Totals
   const loadShelves = useCallback((libId) => {
     const targetLib = libId !== undefined ? libId : activeLibraryId;
+    if (isOffline) {
+      getOfflineBooksList()
+        .then(list => {
+          const shelfMap = new Map();
+          list.forEach(b => {
+            const sId = b.shelf || b.shelf_display || 'default';
+            const sName = b.shelf_display || b.shelf || sId;
+            if (!shelfMap.has(sId)) {
+              shelfMap.set(sId, { id: sId, name: sName, folder: sId, book_count: 0 });
+            }
+            shelfMap.get(sId).book_count += 1;
+          });
+          const offlineShelves = Array.from(shelfMap.values());
+          if (offlineShelves.length > 0) {
+            setShelves(offlineShelves);
+          }
+          setTotalBooks(list.length);
+        })
+        .catch(() => {});
+      return;
+    }
+
     if (!targetLib) return;
     foldersApi.getFolders(targetLib)
       .then(data => {
@@ -102,44 +157,126 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         setTotalBooks(data.total_books || 0);
       })
       .catch(err => console.error('Failed to load shelves:', err));
-  }, [activeLibraryId]);
+  }, [activeLibraryId, isOffline]);
 
   // Load Continue Reading
   const loadContinueReading = useCallback((libId, fmt) => {
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    if (isOffline) {
+      getOfflineBooksList()
+        .then(list => {
+          let reading = list.filter(b => {
+            const p = b.progress;
+            if (!p) return false;
+            if (p.status === 'not_started' || p.status === 'completed') return false;
+            if ((p.percent || 0) >= 100) return false;
+            return (p.status === 'in_progress' || (p.percent && p.percent > 0) || (p.page && p.page > 1 && !p.cfi) || Boolean(p.cfi));
+          });
+          if (formatToUse && formatToUse !== 'all') {
+            reading = reading.filter(b => b.format === formatToUse);
+          }
+          reading.sort((a, b) => (b.progress?.updated_at || b.downloadedAt || 0) - (a.progress?.updated_at || a.downloadedAt || 0));
+          setContinueReading(reading);
+        })
+        .catch(() => setContinueReading([]));
+      return;
+    }
+
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
-    const formatToUse = fmt !== undefined ? fmt : formatFilter;
     booksApi.getContinueReading(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
       .then(data => {
         setContinueReading(data.books || []);
       })
-      .catch(err => console.error('Failed to load continue reading:', err));
-  }, [activeLibraryId, formatFilter]);
+      .catch(async (err) => {
+        console.error('Failed to load continue reading:', err);
+        try {
+          const list = await getOfflineBooksList();
+          let reading = list.filter(b => {
+            const p = b.progress;
+            if (!p) return false;
+            if (p.status === 'not_started' || p.status === 'completed') return false;
+            if ((p.percent || 0) >= 100) return false;
+            return (p.status === 'in_progress' || (p.percent && p.percent > 0) || (p.page && p.page > 1 && !p.cfi) || Boolean(p.cfi));
+          });
+          if (formatToUse && formatToUse !== 'all') {
+            reading = reading.filter(b => b.format === formatToUse);
+          }
+          setContinueReading(reading);
+        } catch {}
+      });
+  }, [activeLibraryId, formatFilter, isOffline]);
 
   // Load Favorites
   const loadFavorites = useCallback((libId, fmt) => {
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    if (isOffline) {
+      getOfflineBooksList()
+        .then(list => {
+          let favs = list.filter(b => b.is_favorite || favoriteIdsRef.current.has(b.id));
+          if (formatToUse && formatToUse !== 'all') {
+            favs = favs.filter(b => b.format === formatToUse);
+          }
+          setFavorites(favs);
+        })
+        .catch(() => setFavorites([]));
+      return;
+    }
+
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
-    const formatToUse = fmt !== undefined ? fmt : formatFilter;
     booksApi.getFavorites(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
       .then(data => {
         setFavorites(data.books || []);
         setFavoriteIds(new Set(data.favorite_ids || []));
       })
-      .catch(err => console.error('Failed to load favorites:', err));
-  }, [activeLibraryId, formatFilter]);
+      .catch(async (err) => {
+        console.error('Failed to load favorites:', err);
+        try {
+          const list = await getOfflineBooksList();
+          let favs = list.filter(b => b.is_favorite || favoriteIdsRef.current.has(b.id));
+          if (formatToUse && formatToUse !== 'all') {
+            favs = favs.filter(b => b.format === formatToUse);
+          }
+          setFavorites(favs);
+        } catch {}
+      });
+  }, [activeLibraryId, formatFilter, isOffline]);
 
   // Load Read Books
   const loadReadBooks = useCallback((libId, fmt) => {
+    const formatToUse = fmt !== undefined ? fmt : formatFilter;
+    if (isOffline) {
+      getOfflineBooksList()
+        .then(list => {
+          let read = list.filter(b => b.progress && (b.progress.status === 'completed' || (b.progress.percent || 0) >= 100));
+          if (formatToUse && formatToUse !== 'all') {
+            read = read.filter(b => b.format === formatToUse);
+          }
+          setReadBooks(read);
+        })
+        .catch(() => setReadBooks([]));
+      return;
+    }
+
     const targetLib = libId !== undefined ? libId : activeLibraryId;
     if (!targetLib) return;
-    const formatToUse = fmt !== undefined ? fmt : formatFilter;
     booksApi.getReadBooks(targetLib, formatToUse !== 'all' ? formatToUse : undefined)
       .then(data => {
         setReadBooks(data.books || []);
       })
-      .catch(err => console.error('Failed to load read books:', err));
-  }, [activeLibraryId, formatFilter]);
+      .catch(async (err) => {
+        console.error('Failed to load read books:', err);
+        try {
+          const list = await getOfflineBooksList();
+          let read = list.filter(b => b.progress && (b.progress.status === 'completed' || (b.progress.percent || 0) >= 100));
+          if (formatToUse && formatToUse !== 'all') {
+            read = read.filter(b => b.format === formatToUse);
+          }
+          setReadBooks(read);
+        } catch {}
+      });
+  }, [activeLibraryId, formatFilter, isOffline]);
 
   // Load Virtual Tags
   const loadTags = useCallback((libId) => {
@@ -166,8 +303,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     const shelfToUse = targetShelf !== undefined ? targetShelf : selectedShelf;
     const formatToUse = fmt !== undefined ? fmt : formatFilter;
 
-    // Handle offline downloaded books shelf
-    if (shelfToUse === 'downloaded') {
+    // Handle offline mode OR offline downloaded books shelf
+    if (isOffline || shelfToUse === 'downloaded') {
       getOfflineBooksList()
         .then((list) => {
           let filtered = [...list];
@@ -181,12 +318,22 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
               b.author?.toLowerCase().includes(q)
             );
           }
+          if (isOffline && shelfToUse && shelfToUse !== 'downloaded' && shelfToUse !== 'all-books' && shelfToUse !== 'folders' && shelfToUse !== 'tags') {
+            if (shelfToUse.startsWith('tag:')) {
+              const tagId = shelfToUse.slice(4);
+              filtered = filtered.filter(b => b.tags?.some(t => String(t.id) === tagId || t.name === tagId));
+            } else {
+              filtered = filtered.filter(b => b.shelf === shelfToUse || b.shelf_display === shelfToUse || b.folder_display === shelfToUse);
+            }
+          }
           setBooks(filtered);
+          setTotalBooks(filtered.length);
           setLoading(false);
         })
         .catch(err => {
           console.error('Failed to load offline books:', err);
           setBooks([]);
+          setTotalBooks(0);
           setLoading(false);
         });
       return;
@@ -220,24 +367,25 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         // Fallback to offline cached books if server is unreachable
         try {
           const offlineList = await getOfflineBooksList();
-          if (offlineList.length > 0) {
-            let filtered = [...offlineList];
-            if (formatToUse && formatToUse !== 'all') {
-              filtered = filtered.filter(b => b.format === formatToUse);
-            }
-            if (debouncedQuery) {
-              const q = debouncedQuery.toLowerCase();
-              filtered = filtered.filter(b => 
-                b.title?.toLowerCase().includes(q) || 
-                b.author?.toLowerCase().includes(q)
-              );
-            }
-            setBooks(filtered);
+          let filtered = [...offlineList];
+          if (formatToUse && formatToUse !== 'all') {
+            filtered = filtered.filter(b => b.format === formatToUse);
           }
-        } catch {}
+          if (debouncedQuery) {
+            const q = debouncedQuery.toLowerCase();
+            filtered = filtered.filter(b => 
+              b.title?.toLowerCase().includes(q) || 
+              b.author?.toLowerCase().includes(q)
+            );
+          }
+          setBooks(filtered);
+          setTotalBooks(filtered.length);
+        } catch {
+          setBooks([]);
+        }
         setLoading(false);
       });
-  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter]);
+  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, isOffline]);
 
   // Handle User Change (persists to storage and reloads user-specific data)
   const handleUserChange = useCallback((newUsername) => {
@@ -358,8 +506,21 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
               setSelectedShelf(prev => prev || book.shelf || null);
             }
           })
-          .catch(err => {
+          .catch(async (err) => {
             console.error('Failed to load book from route:', err);
+            try {
+              const offlineList = await getOfflineBooksList();
+              const found = offlineList.find(b => b.id === route.bookId);
+              if (found) {
+                setActiveBook(found);
+                const targetLib = route.libraryId || found.library_id || 'default';
+                if (!activeLibraryId) {
+                  setActiveLibraryId(targetLib);
+                }
+                setSelectedShelf(prev => prev || found.shelf || null);
+                return;
+              }
+            } catch {}
             setActiveBook(null);
             routerNavigateToShelf(selectedShelf, route.libraryId || activeLibraryId);
           })
@@ -408,6 +569,31 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       loadBooks(activeLibraryId, selectedShelf);
     }
   }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, loadBooks]);
+
+  // Handle transition between Online and Offline modes
+  const prevIsOfflineRef = useRef(isOffline);
+  useEffect(() => {
+    if (prevIsOfflineRef.current !== isOffline) {
+      prevIsOfflineRef.current = isOffline;
+      if (isOffline) {
+        loadBooks(activeLibraryId, selectedShelf);
+        loadContinueReading(activeLibraryId);
+        loadFavorites(activeLibraryId);
+        loadReadBooks(activeLibraryId);
+        loadShelves(activeLibraryId);
+      } else {
+        loadLibraries();
+        if (activeLibraryId) {
+          loadShelves(activeLibraryId);
+          loadBooks(activeLibraryId, selectedShelf);
+          loadContinueReading(activeLibraryId);
+          loadFavorites(activeLibraryId);
+          loadReadBooks(activeLibraryId);
+          loadTags(activeLibraryId);
+        }
+      }
+    }
+  }, [isOffline, activeLibraryId, selectedShelf]);
 
   // Offline books tracking & online progress sync
   useEffect(() => {
@@ -602,6 +788,9 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     tags,
     offlineBooksCount,
     loading,
+    isOffline,
+    isOnline,
+    isServerReachable,
     searchQuery,
     setSearchQuery,
     debouncedQuery,
@@ -620,6 +809,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     activeLibraryObj,
 
     // Actions
+    checkReachability,
     loadLibraries,
     loadShelves,
     loadBooks,

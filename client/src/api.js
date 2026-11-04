@@ -33,6 +33,12 @@ export function setCurrentUser(username) {
   }
 }
 
+export function notifyServerReachability(reachable) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('uzi_server_reachability', { detail: { reachable } }));
+  }
+}
+
 /**
  * Modern, centralized API fetch utility that automatically attaches
  * the active X-User header to backend requests.
@@ -43,7 +49,16 @@ export async function apiFetch(input, init = {}) {
   if (user && !headers.has('X-User')) {
     headers.set('X-User', user);
   }
-  return fetch(input, { ...init, headers });
+  try {
+    const res = await fetch(input, { ...init, headers });
+    if (res.status < 500) {
+      notifyServerReachability(true);
+    }
+    return res;
+  } catch (err) {
+    notifyServerReachability(false);
+    throw err;
+  }
 }
 
 /**

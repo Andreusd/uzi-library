@@ -3,7 +3,7 @@ import {
   Search, X, BookOpen,
   PanelLeftClose, PanelLeftOpen,
   Settings, Heart, Bookmark, Maximize2, Minimize2, Library, Folder, Tag, Palette,
-  SlidersHorizontal, MoreVertical
+  SlidersHorizontal, MoreVertical, WifiOff
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import ThemeMenu from './ThemeMenu';
@@ -46,6 +46,7 @@ export default function AppNavbar({
   setTheme: propSetTheme,
   mode: propMode,
   setMode: propSetMode,
+  isOffline: propIsOffline,
 }) {
   const { t } = useI18n();
   const settings = useSettings();
@@ -82,6 +83,7 @@ export default function AppNavbar({
   const setFormatFilter = propSetFormatFilter || libraryData?.setFormatFilter;
   const selectAllLibraries = propSelectAllLibraries || libraryData?.selectAllLibraries;
   const navigateToShelf = propNavigateToShelf || libraryData?.navigateToShelf;
+  const isOffline = propIsOffline !== undefined ? propIsOffline : libraryData?.isOffline;
 
   const isExpanded = isSearchOpen || Boolean(searchQuery);
   const isFilterActive = (sortBy && sortBy !== 'title_asc') || (formatFilter && formatFilter !== 'all');
@@ -188,6 +190,19 @@ export default function AppNavbar({
 
       {/* Action Controls: Search, Sort Selector, Format/Type Filter, Fullscreen & Settings */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Offline Indicator Badge (Visible on Mobile & Desktop) */}
+        {isOffline && (
+          <div
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-400 text-xs font-semibold shadow-xs shrink-0 select-none"
+            title={t('offlineBannerNotice')}
+          >
+            <WifiOff className="w-3.5 h-3.5 animate-pulse text-amber-400 shrink-0" />
+            <span className="text-[11px] sm:text-xs font-bold tracking-wide">
+              {t('offlineModeBadge') || 'Offline'}
+            </span>
+          </div>
+        )}
+
         {/* Minimized Expandable Search Bar */}
         <div className="relative flex items-center">
           <div

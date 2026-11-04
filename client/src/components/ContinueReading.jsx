@@ -3,6 +3,7 @@ import { Bookmark, ChevronLeft, ChevronRight, LayoutGrid, Layers, Info } from 'l
 import { useI18n } from '../i18n';
 import { useBookActions } from '../hooks/useBookActions';
 import { getTagColorConfig } from '../utils/tagColors';
+import { getOfflineCoverBlob } from '../services/offlineStorage';
 
 /**
  * ContinueReading carousel and grid view component.
@@ -260,6 +261,14 @@ export default function ContinueReading({
                   src={book.cover_url}
                   alt={book.title}
                   loading="lazy"
+                  onError={async (e) => {
+                    try {
+                      const blob = await getOfflineCoverBlob(book.id);
+                      if (blob) {
+                        e.currentTarget.src = URL.createObjectURL(blob);
+                      }
+                    } catch {}
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 {/* Left Book Spine Highlight Overlay */}

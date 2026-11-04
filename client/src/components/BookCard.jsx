@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, CheckCircle, Heart, Info, CloudDownload } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { useBookActions } from '../hooks/useBookActions';
 import { getTagColorConfig } from '../utils/tagColors';
+import { getOfflineCoverBlob } from '../services/offlineStorage';
 
 export default function BookCard({ 
   book, 
@@ -18,6 +19,26 @@ export default function BookCard({
 }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [offlineCoverUrl, setOfflineCoverUrl] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    let url = null;
+    if ((imageError || book?.is_offline) && book?.id) {
+      getOfflineCoverBlob(book.id)
+        .then(blob => {
+          if (!active || !blob) return;
+          url = URL.createObjectURL(blob);
+          setOfflineCoverUrl(url);
+          setImageError(false);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [imageError, book?.id, book?.is_offline]);
   const { t } = useI18n();
   const actions = useBookActions();
 
@@ -125,13 +146,18 @@ export default function BookCard({
         )}
 
         {/* Cover Image */}
-        {!imageError ? (
+        {(!imageError || Boolean(offlineCoverUrl)) ? (
           <img 
-            src={book.cover_url} 
+            src={offlineCoverUrl || book.cover_url} 
             alt={book.title}
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
+            onError={() => {
+              if (offlineCoverUrl) {
+                setOfflineCoverUrl(null);
+              }
+              setImageError(true);
+            }}
             className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         ) : (

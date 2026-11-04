@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Library, Folder, BookOpen, Plus, ArrowRight, Settings, 
-  AlertTriangle, User, Users, Edit2, Check, Sparkles, Trash2
+  AlertTriangle, User, Users, Edit2, Check, Sparkles, Trash2,
+  WifiOff, RefreshCw
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import AppLogo from './AppLogo';
@@ -12,7 +13,11 @@ export default function LibrarySelector({
   onOpenSettings,
   onAddNewLibrary,
   currentUser = '',
-  onUserChange
+  onUserChange,
+  isOffline = false,
+  offlineBooksCount = 0,
+  onSelectOffline,
+  onRetryReachability,
 }) {
   const { t } = useI18n();
   const [prevUser, setPrevUser] = useState(currentUser);
@@ -150,6 +155,18 @@ export default function LibrarySelector({
 
         {/* Header Right Actions */}
         <div className="flex items-center gap-2.5">
+          {/* Offline Badge */}
+          {isOffline && (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-400 text-xs font-semibold shadow-xs select-none"
+              title={t('offlineBannerNotice')}
+            >
+              <WifiOff className="w-3.5 h-3.5 animate-pulse text-amber-400 shrink-0" />
+              <span className="text-[11px] sm:text-xs font-bold tracking-wide">
+                {t('offlineModeBadge') || 'Offline'}
+              </span>
+            </div>
+          )}
           {/* Active User Chip / Switcher */}
           {currentUser && !isEditingUser ? (
             <button
@@ -362,6 +379,32 @@ export default function LibrarySelector({
           </div>
         ) : null}
 
+        {/* Offline Notice Banner */}
+        {isOffline && (
+          <div className="max-w-2xl w-full mx-auto mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-300 shadow-sm shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <WifiOff className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-amber-200">
+                  {t('offlineLibrariesNotice')}
+                </p>
+                <p className="text-[11px] text-amber-400/80 mt-0.5">
+                  {t('offlineBannerNotice')}
+                </p>
+              </div>
+            </div>
+            {offlineBooksCount > 0 && onSelectOffline && (
+              <button
+                type="button"
+                onClick={onSelectOffline}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition cursor-pointer shadow-sm"
+              >
+                {t('viewOfflineBooks')} ({offlineBooksCount})
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8 shrink-0">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-neutral-100 tracking-tight leading-tight">
@@ -521,22 +564,58 @@ export default function LibrarySelector({
 
         {/* Empty state if no libraries exist */}
         {libraries.length === 0 && (
-          <div className="text-center py-10 max-w-md mx-auto">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-3">
-              <Library className="w-6 h-6" />
+          isOffline ? (
+            <div className="text-center py-10 max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4">
+                <WifiOff className="w-7 h-7" />
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-neutral-100">{t('offlineModeBadge') || 'Modo Offline'}</h3>
+              <p className="text-xs text-neutral-400 mt-1.5 mb-5 leading-relaxed">
+                {offlineBooksCount > 0
+                  ? `${t('offlineBannerNotice')} (${offlineBooksCount} ${offlineBooksCount === 1 ? 'livro disponível' : 'livros disponíveis'}).`
+                  : (t('noOfflineBooksDesc') || 'Nenhum livro foi baixado previamente para leitura offline.')}
+              </p>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                {offlineBooksCount > 0 && onSelectOffline && (
+                  <button
+                    type="button"
+                    onClick={onSelectOffline}
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{t('viewOfflineBooks')}</span>
+                  </button>
+                )}
+                {onRetryReachability && (
+                  <button
+                    type="button"
+                    onClick={onRetryReachability}
+                    className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-medium rounded-lg inline-flex items-center gap-1.5 border border-neutral-700 transition cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Tentar Reconectar</span>
+                  </button>
+                )}
+              </div>
             </div>
-            <h3 className="text-base font-bold text-neutral-100">{t('noLibrariesTitle')}</h3>
-            <p className="text-xs text-neutral-400 mt-1 mb-4 leading-relaxed">
-              {t('noLibrariesDesc')}
-            </p>
-            <button
-              onClick={onAddNewLibrary || onOpenSettings}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{t('addNewLibrary')}</span>
-            </button>
-          </div>
+          ) : (
+            <div className="text-center py-10 max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-3">
+                <Library className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-neutral-100">{t('noLibrariesTitle')}</h3>
+              <p className="text-xs text-neutral-400 mt-1 mb-4 leading-relaxed">
+                {t('noLibrariesDesc')}
+              </p>
+              <button
+                onClick={onAddNewLibrary || onOpenSettings}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('addNewLibrary')}</span>
+              </button>
+            </div>
+          )
         )}
       </main>
     </div>
