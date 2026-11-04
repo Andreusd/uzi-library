@@ -87,7 +87,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         enableImmersiveMode()
-        updateCacheMode()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -110,30 +109,36 @@ class MainActivity : AppCompatActivity() {
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
 
-    private fun isNetworkAvailable(): Boolean {
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return false
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-    }
-
-    private fun updateCacheMode() {
-        val isOnline = isNetworkAvailable()
-        val cacheMode = if (isOnline) {
-            WebSettings.LOAD_DEFAULT
-        } else {
-            WebSettings.LOAD_CACHE_ELSE_NETWORK
+    private fun isNetworkConnected(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+                ?: return true
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        } catch (e: Exception) {
+            true
         }
-        webView.settings.cacheMode = cacheMode
     }
 
-    private fun loadUrl(url: String) {
+    private fun loadUrl(url: String, forceCache: Boolean = false) {
         activeUrl = url
+        lastNetworkError = null
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY_SERVER_URL, url).apply()
 
-        updateCacheMode()
+        // If forceCache or completely offline, use LOAD_CACHE_ELSE_NETWORK.
+        // Otherwise, always use LOAD_DEFAULT so network requests go through cleanly.
+        val cacheMode = if (forceCache || !isNetworkConnected()) {
+            WebSettings.LOAD_CACHE_ELSE_NETWORK
+        } else {
+            WebSettings.LOAD_DEFAULT
+        }
+        webView.settings.cacheMode = cacheMode
+
+        Log.d("UziLibrary", "loadUrl: $url with cacheMode=$cacheMode (networkConnected=${isNetworkConnected()})")
         progressBar.visibility = View.VISIBLE
         webView.loadUrl(url)
     }
@@ -159,8 +164,7 @@ class MainActivity : AppCompatActivity() {
         settings.loadWithOverviewMode = true
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.mediaPlaybackRequiresUserGesture = false
-
-        updateCacheMode()
+        settings.cacheMode = WebSettings.LOAD_DEFAULT
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
@@ -201,18 +205,20 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     val failingUrl = request.url.toString()
-                    val errDesc = error?.description?.toString() ?: "Erro desconhecido"
+                    val errDesc = error?.description?.toString() ?: "Erro de conexão"
                     val errCode = error?.errorCode ?: 0
-                    Log.e("UziLibrary", "onReceivedError: url=$failingUrl, code=$errCode, desc=$errDesc, mode=${webView.settings.cacheMode}")
+                    Log.e("UziLibrary", "onReceivedError: url=$failingUrl, code=$errCode, desc=$errDesc, currentMode=${webView.settings.cacheMode}")
 
-                    // If network failed while in LOAD_DEFAULT, immediately try loading from cache
-                    if (webView.settings.cacheMode != WebSettings.LOAD_CACHE_ONLY) {
+                    // If network failed while in LOAD_DEFAULT, attempt fallback to cache once
+                    if (webView.settings.cacheMode == WebSettings.LOAD_DEFAULT) {
                         lastNetworkError = "$errDesc (código $errCode)"
                         runOnUiThread {
-                            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
+                            // Use LOAD_CACHE_ELSE_NETWORK (never LOAD_CACHE_ONLY which causes ERR_CACHE_MISS)
+                            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                             webView.loadUrl(failingUrl)
                         }
                     } else {
+                        // If cache fallback also failed, show dialog with the real original error
                         val diag = lastNetworkError ?: "$errDesc (código $errCode)"
                         runOnUiThread {
                             promptServerUrl(
@@ -268,7 +274,7 @@ class MainActivity : AppCompatActivity() {
             setText(prefill)
             setSelection(text.length)
             setSingleLine(true)
-            setHint("http://192.168.0.x:8000")
+            setHint("http://192.168.0.21:8000")
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#1a1a1a"))
@@ -298,7 +304,7 @@ class MainActivity : AppCompatActivity() {
                     while (formatted.endsWith("/")) {
                         formatted = formatted.substring(0, formatted.length - 1)
                     }
-                    loadUrl(formatted)
+                    loadUrl(formatted, forceCache = false)
                 } else {
                     promptServerUrl(title, message, prefill)
                 }
@@ -310,8 +316,7 @@ class MainActivity : AppCompatActivity() {
             builder.setNeutralButton("Modo Offline") { dialog, _ ->
                 isPromptShowing = false
                 dialog.dismiss()
-                webView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
-                webView.loadUrl(saved)
+                loadUrl(saved, forceCache = true)
             }
         }
 
