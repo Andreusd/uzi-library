@@ -290,7 +290,7 @@ export default function App() {
                   </div>
                 </div>
                 <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                  {offlineBooksCount} {offlineBooksCount === 1 ? (t('bookCountBadge_one') || '1 livro') : (t('bookCountBadge', { count: offlineBooksCount }) || `${offlineBooksCount} livros`)}
+                  {offlineBooksCount === 1 ? (t('bookCountBadge_one') || '1 book') : (t('bookCountBadge', { count: offlineBooksCount }) || `${offlineBooksCount} books`)}
                 </span>
               </div>
             )}

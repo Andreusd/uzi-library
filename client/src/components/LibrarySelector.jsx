@@ -572,7 +572,7 @@ export default function LibrarySelector({
               <h3 className="text-base sm:text-lg font-bold text-neutral-100">{t('offlineModeBadge') || 'Modo Offline'}</h3>
               <p className="text-xs text-neutral-400 mt-1.5 mb-5 leading-relaxed">
                 {offlineBooksCount > 0
-                  ? `${t('offlineBannerNotice')} (${offlineBooksCount} ${offlineBooksCount === 1 ? 'livro disponível' : 'livros disponíveis'}).`
+                  ? `${t('offlineBannerNotice')} (${offlineBooksCount === 1 ? t('bookCountBadge_one') : t('bookCountBadge', { count: offlineBooksCount })}).`
                   : (t('noOfflineBooksDesc') || 'Nenhum livro foi baixado previamente para leitura offline.')}
               </p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
