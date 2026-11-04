@@ -87,7 +87,7 @@ export default function AppNavbar({
   const isFilterActive = (sortBy && sortBy !== 'title_asc') || (formatFilter && formatFilter !== 'all');
 
   return (
-    <header className="h-16 px-3 sm:px-6 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-40 flex items-center justify-between gap-2 sm:gap-4">
+    <header className="h-16 px-3 sm:px-6 lg:px-8 bg-neutral-900/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-40 flex items-center justify-between gap-2 sm:gap-4">
       <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1 sm:flex-initial">
         <button
           onClick={toggleSidebar}

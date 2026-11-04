@@ -7,12 +7,14 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import ReaderToolbar from './ReaderToolbar';
 import ReaderLayout from './ReaderLayout';
 import PdfDocumentStage from './PdfDocumentStage';
+import ReaderBackPill from './ReaderBackPill';
 import { PdfViewerContext } from '../contexts/pdfViewerContext';
 import { useZoomControls } from '../hooks/useZoomControls';
 import { usePageNavigation } from '../hooks/usePageNavigation';
 import { usePdfSearch } from '../hooks/usePdfSearch';
 import { usePdfTts } from '../hooks/usePdfTts';
 import { usePdfAnnotations } from '../hooks/usePdfAnnotations';
+import { useAiCopilot } from '../hooks/useAiCopilot';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useTrackpadSwipe } from '../hooks/useTrackpadSwipe';
 import { useReaderHeaderPin } from '../hooks/useReaderHeaderPin';
@@ -22,6 +24,41 @@ import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpre
 import { getOfflineBookArrayBuffer } from '../services/offlineStorage';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+/**
+ * Resolves root outline bookmark items to 1-based page numbers.
+ */
+async function resolveOutlinePages(doc, outlineData) {
+  if (!doc || !Array.isArray(outlineData) || outlineData.length === 0) return [];
+  const list = [];
+  for (const item of outlineData) {
+    try {
+      let dest = item.dest;
+      if (typeof dest === 'string') {
+        dest = await doc.getDestination(dest);
+      }
+      if (Array.isArray(dest) && dest[0]) {
+        let pageIdx = null;
+        if (typeof dest[0] === 'object' && dest[0] !== null) {
+          pageIdx = await doc.getPageIndex(dest[0]);
+        } else if (typeof dest[0] === 'number') {
+          pageIdx = dest[0];
+        }
+        if (typeof pageIdx === 'number' && !isNaN(pageIdx) && pageIdx >= 0) {
+          list.push({ title: item.title, page: pageIdx + 1 });
+        }
+      }
+    } catch {}
+  }
+  list.sort((a, b) => a.page - b.page);
+  const unique = [];
+  for (const entry of list) {
+    if (unique.length === 0 || unique[unique.length - 1].page !== entry.page) {
+      unique.push(entry);
+    }
+  }
+  return unique;
+}
 
 export default function PdfViewer({ 
   book, 
@@ -93,10 +130,14 @@ export default function PdfViewer({
     }
   }
 
+  // Link back history stack for in-text link jumps
+  const [backHistory, setBackHistory] = useState([]);
+
   const [prevBookId, setPrevBookId] = useState(book?.id);
   if (book?.id !== prevBookId) {
     setPrevBookId(book?.id);
     setLoading(true);
+    setBackHistory([]);
   }
 
   const containerRef = useRef(null);
@@ -106,6 +147,7 @@ export default function PdfViewer({
   const [outline, setOutline] = useState([]);
   const [hasOutline, setHasOutline] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const [chapterPages, setChapterPages] = useState([]);
 
   // Settings
   const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
@@ -122,6 +164,24 @@ export default function PdfViewer({
       const next = !prev;
       try {
         localStorage.setItem('reader_bottom_progress', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const [showChapterProgress, setShowChapterProgress] = useState(() => {
+    try {
+      return localStorage.getItem('reader_bottom_chapter_progress') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleChapterProgress = () => {
+    setShowChapterProgress(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('reader_bottom_chapter_progress', String(next));
       } catch {}
       return next;
     });
@@ -334,6 +394,73 @@ export default function PdfViewer({
     bookId: book?.id,
   });
 
+  // AI Copilot hook
+  const copilot = useAiCopilot();
+
+  // Handle dynamic text selection for AI Copilot (VS Code transient preview tab style)
+  const handlePdfTextSelected = useCallback((text, page = null) => {
+    if (!text || !text.trim()) return;
+    copilot.handleSetTransientContext({
+      text: text.trim(),
+      location: `Pág. ${page || nav.currentPage}`
+    });
+  }, [copilot, nav.currentPage]);
+
+  // Capture selection immediately on mouseup across document
+  useEffect(() => {
+    const handleMouseUp = () => {
+      const sel = window.getSelection();
+      const text = sel ? sel.toString().trim() : '';
+      if (text) {
+        handlePdfTextSelected(text, nav.currentPage);
+      }
+    };
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [handlePdfTextSelected, nav.currentPage]);
+
+  useEffect(() => {
+    if (annotations.selectionMenu?.text) {
+      handlePdfTextSelected(
+        annotations.selectionMenu.text,
+        annotations.selectionMenu.page || nav.currentPage
+      );
+    }
+  }, [annotations.selectionMenu?.text, annotations.selectionMenu?.page, handlePdfTextSelected, nav.currentPage]);
+
+  // Mutual exclusion: Comments and AI Copilot cannot be open at the same time
+  const handleSetCommentsDrawerOpen = useCallback((val) => {
+    annotations.setCommentsDrawerOpen((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next) {
+        copilot.setCopilotDrawerOpen(false);
+      }
+      return next;
+    });
+  }, [annotations, copilot]);
+
+  const handleSetCopilotDrawerOpen = useCallback((val) => {
+    copilot.setCopilotDrawerOpen((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next) {
+        annotations.setCommentsDrawerOpen(false);
+      }
+      return next;
+    });
+  }, [annotations, copilot]);
+
+  useEffect(() => {
+    if (copilot.copilotDrawerOpen && annotations.commentsDrawerOpen) {
+      annotations.setCommentsDrawerOpen(false);
+    }
+  }, [copilot.copilotDrawerOpen]);
+
+  useEffect(() => {
+    if (annotations.commentsDrawerOpen && copilot.copilotDrawerOpen) {
+      copilot.setCopilotDrawerOpen(false);
+    }
+  }, [annotations.commentsDrawerOpen]);
+
   // Keyboard navigation & native wheel gesture listener hook
   usePdfKeyboardGestures({
     containerRef,
@@ -346,9 +473,37 @@ export default function PdfViewer({
     handleTrackpadWheel,
   });
 
+  const navCurrentPageRef = useRef(nav.currentPage);
+  useEffect(() => {
+    navCurrentPageRef.current = nav.currentPage;
+  }, [nav.currentPage]);
+
+  const handleNavigateBack = useCallback(() => {
+    setBackHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const target = prev[prev.length - 1];
+      if (target?.page) {
+        nav.handleLinkNavigate(target.page);
+      }
+      return prev.slice(0, -1);
+    });
+  }, [nav]);
+
+  const handleDismissBack = useCallback(() => {
+    setBackHistory([]);
+  }, []);
+
   // Link service configuration
   useEffect(() => {
-    linkService.setNavigate(nav.handleLinkNavigate);
+    linkService.setNavigate((target, options) => {
+      if (typeof target === 'number' && !options?.isOutline) {
+        const fromPage = navCurrentPageRef.current;
+        if (target !== fromPage) {
+          setBackHistory((prev) => [...prev, { page: fromPage }]);
+        }
+      }
+      nav.handleLinkNavigate(target);
+    });
   }, [linkService, nav.handleLinkNavigate]);
 
   useEffect(() => {
@@ -402,14 +557,19 @@ export default function PdfViewer({
           if (Array.isArray(outlineData) && outlineData.length > 0) {
             setOutline(outlineData);
             setHasOutline(true);
+            resolveOutlinePages(doc, outlineData).then((pages) => {
+              if (active) setChapterPages(pages);
+            }).catch(() => {});
           } else {
             setOutline([]);
             setHasOutline(false);
+            setChapterPages([]);
           }
         } catch {
           if (active) {
             setOutline([]);
             setHasOutline(false);
+            setChapterPages([]);
           }
         }
       } catch (error) {
@@ -437,7 +597,8 @@ export default function PdfViewer({
     if (item.url) {
       window.open(item.url, '_blank', 'noopener,noreferrer');
     } else if (item.dest) {
-      linkService.goToDestination(item.dest);
+      setBackHistory([]);
+      linkService.goToDestination(item.dest, { isOutline: true });
     }
     if (window.innerWidth < 768) {
       setOutlineOpen(false);
@@ -572,7 +733,35 @@ export default function PdfViewer({
   const currentProgressPage = nav.isDualPage && nav.spread.right ? nav.spread.right : nav.currentPage;
   const progressPercent = nav.totalPages > 0 ? Math.round((currentProgressPage / nav.totalPages) * 100) : 0;
 
-  const isHeaderShowing = headerPinned || isHeaderVisible || readerSettingsOpen || annotations.commentsDrawerOpen || outlineOpen || search.searchOpen;
+  const chapterProgressPercent = useMemo(() => {
+    if (!chapterPages || chapterPages.length === 0 || !nav.totalPages) return null;
+    const cur = nav.isDualPage && nav.spread.right ? nav.spread.right : nav.currentPage;
+
+    let currentIdx = -1;
+    for (let i = 0; i < chapterPages.length; i++) {
+      if (chapterPages[i].page <= cur) {
+        currentIdx = i;
+      } else {
+        break;
+      }
+    }
+
+    if (currentIdx === -1) {
+      const firstPage = chapterPages[0].page;
+      const span = firstPage - 1;
+      return span > 0 ? Math.min(100, Math.max(0, Math.round((cur / span) * 100))) : 0;
+    }
+
+    const currentCh = chapterPages[currentIdx];
+    const nextCh = chapterPages[currentIdx + 1];
+    const startPage = currentCh.page;
+    const endPage = nextCh ? nextCh.page : nav.totalPages + 1;
+    const span = endPage - startPage;
+    if (span <= 0) return 100;
+    return Math.min(100, Math.max(0, Math.round(((cur - startPage) / span) * 100)));
+  }, [chapterPages, nav.currentPage, nav.spread.right, nav.isDualPage, nav.totalPages]);
+
+  const isHeaderShowing = headerPinned || isHeaderVisible || readerSettingsOpen || annotations.commentsDrawerOpen || copilot.copilotDrawerOpen || outlineOpen || search.searchOpen;
 
   const pdfViewerContextValue = useMemo(() => ({
     pdfDoc,
@@ -635,7 +824,9 @@ export default function PdfViewer({
       favState={favState}
       handleToggleFav={handleToggleFav}
       commentsDrawerOpen={annotations.commentsDrawerOpen}
-      setCommentsDrawerOpen={annotations.setCommentsDrawerOpen}
+      setCommentsDrawerOpen={handleSetCommentsDrawerOpen}
+      copilotDrawerOpen={copilot.copilotDrawerOpen}
+      setCopilotDrawerOpen={handleSetCopilotDrawerOpen}
       annotationsCount={annotations.annotations.length}
       isFullscreen={isFullscreen}
       toggleFullscreen={toggleFullscreen}
@@ -645,6 +836,8 @@ export default function PdfViewer({
       toggleCenterVertically={toggleCenterVertically}
       showBottomProgress={showBottomProgress}
       toggleBottomProgress={toggleBottomProgress}
+      showChapterProgress={showChapterProgress}
+      toggleChapterProgress={toggleChapterProgress}
       trackpadSwipeEnabled={trackpadSwipeEnabled}
       setTrackpadSwipeEnabled={setTrackpadSwipeEnabled}
       floatingButtonsEnabled={floatingButtonsEnabled}
@@ -672,6 +865,7 @@ export default function PdfViewer({
   );
 
   return (
+    <>
     <ReaderLayout
       invertColors={invertColors}
       headerPinned={headerPinned}
@@ -694,7 +888,23 @@ export default function PdfViewer({
       goToNextPage={nav.goToNextPage}
       annotations={annotations.annotations}
       commentsDrawerOpen={annotations.commentsDrawerOpen}
-      setCommentsDrawerOpen={annotations.setCommentsDrawerOpen}
+      setCommentsDrawerOpen={handleSetCommentsDrawerOpen}
+      copilotDrawerOpen={copilot.copilotDrawerOpen}
+      setCopilotDrawerOpen={handleSetCopilotDrawerOpen}
+      currentLocation={nav?.currentPage ? `Pág. ${nav.currentPage}` : ''}
+      activeContexts={copilot.activeContexts}
+      onRemoveContext={copilot.handleRemoveContext}
+      onAddContext={copilot.handleAskCopilot}
+      transientContext={copilot.transientContext}
+      onPinTransientContext={copilot.handlePinTransientContext}
+      onClearTransientContext={copilot.handleClearTransientContext}
+      pendingSelection={copilot.pendingSelection}
+      onAttachPendingSelection={copilot.handleAttachPendingSelection}
+      onClearPendingSelection={copilot.handleClearPendingSelection}
+      onAskCopilot={(text) => {
+        handleSetCommentsDrawerOpen(false);
+        copilot.handleAskCopilot(text, `Pág. ${annotations.selectionMenu?.page || nav.currentPage}`);
+      }}
       onJumpToAnnotation={handleJumpToAnnotation}
       onUpdateComment={annotations.handleUpdateComment}
       onDeleteAnnotation={annotations.handleDeleteAnnotation}
@@ -714,6 +924,8 @@ export default function PdfViewer({
       onCloseSelectionMenu={() => annotations.setSelectionMenu({ isOpen: false, x: 0, y: 0, text: '', rects: [], page: 1 })}
       onReadAloud={tts.handleReadSelection}
       showBottomProgress={showBottomProgress}
+      showChapterProgress={showChapterProgress}
+      chapterProgressPercent={chapterProgressPercent}
     >
       <PdfViewerContext.Provider value={pdfViewerContextValue}>
         <PdfDocumentStage
@@ -728,5 +940,12 @@ export default function PdfViewer({
         />
       </PdfViewerContext.Provider>
     </ReaderLayout>
+    <ReaderBackPill
+      target={backHistory[backHistory.length - 1]}
+      onNavigateBack={handleNavigateBack}
+      onDismiss={handleDismissBack}
+      theme={invertColors ? 'dark' : 'light'}
+    />
+    </>
   );
 }

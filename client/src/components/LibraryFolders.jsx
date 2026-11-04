@@ -99,7 +99,7 @@ export default function LibraryFolders({
         ref={scrollContainerRef}
         className={
           isGridView
-            ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6'
+            ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10 5xl:grid-cols-12 gap-5 sm:gap-6'
             : 'flex gap-5 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth pt-4 pb-4 px-4 sm:px-5 -mt-3 -mx-4 sm:-mx-5 scroll-px-4 sm:scroll-px-5'
         }
       >
@@ -111,7 +111,7 @@ export default function LibraryFolders({
               key={folder.id}
               className={
                 !isGridView
-                  ? 'w-[calc((100%-1.25rem)/2)] sm:w-[calc((100%-3rem)/3)] md:w-[calc((100%-4.5rem)/4)] lg:w-[calc((100%-6rem)/5)] xl:w-[calc((100%-7.5rem)/6)] shrink-0'
+                  ? 'w-[calc((100%-1.25rem)/2)] sm:w-[calc((100%-3rem)/3)] md:w-[calc((100%-4.5rem)/4)] lg:w-[calc((100%-6rem)/5)] xl:w-[calc((100%-7.5rem)/6)] 2xl:w-[calc((100%-9rem)/7)] 3xl:w-[calc((100%-10.5rem)/8)] 4xl:w-[calc((100%-13.5rem)/10)] 5xl:w-[calc((100%-16.5rem)/12)] shrink-0'
                   : 'w-full'
               }
             >

@@ -1,4 +1,6 @@
 import os
+import re
+import shutil
 import sqlite3
 import json
 import threading
@@ -19,6 +21,26 @@ def resolve_db_path(path_or_dir: Optional[str]) -> str:
     if p.endswith(".db") or p.endswith(".sqlite"):
         return p
     return os.path.join(os.path.dirname(p), "library.db")
+
+def sanitize_cfi_range(cfi: Optional[str], text: Optional[str]) -> Optional[str]:
+    """
+    Sanitizes EPUB CFI strings that suffer from the browser Element-Range selection bug.
+    When a paragraph is triple-clicked or selected across block boundaries, browsers create
+    ranges with Element containers and child offsets (e.g. 0 to 1). epub.js mistakenly treats
+    the child index 1 as character offset 1 in the text node, generating ,/X:0,/X:1).
+    This function expands the end offset to the true text length.
+    """
+    if not cfi or not text:
+        return cfi
+    clean_text = str(text).strip()
+    if len(clean_text) <= 1:
+        return cfi
+    m = re.search(r",(/\d+:0),(/(\d+)):1\)$", cfi)
+    if m:
+        start_part = m.group(1)
+        end_prefix = m.group(2)
+        return cfi[:m.start()] + f",{start_part},{end_prefix}:{len(clean_text)})"
+    return cfi
 
 class Database:
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
@@ -169,6 +191,26 @@ class Database:
                 PRIMARY KEY (lookup_type, lookup_key)
             );
 
+            CREATE TABLE IF NOT EXISTS ai_conversations (
+                id TEXT PRIMARY KEY,
+                user_slug TEXT NOT NULL,
+                book_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                agy_conversation_id TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_messages (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                location TEXT DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_books_folder ON books (library_id, folder_id);
             CREATE INDEX IF NOT EXISTS idx_progress_updated ON reading_progress (user_slug, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_favorites_created ON favorites (user_slug, created_at DESC);
@@ -176,6 +218,8 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_book_tags_user_book ON book_tags (user_slug, book_id);
             CREATE INDEX IF NOT EXISTS idx_book_tags_user_tag ON book_tags (user_slug, tag_id);
             CREATE INDEX IF NOT EXISTS idx_annotations_book ON annotations (user_slug, book_id, page);
+            CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_book ON ai_conversations (user_slug, book_id, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_ai_messages_conv ON ai_messages (conversation_id, created_at ASC);
             """)
 
             # Seed default settings if empty
@@ -759,13 +803,16 @@ class Database:
     def add_annotation(self, user_slug: str, book_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         ann_id = f"ann_{uuid.uuid4().hex[:12]}"
         now = datetime.now().isoformat()
+        raw_cfi = data.get("cfi")
+        raw_text = str(data.get("text", "")).strip()
+        safe_cfi = sanitize_cfi_range(raw_cfi, raw_text)
         record = {
             "id": ann_id,
             "book_id": book_id,
             "page": int(data.get("page", 1)),
-            "cfi": data.get("cfi"),
+            "cfi": safe_cfi,
             "chapter": data.get("chapter"),
-            "text": str(data.get("text", "")).strip(),
+            "text": raw_text,
             "color": str(data.get("color", "yellow")),
             "comment": str(data.get("comment", "")).strip(),
             "rects": list(data.get("rects", [])),
@@ -834,6 +881,150 @@ class Database:
                 "INSERT OR REPLACE INTO lookups (lookup_type, lookup_key, payload) VALUES (?, ?, ?)",
                 (lookup_type, key, json.dumps(payload))
             )
+
+    # ----------------- AI Conversations & Messages -----------------
+    def list_ai_conversations(self, user_slug: str, book_id: str) -> List[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            query = """
+                SELECT c.id, c.user_slug, c.book_id, c.title, c.agy_conversation_id, c.created_at, c.updated_at,
+                       COUNT(m.id) as message_count,
+                       (SELECT content FROM ai_messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message
+                FROM ai_conversations c
+                LEFT JOIN ai_messages m ON m.conversation_id = c.id
+                WHERE c.user_slug = ? AND c.book_id = ?
+                GROUP BY c.id
+                ORDER BY c.updated_at DESC
+            """
+            rows = conn.execute(query, (user_slug, book_id)).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_ai_conversation(self, user_slug: str, conversation_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM ai_conversations WHERE user_slug = ? AND id = ?",
+                (user_slug, conversation_id)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_ai_messages(self, conversation_id: str) -> List[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT id, conversation_id, role, content, location, created_at FROM ai_messages WHERE conversation_id = ? ORDER BY created_at ASC",
+                (conversation_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def create_ai_conversation(
+        self,
+        user_slug: str,
+        book_id: str,
+        title: str,
+        conversation_id: Optional[str] = None,
+        agy_conversation_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        cid = conversation_id or uuid.uuid4().hex
+        now = datetime.now().isoformat()
+        with self._lock, self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO ai_conversations (id, user_slug, book_id, title, agy_conversation_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (cid, user_slug, book_id, title, agy_conversation_id, now, now)
+            )
+        return {
+            "id": cid,
+            "user_slug": user_slug,
+            "book_id": book_id,
+            "title": title,
+            "agy_conversation_id": agy_conversation_id,
+            "created_at": now,
+            "updated_at": now,
+            "message_count": 0,
+            "last_message": None
+        }
+
+    def update_ai_conversation(
+        self,
+        user_slug: str,
+        conversation_id: str,
+        title: Optional[str] = None,
+        agy_conversation_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        now = datetime.now().isoformat()
+        with self._lock, self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM ai_conversations WHERE user_slug = ? AND id = ?",
+                (user_slug, conversation_id)
+            ).fetchone()
+            if not row:
+                return None
+            cur = dict(row)
+            new_title = title if title is not None else cur["title"]
+            new_agy_id = agy_conversation_id if agy_conversation_id is not None else cur["agy_conversation_id"]
+
+            conn.execute(
+                "UPDATE ai_conversations SET title = ?, agy_conversation_id = ?, updated_at = ? WHERE user_slug = ? AND id = ?",
+                (new_title, new_agy_id, now, user_slug, conversation_id)
+            )
+            cur["title"] = new_title
+            cur["agy_conversation_id"] = new_agy_id
+            cur["updated_at"] = now
+            return cur
+
+    def delete_ai_conversation(self, user_slug: str, conversation_id: str) -> bool:
+        with self._lock, self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT agy_conversation_id FROM ai_conversations WHERE user_slug = ? AND id = ?",
+                (user_slug, conversation_id)
+            ).fetchone()
+            if not row:
+                return False
+
+            agy_id = row["agy_conversation_id"]
+            conn.execute("DELETE FROM ai_messages WHERE conversation_id = ?", (conversation_id,))
+            conn.execute("DELETE FROM ai_conversations WHERE user_slug = ? AND id = ?", (user_slug, conversation_id))
+
+            # Clean up agy brain session directory if present
+            if agy_id:
+                try:
+                    brain_dir = os.path.expanduser(f"~/.gemini/antigravity-cli/brain/{agy_id}")
+                    if os.path.isdir(brain_dir):
+                        shutil.rmtree(brain_dir, ignore_errors=True)
+                except Exception:
+                    pass
+            return True
+
+    def add_ai_message(
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        location: Optional[str] = None,
+        message_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        mid = message_id or uuid.uuid4().hex
+        now = datetime.now().isoformat()
+        with self._lock, self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO ai_messages (id, conversation_id, role, content, location, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (mid, conversation_id, role, content, location or "", now)
+            )
+            conn.execute(
+                "UPDATE ai_conversations SET updated_at = ? WHERE id = ?",
+                (now, conversation_id)
+            )
+        return {
+            "id": mid,
+            "conversation_id": conversation_id,
+            "role": role,
+            "content": content,
+            "location": location or "",
+            "created_at": now
+        }
 
 _db_instances: Dict[str, Database] = {}
 _db_lock = threading.Lock()

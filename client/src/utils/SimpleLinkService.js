@@ -66,7 +66,7 @@ export class SimpleLinkService {
     link.rel = 'noopener noreferrer nofollow';
   }
 
-  async goToDestination(dest) {
+  async goToDestination(dest, options = {}) {
     if (!this.pdfDoc || !this.onNavigate) return;
     try {
       let explicitDest = dest;
@@ -85,7 +85,7 @@ export class SimpleLinkService {
       }
 
       if (typeof pageIndex === 'number' && pageIndex >= 0) {
-        this.onNavigate(pageIndex + 1);
+        this.onNavigate(pageIndex + 1, options);
       }
     } catch (e) {
       console.error('Failed to navigate to destination:', e);

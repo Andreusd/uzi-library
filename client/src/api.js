@@ -376,3 +376,160 @@ export function setupFetchInterceptor() {
     return originalFetch(input, init);
   };
 }
+
+/**
+ * AI Copilot Service Helpers
+ */
+export async function getAiStatus() {
+  try {
+    const res = await apiFetch('/api/ai/status');
+    if (!res.ok) return { available: false };
+    return await res.json();
+  } catch {
+    return { available: false };
+  }
+}
+
+export async function streamAiChat({
+  messages,
+  conversationId = null,
+  bookId,
+  bookTitle,
+  bookAuthor,
+  location,
+  page,
+  contexts,
+  onChunk,
+  onConversationId,
+  onDone,
+  onError,
+  signal
+}) {
+  try {
+    const res = await apiFetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        conversation_id: conversationId,
+        book_id: bookId,
+        book_title: bookTitle,
+        book_author: bookAuthor,
+        location,
+        page,
+        contexts,
+        stream: true
+      }),
+      signal
+    });
+
+    if (!res.ok) {
+      throw new Error(`Chat error (${res.status}): ${res.statusText}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(trimmed.slice(6));
+            if (data.error) {
+              if (onError) onError(data.error);
+            } else if (data.conversation_id) {
+              if (onConversationId) onConversationId(data.conversation_id, data.title);
+            } else if (data.done) {
+              if (onDone) onDone();
+            } else if (data.chunk) {
+              if (onChunk) onChunk(data.chunk);
+            }
+          } catch (e) {
+            // Ignore parse errors on partial chunks
+          }
+        }
+      }
+    }
+
+    if (onDone) onDone();
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      if (onDone) onDone();
+      return;
+    }
+    if (onError) onError(err.message || 'Error communicating with assistant');
+  }
+}
+
+export async function getAiConversations(bookId) {
+  try {
+    const res = await apiFetch(`/api/ai/conversations?book_id=${encodeURIComponent(bookId || '')}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.conversations || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getAiConversationMessages(conversationId) {
+  try {
+    const res = await apiFetch(`/api/ai/conversations/${encodeURIComponent(conversationId)}/messages`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function createAiConversation(bookId, title = null, location = null) {
+  try {
+    const res = await apiFetch('/api/ai/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ book_id: bookId, title, location })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.conversation || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateAiConversation(conversationId, title) {
+  try {
+    const res = await apiFetch(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.conversation || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteAiConversation(conversationId) {
+  try {
+    const res = await apiFetch(`/api/ai/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+

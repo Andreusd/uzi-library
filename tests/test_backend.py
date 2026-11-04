@@ -239,6 +239,19 @@ class TestAnnotationsManager(unittest.TestCase):
         self.assertTrue(deleted)
         self.assertEqual(len(self.mgr.get_annotations("book_1")), 0)
 
+    def test_annotations_cfi_sanitization(self):
+        # When browser submits single-char element range bug (/1:0,/1:1), backend sanitizes it
+        text = "Um sistema com IA dentro precisa se defender da própria IA."
+        buggy_cfi = "epubcfi(/6/24!/4/2/24/22/12/2,/1:0,/1:1)"
+        ann = self.mgr.add_annotation("book_1", {
+            "page": 1,
+            "cfi": buggy_cfi,
+            "text": text,
+            "color": "rose"
+        })
+        expected_cfi = f"epubcfi(/6/24!/4/2/24/22/12/2,/1:0,/1:{len(text)})"
+        self.assertEqual(ann["cfi"], expected_cfi)
+
 
 class TestDeps(unittest.TestCase):
     def test_singleton_providers(self):

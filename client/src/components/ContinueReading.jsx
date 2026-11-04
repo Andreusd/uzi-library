@@ -191,7 +191,7 @@ export default function ContinueReading({
         ref={scrollContainerRef}
         className={
           isGridView
-            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-5 sm:gap-6'
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 4xl:grid-cols-5 5xl:grid-cols-6 gap-5 sm:gap-6'
             : 'flex gap-5 sm:gap-6 overflow-x-auto no-scrollbar scroll-smooth pt-4 pb-4 px-4 sm:px-5 -mt-3 -mx-4 sm:-mx-5 scroll-px-4 sm:scroll-px-5'
         }
       >
@@ -248,7 +248,7 @@ export default function ContinueReading({
                   : 'border-neutral-800 hover:border-emerald-500/40 hover:shadow-xl hover:-translate-y-1 overflow-hidden'
               } ${
                 !isGridView
-                  ? 'w-full sm:w-[calc((200%-1.5rem)/3)] md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((200%-4.5rem)/5)] xl:w-[calc((100%-3rem)/3)] shrink-0'
+                  ? 'w-full sm:w-[calc((200%-1.5rem)/3)] md:w-[calc((100%-1.5rem)/2)] lg:w-[calc((200%-4.5rem)/5)] xl:w-[calc((100%-3rem)/3)] 2xl:w-[calc((100%-4.5rem)/4)] 4xl:w-[calc((100%-6rem)/5)] 5xl:w-[calc((100%-7.5rem)/6)] shrink-0'
                   : 'w-full'
               }`}
             >

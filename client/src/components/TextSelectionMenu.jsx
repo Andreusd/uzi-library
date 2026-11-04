@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from
 import { 
   MessageSquare, Copy, Check, X, BookOpen, Languages, 
   Volume2, ChevronLeft, Loader2, ExternalLink,
-  Headphones, Globe 
+  Headphones, Globe, Sparkles 
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -28,7 +28,9 @@ export default function TextSelectionMenu({
   selectedText, 
   onHighlight, 
   onClose,
-  onReadAloud
+  onReadAloud,
+  onAskCopilot,
+  isCopilotOpen
 }) {
   const { t, lang: uiLang } = useI18n();
   const menuRef = useRef(null);
@@ -324,6 +326,22 @@ export default function TextSelectionMenu({
             <span className="font-medium">{t('searchWeb')}</span>
             <ExternalLink className="w-3 h-3 text-neutral-500 ml-auto group-hover:text-neutral-300 transition-colors shrink-0" />
           </button>
+
+          {/* Open in AI Chat Button (below Search on Google) */}
+          {onAskCopilot && (
+            <button
+              onClick={() => {
+                onAskCopilot(selectedText);
+                onClose();
+              }}
+              className="w-full px-2.5 py-1.5 rounded-lg flex items-center gap-2 hover:bg-amber-500/10 text-neutral-200 hover:text-amber-300 transition text-left cursor-pointer group border border-transparent hover:border-amber-500/20"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="font-semibold text-neutral-100 group-hover:text-amber-300">
+                {isCopilotOpen ? t('addToCopilot') : t('askCopilot')}
+              </span>
+            </button>
+          )}
 
           {/* Add Note Button */}
           <button

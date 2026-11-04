@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Moon,
   Sun,
+  Sparkles,
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -30,6 +31,9 @@ export default function ReaderMoreMenu({
   onToggleComments,
   commentsDrawerOpen,
   annotationsCount = 0,
+  // AI Copilot
+  onToggleCopilot,
+  copilotDrawerOpen,
   // Night Mode (PDF)
   onToggleInvertColors,
   invertColors,
@@ -149,6 +153,27 @@ export default function ReaderMoreMenu({
             <span className="truncate">
               {isFavorite ? t('removeFromFavorites') : t('addToFavorites')}
             </span>
+          </button>
+        )}
+
+        {/* AI Copilot */}
+        {onToggleCopilot && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onToggleCopilot();
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+              copilotDrawerOpen ? 'bg-amber-500/15 text-amber-400' : itemHover
+            }`}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Sparkles className="w-4 h-4 shrink-0 text-amber-400" />
+              <span className="truncate">
+                {t('aiCopilot')}
+              </span>
+            </div>
           </button>
         )}
 

@@ -7,6 +7,7 @@ export interface ReaderSettings {
   isDualPage: boolean;
   dualCoverStandalone: boolean;
   showBottomProgress: boolean;
+  showChapterProgress?: boolean;
   trackpadSwipe: boolean;
   floatingButtons: boolean;
   upDownFlip: boolean;

@@ -8,11 +8,13 @@ from .scanner import LibraryScanner
 from .covers import CoverManager
 from .lookup import LookupManager
 from .users import UserManager
+from .ai.manager import AIManager
 
 _scanner_instance: Optional[LibraryScanner] = None
 _cover_mgr_instance: Optional[CoverManager] = None
 _lookup_mgr_instance: Optional[LookupManager] = None
 _user_mgr_instance: Optional[UserManager] = None
+_ai_mgr_instance: Optional[AIManager] = None
 
 def get_scanner() -> LibraryScanner:
     """Returns the singleton LibraryScanner instance or test override."""
@@ -41,6 +43,13 @@ def get_user_mgr() -> UserManager:
     if _user_mgr_instance is None:
         _user_mgr_instance = UserManager()
     return _user_mgr_instance
+
+def get_ai_mgr() -> AIManager:
+    """Returns the singleton AIManager instance or test override."""
+    global _ai_mgr_instance
+    if _ai_mgr_instance is None:
+        _ai_mgr_instance = AIManager()
+    return _ai_mgr_instance
 
 def get_request_user(request: Request) -> str:
     """Extracts username from X-User header or user query param."""

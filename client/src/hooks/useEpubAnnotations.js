@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { COLOR_HEX_MAP } from '../utils/epubThemeUtils';
+import { normalizeRangeToTextNodes, sanitizeCfiRange } from '../utils/epubLocationUtils';
 
 /**
  * Hook for managing highlights, comments, and selection menu inside EPUB reader.
@@ -41,11 +42,15 @@ export function useEpubAnnotations({ book, renditionRef, renditionReady, viewerR
     annotations.forEach(ann => {
       if (!ann.cfi) return;
       try {
+        const safeCfi = sanitizeCfiRange(ann.cfi, ann.text);
         renditionRef.current.annotations.remove(ann.cfi, 'highlight');
+        if (safeCfi !== ann.cfi) {
+          renditionRef.current.annotations.remove(safeCfi, 'highlight');
+        }
         const colorHex = COLOR_HEX_MAP[ann.color] || '#facc15';
         renditionRef.current.annotations.add(
           'highlight',
-          ann.cfi,
+          safeCfi,
           { id: ann.id },
           () => {
             setCommentsDrawerOpen(true);
@@ -61,10 +66,28 @@ export function useEpubAnnotations({ book, renditionRef, renditionReady, viewerR
 
   // Create new highlight or comment
   const handleCreateHighlight = useCallback((color, comment = '') => {
-    if (!selectionMenu.text || !selectionMenu.cfi || !book?.id) return;
-
-    const cfi = selectionMenu.cfi;
+    let cfi = selectionMenu.cfi;
     const text = selectionMenu.text;
+
+    // Fallback: If CFI wasn't captured, try resolving from active iframe selection
+    if (!cfi && text && renditionRef?.current) {
+      try {
+        const contentsList = renditionRef.current.getContents() || [];
+        for (const c of contentsList) {
+          const sel = c?.window?.getSelection();
+          if (sel && sel.rangeCount > 0 && sel.toString().trim() === text) {
+            const normRange = normalizeRangeToTextNodes(sel.getRangeAt(0), c.document);
+            cfi = c.cfiFromRange(normRange);
+            if (cfi) break;
+          }
+        }
+      } catch {}
+    }
+
+    cfi = sanitizeCfiRange(cfi, text);
+
+    if (!text || !cfi || !book?.id) return;
+
     const currentChapter = locationInfo?.chapter || '';
 
     const payload = {

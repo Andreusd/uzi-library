@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ePub from 'epubjs';
 import CommentsDrawer from './CommentsDrawer';
+import AiCopilotDrawer from './AiCopilotDrawer';
 import TextSelectionMenu from './TextSelectionMenu';
 import BookSearchBar from './BookSearchBar';
 import TtsPlayerBar from './TtsPlayerBar';
 import PdfOutline from './PdfOutline';
 import EpubToolbar from './EpubToolbar';
 import EpubReaderStage from './EpubReaderStage';
+import ReaderBackPill from './ReaderBackPill';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpubTheme } from '../hooks/useEpubTheme';
 import { useEpubSearch } from '../hooks/useEpubSearch';
 import { useEpubTts } from '../hooks/useEpubTts';
 import { useEpubAnnotations } from '../hooks/useEpubAnnotations';
+import { useAiCopilot } from '../hooks/useAiCopilot';
 import { useEpubNavigation } from '../hooks/useEpubNavigation';
 import { getOfflineBookArrayBuffer, saveOfflineProgress } from '../services/offlineStorage';
 import {
@@ -20,6 +23,8 @@ import {
   getInitialPercent,
   getInitialPage,
   getInitialTotalPages,
+  normalizeRangeToTextNodes,
+  sanitizeCfiRange,
 } from '../utils/epubLocationUtils';
 
 /**
@@ -65,11 +70,16 @@ export default function EpubViewer({
   const [tocOpen, setTocOpen] = useState(false);
   const [renditionReady, setRenditionReady] = useState(false);
 
+  const [backHistory, setBackHistory] = useState([]);
+  const pendingLinkJumpRef = useRef(null);
+
   const [prevBookId, setPrevBookId] = useState(book.id);
   if (book.id !== prevBookId) {
     setPrevBookId(book.id);
     setLoading(true);
     setError(null);
+    setBackHistory([]);
+    pendingLinkJumpRef.current = null;
   }
 
   const [prevIsFavorite, setPrevIsFavorite] = useState(isFavorite);
@@ -90,7 +100,8 @@ export default function EpubViewer({
   const [locationInfo, setLocationInfo] = useState(() => ({
     cfi: initialCfi,
     percentage: Math.round(initialPercent),
-    chapter: ''
+    chapter: '',
+    chapterPercentage: 0
   }));
 
   // Reading page information
@@ -117,6 +128,7 @@ export default function EpubViewer({
     if (e && e.preventDefault) e.preventDefault();
     const targetPage = parseInt(pageInput, 10);
     if (isNaN(targetPage) || !renditionRef.current) return;
+    setBackHistory([]);
 
     if (
       isLocationsReadyRef.current &&
@@ -165,8 +177,34 @@ export default function EpubViewer({
     }
   };
 
+  const recordInTextLinkOrigin = useCallback(() => {
+    const currentCfi = renditionRef.current?.currentLocation()?.start?.cfi || locationInfoRef.current?.cfi;
+    const currentPage = pageInfoRef.current?.page;
+    if (currentCfi) {
+      pendingLinkJumpRef.current = {
+        cfi: currentCfi,
+        page: currentPage,
+      };
+    }
+  }, []);
+
+  const handleNavigateBack = useCallback(() => {
+    setBackHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const target = prev[prev.length - 1];
+      if (target?.cfi && renditionRef.current) {
+        renditionRef.current.display(target.cfi);
+      }
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const handleDismissBack = useCallback(() => {
+    setBackHistory([]);
+  }, []);
+
   // Fullscreen
-  const { isFullscreen, toggleFullscreen } = useFullscreen();
+  const { isFullscreen, toggleFullscreen, restoreFullscreenOnUserGesture } = useFullscreen();
 
   // Subsystem Hook 1: Theme & Font
   const themeSystem = useEpubTheme({
@@ -198,6 +236,64 @@ export default function EpubViewer({
     viewerRef,
     locationInfo,
   });
+
+  // Subsystem Hook 5: AI Copilot
+  const copilot = useAiCopilot();
+
+  // Handle dynamic text selection for AI Copilot (VS Code transient preview tab style)
+  const handleTransientText = useCallback((text) => {
+    if (!text || !text.trim()) return;
+    const loc = locationInfo.chapter || (pageInfo.page ? `Pág. ${pageInfo.page}` : '');
+    copilot.handleSetTransientContext({
+      text: text.trim(),
+      location: loc
+    });
+  }, [copilot, locationInfo.chapter, pageInfo.page]);
+
+  const handleTransientTextRef = useRef(handleTransientText);
+  useEffect(() => {
+    handleTransientTextRef.current = handleTransientText;
+  }, [handleTransientText]);
+
+  // Synchronize selectionMenu text directly as transient context without requiring right-click
+  useEffect(() => {
+    if (annotationsSystem.selectionMenu?.text) {
+      handleTransientTextRef.current?.(annotationsSystem.selectionMenu.text);
+    }
+  }, [annotationsSystem.selectionMenu?.text]);
+
+  // Mutual exclusion: Comments and AI Copilot cannot be open at the same time
+  const handleSetCommentsDrawerOpen = useCallback((val) => {
+    annotationsSystem.setCommentsDrawerOpen((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next) {
+        copilot.setCopilotDrawerOpen(false);
+      }
+      return next;
+    });
+  }, [annotationsSystem, copilot]);
+
+  const handleSetCopilotDrawerOpen = useCallback((val) => {
+    copilot.setCopilotDrawerOpen((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (next) {
+        annotationsSystem.setCommentsDrawerOpen(false);
+      }
+      return next;
+    });
+  }, [annotationsSystem, copilot]);
+
+  useEffect(() => {
+    if (copilot.copilotDrawerOpen && annotationsSystem.commentsDrawerOpen) {
+      annotationsSystem.setCommentsDrawerOpen(false);
+    }
+  }, [copilot.copilotDrawerOpen]);
+
+  useEffect(() => {
+    if (annotationsSystem.commentsDrawerOpen && copilot.copilotDrawerOpen) {
+      copilot.setCopilotDrawerOpen(false);
+    }
+  }, [annotationsSystem.commentsDrawerOpen]);
 
   // Handle Close & Flush Progress
   const handleClose = useCallback(() => {
@@ -257,6 +353,7 @@ export default function EpubViewer({
     setTocOpen,
     commentsDrawerOpen: annotationsSystem.commentsDrawerOpen,
     setCommentsDrawerOpen: annotationsSystem.setCommentsDrawerOpen,
+    copilotDrawerOpen: copilot.copilotDrawerOpen,
     searchOpen: searchSystem.searchOpen,
     setSearchOpen: searchSystem.setSearchOpen,
     handleCloseSearch: searchSystem.handleCloseSearch,
@@ -329,22 +426,58 @@ export default function EpubViewer({
     saveProgressDebouncedRef.current = saveProgressDebounced;
   }, [saveProgressDebounced]);
 
-  // Resize and overscroll cleanup
+  // Resize and overscroll cleanup with debouncing and exact dimensional recalculation
   useEffect(() => {
-    const handleResize = () => {
-      if (renditionRef.current) {
-        try {
-          const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-          renditionRef.current.spread(isMobile ? 'none' : 'auto');
-          renditionRef.current.resize();
-        } catch {}
+    let resizeTimer = null;
+    let lastDimensions = { width: 0, height: 0 };
+
+    const performResize = () => {
+      if (!renditionRef.current || !viewerRef.current) return;
+      try {
+        const rect = viewerRef.current.getBoundingClientRect();
+        const width = Math.floor(rect.width);
+        const height = Math.floor(rect.height);
+        if (width <= 0 || height <= 0) return;
+
+        // Skip if dimensions haven't changed to avoid interrupting page turns
+        if (Math.abs(width - lastDimensions.width) < 2 && Math.abs(height - lastDimensions.height) < 2) {
+          return;
+        }
+        lastDimensions = { width, height };
+
+        const isSinglePage = width < 800 || (typeof window !== 'undefined' && window.innerWidth < 768);
+        renditionRef.current.spread(isSinglePage ? 'none' : 'auto');
+
+        const currentCfi = renditionRef.current.currentLocation()?.start?.cfi;
+        renditionRef.current.resize(width, height, currentCfi);
+      } catch (err) {
+        console.warn('Failed to resize epub rendition:', err);
       }
     };
+
+    const handleResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(performResize, 120);
+    };
+
     window.addEventListener('resize', handleResize);
+
+    // Also observe container dimension changes directly (drawers, sidebar, orientation)
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined' && viewerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        handleResize();
+      });
+      resizeObserver.observe(viewerRef.current);
+    }
+
     // Trigger resize smoothly when entering or exiting fullscreen
-    const timer = setTimeout(handleResize, 150);
+    const timer = setTimeout(performResize, 150);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (resizeObserver) resizeObserver.disconnect();
+      if (resizeTimer) clearTimeout(resizeTimer);
       clearTimeout(timer);
     };
   }, [isFullscreen]);
@@ -410,6 +543,32 @@ export default function EpubViewer({
         // Register content hooks
         rendition.hooks.content.register((contents) => {
           attachListenersToIframeRef.current?.(contents.document, contents.window, contents);
+
+          // Track in-text link clicks to allow returning to previous reading position
+          contents.on('linkClicked', () => {
+            recordInTextLinkOrigin();
+          });
+
+          if (contents.document) {
+            // Restore fullscreen on user gesture if returning from background
+            const handleIframeRestoreFs = () => {
+              restoreFullscreenOnUserGesture();
+            };
+            contents.document.addEventListener('touchstart', handleIframeRestoreFs, { capture: true, passive: true });
+            contents.document.addEventListener('touchend', handleIframeRestoreFs, { capture: true, passive: true });
+            contents.document.addEventListener('pointerdown', handleIframeRestoreFs, { capture: true, passive: true });
+            contents.document.addEventListener('click', handleIframeRestoreFs, { capture: true, passive: true });
+
+            contents.document.addEventListener('click', (e) => {
+              const anchor = e.target?.closest?.('a[href]');
+              if (anchor) {
+                const href = anchor.getAttribute('href') || '';
+                if (!href.startsWith('mailto:') && !href.includes('://') && !href.startsWith('javascript:')) {
+                  recordInTextLinkOrigin();
+                }
+              }
+            }, true);
+          }
 
           try {
             const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
@@ -486,23 +645,29 @@ export default function EpubViewer({
           rendition.getContents().forEach(c => {
             if (c?.document) attachListenersToIframeRef.current?.(c.document, c.window, c);
           });
+          const contentsList = rendition.getContents() || [];
           const iframes = viewerRef.current?.querySelectorAll('iframe') || [];
           iframes.forEach(iframe => {
             const doc = iframe.contentDocument || iframe.contentWindow?.document;
             const win = iframe.contentWindow;
-            if (doc && win) attachListenersToIframeRef.current?.(doc, win);
+            if (doc && win) {
+              const matched = contentsList.find(c => c?.document === doc || c?.window === win) || null;
+              attachListenersToIframeRef.current?.(doc, win, matched);
+            }
           });
         } catch {}
 
         if (viewerRef.current) {
           domObserver = new MutationObserver(() => {
+            const contentsList = renditionRef.current?.getContents() || [];
             const iframes = viewerRef.current?.querySelectorAll('iframe') || [];
             iframes.forEach(iframe => {
               try {
                 const doc = iframe.contentDocument || iframe.contentWindow?.document;
                 const win = iframe.contentWindow;
                 if (doc && win) {
-                  attachListenersToIframeRef.current?.(doc, win);
+                  const matched = contentsList.find(c => c?.document === doc || c?.window === win) || null;
+                  attachListenersToIframeRef.current?.(doc, win, matched);
                 }
               } catch {}
             });
@@ -667,6 +832,24 @@ export default function EpubViewer({
           const text = selection ? selection.toString().trim() : '';
           if (!text || selection.rangeCount === 0) return;
 
+          // Normalize DOM Range to text nodes to avoid epub.js 1-character bug (/1:0,/1:1)
+          let resolvedCfi = cfiRange;
+          try {
+            const rawRange = selection.getRangeAt(0);
+            const normRange = normalizeRangeToTextNodes(rawRange, contents.document);
+            if (normRange && typeof contents.cfiFromRange === 'function') {
+              const regenerated = contents.cfiFromRange(normRange);
+              if (regenerated) {
+                resolvedCfi = regenerated;
+              }
+            }
+          } catch {}
+
+          resolvedCfi = sanitizeCfiRange(resolvedCfi, text);
+
+          // Automatically capture as transient context in AI Chat (VS Code preview tab style)
+          handleTransientTextRef.current?.(text);
+
           const isTouchOrMobile = typeof window !== 'undefined' && (
             window.innerWidth < 768 ||
             'ontouchstart' in window ||
@@ -689,7 +872,7 @@ export default function EpubViewer({
                 x: centerX,
                 y: posY,
                 text,
-                cfi: cfiRange
+                cfi: resolvedCfi
               });
               return;
             } catch (err) {
@@ -701,7 +884,7 @@ export default function EpubViewer({
             ...prev,
             isOpen: false,
             text,
-            cfi: cfiRange
+            cfi: resolvedCfi
           }));
         });
 
@@ -716,12 +899,25 @@ export default function EpubViewer({
         rendition.on('relocated', (location) => {
           if (isCancelled || !location || !location.start) return;
 
+          if (pendingLinkJumpRef.current) {
+            const origin = pendingLinkJumpRef.current;
+            pendingLinkJumpRef.current = null;
+            const newCfi = location.start.cfi;
+            if (origin.cfi && newCfi && origin.cfi !== newCfi) {
+              setBackHistory((prev) => [...prev, origin]);
+            }
+          }
+
           try {
+            const contentsList = rendition?.getContents() || [];
             const iframes = viewerRef.current?.querySelectorAll('iframe') || [];
             iframes.forEach(iframe => {
               const doc = iframe.contentDocument || iframe.contentWindow?.document;
               const win = iframe.contentWindow;
-              if (doc && win) attachListenersToIframeRef.current?.(doc, win);
+              if (doc && win) {
+                const matched = contentsList.find(c => c?.document === doc || c?.window === win) || null;
+                attachListenersToIframeRef.current?.(doc, win, matched);
+              }
             });
           } catch {}
 
@@ -751,10 +947,16 @@ export default function EpubViewer({
 
           const pct = getAccuratePercentage(location, cfi, curPage, totalPages);
 
+          let chapterPct = 0;
+          if (location.start?.displayed && location.start.displayed.total > 0) {
+            chapterPct = Math.min(100, Math.max(0, Math.round((location.start.displayed.page / location.start.displayed.total) * 100)));
+          }
+
           setLocationInfo({
             cfi: cfi,
             percentage: pct,
-            chapter: chapterName
+            chapter: chapterName,
+            chapterPercentage: chapterPct
           });
 
           const totalSpine = epubBook.spine?.items?.length || 0;
@@ -827,6 +1029,7 @@ export default function EpubViewer({
 
   const handleSelectChapter = (href) => {
     if (href && renditionRef.current) {
+      setBackHistory([]);
       renditionRef.current.display(href);
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setTocOpen(false);
@@ -870,7 +1073,9 @@ export default function EpubViewer({
         favState={favState}
         handleFavToggle={handleFavToggle}
         commentsDrawerOpen={annotationsSystem.commentsDrawerOpen}
-        setCommentsDrawerOpen={annotationsSystem.setCommentsDrawerOpen}
+        setCommentsDrawerOpen={handleSetCommentsDrawerOpen}
+        copilotDrawerOpen={copilot.copilotDrawerOpen}
+        setCopilotDrawerOpen={handleSetCopilotDrawerOpen}
         annotationsCount={annotationsSystem.annotations.length}
         tocOpen={tocOpen}
         setTocOpen={setTocOpen}
@@ -888,6 +1093,8 @@ export default function EpubViewer({
         setReaderSettingsOpen={navSystem.setReaderSettingsOpen}
         showBottomProgress={navSystem.showBottomProgress}
         toggleBottomProgress={navSystem.toggleBottomProgress}
+        showChapterProgress={navSystem.showChapterProgress}
+        toggleChapterProgress={navSystem.toggleChapterProgress}
         trackpadSwipeEnabled={navSystem.trackpadSwipeEnabled}
         toggleTrackpadSwipe={navSystem.toggleTrackpadSwipe}
         floatingButtonsEnabled={navSystem.floatingButtonsEnabled}
@@ -925,11 +1132,28 @@ export default function EpubViewer({
         <CommentsDrawer
           annotations={annotationsSystem.annotations}
           isOpen={annotationsSystem.commentsDrawerOpen}
-          onClose={() => annotationsSystem.setCommentsDrawerOpen(false)}
+          onClose={() => handleSetCommentsDrawerOpen(false)}
           onJumpToAnnotation={annotationsSystem.handleJumpToAnnotation}
           onUpdateComment={annotationsSystem.handleUpdateComment}
           onDeleteAnnotation={annotationsSystem.handleDeleteAnnotation}
           book={book}
+        />
+
+        {/* Toggleable Right AI Copilot Drawer */}
+        <AiCopilotDrawer
+          isOpen={copilot.copilotDrawerOpen}
+          onClose={() => handleSetCopilotDrawerOpen(false)}
+          book={book}
+          currentLocation={locationInfo.chapter || locationInfo.cfi || (pageInfo.page ? `Pág. ${pageInfo.page}` : '')}
+          activeContexts={copilot.activeContexts}
+          onRemoveContext={copilot.handleRemoveContext}
+          onAddContext={copilot.handleAskCopilot}
+          transientContext={copilot.transientContext}
+          onPinTransientContext={copilot.handlePinTransientContext}
+          onClearTransientContext={copilot.handleClearTransientContext}
+          pendingSelection={copilot.pendingSelection}
+          onAttachPendingSelection={copilot.handleAttachPendingSelection}
+          onClearPendingSelection={copilot.handleClearPendingSelection}
         />
 
         {/* Floating In-Book Search Bar */}
@@ -961,26 +1185,59 @@ export default function EpubViewer({
           onHighlight={annotationsSystem.handleCreateHighlight}
           onClose={() => annotationsSystem.setSelectionMenu({ isOpen: false, x: 0, y: 0, text: '', cfi: null })}
           onReadAloud={ttsSystem.handleReadSelection}
+          onAskCopilot={(text) => {
+            handleSetCommentsDrawerOpen(false);
+            const loc = locationInfo.chapter || (pageInfo.page ? `Pág. ${pageInfo.page}` : '');
+            copilot.handleAskCopilot(text, loc);
+          }}
+          isCopilotOpen={copilot.copilotDrawerOpen}
         />
       )}
 
-      {/* Floating Bottom Progress Indicator */}
-      {navSystem.showBottomProgress && (
-        <footer className={`fixed bottom-0 inset-x-0 h-1.5 z-30 pointer-events-none ${
+      {/* Floating Bottom Progress Indicators (Book + Chapter) */}
+      {(navSystem.showBottomProgress || navSystem.showChapterProgress) && (
+        <footer className={`fixed bottom-0 inset-x-0 z-30 pointer-events-none flex flex-col ${
           themeSystem.theme === 'dark' ? 'bg-black/60' : themeSystem.theme === 'sepia' ? 'bg-[#d8c5a0]/40' : 'bg-neutral-300/40'
         }`}>
-          <div 
-            className="h-full bg-amber-500 transition-all duration-300"
-            style={{ 
-              width: `${Math.min(100, Math.max(0, 
-                pageInfo.total > 0 
-                  ? (pageInfo.page / pageInfo.total) * 100 
-                  : locationInfo.percentage
-              ))}%` 
-            }}
-          />
+          {/* Top Bar: Book Progress */}
+          {navSystem.showBottomProgress && (
+            <div className="h-1 sm:h-1.5 w-full bg-transparent overflow-hidden">
+              <div 
+                className="h-full bg-amber-500 transition-all duration-300"
+                style={{ 
+                  width: `${Math.min(100, Math.max(0, 
+                    pageInfo.total > 0 
+                      ? (pageInfo.page / pageInfo.total) * 100 
+                      : locationInfo.percentage
+                  ))}%` 
+                }}
+                title={`Livro: ${locationInfo.percentage}%`}
+              />
+            </div>
+          )}
+
+          {/* Bottom Bar: Chapter Progress */}
+          {navSystem.showChapterProgress && (
+            <div className="h-1 sm:h-1.5 w-full bg-transparent overflow-hidden border-t border-black/10">
+              <div 
+                className="h-full bg-amber-400/80 transition-all duration-300 shadow-[0_0_4px_rgba(251,191,36,0.5)]"
+                style={{ 
+                  width: `${Math.min(100, Math.max(0, locationInfo.chapterPercentage || 0))}%` 
+                }}
+                title={locationInfo.chapter ? `${locationInfo.chapter}: ${locationInfo.chapterPercentage}%` : `Capítulo: ${locationInfo.chapterPercentage}%`}
+              />
+            </div>
+          )}
         </footer>
       )}
+
+      {/* Floating Back Pill after following in-text links */}
+      <ReaderBackPill
+        target={backHistory[backHistory.length - 1]}
+        onNavigateBack={handleNavigateBack}
+        onDismiss={handleDismissBack}
+        theme={themeSystem.theme}
+      />
     </div>
   );
 }

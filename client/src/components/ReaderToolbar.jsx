@@ -4,7 +4,7 @@ import {
   Maximize2, Minimize2, Moon, Sun, ListTree,
   MessageSquare, Heart, Settings, MoreVertical,
   RotateCcw, StretchHorizontal,
-  Search, Headphones
+  Search, Headphones, Sparkles
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import ReaderSettingsPopover from './ReaderSettingsPopover';
@@ -46,6 +46,8 @@ export default function ReaderToolbar({
   handleToggleFav,
   commentsDrawerOpen,
   setCommentsDrawerOpen,
+  copilotDrawerOpen,
+  setCopilotDrawerOpen,
   annotationsCount = 0,
   isFullscreen,
   toggleFullscreen,
@@ -56,6 +58,8 @@ export default function ReaderToolbar({
   toggleCenterVertically,
   showBottomProgress,
   toggleBottomProgress,
+  showChapterProgress,
+  toggleChapterProgress,
   trackpadSwipeEnabled,
   setTrackpadSwipeEnabled,
   floatingButtonsEnabled,
@@ -293,6 +297,20 @@ export default function ReaderToolbar({
           <Heart className={`w-4 h-4 ${favState ? 'fill-rose-500 text-rose-500' : ''}`} />
         </button>
 
+        {/* AI Copilot Drawer Toggle */}
+        {setCopilotDrawerOpen && (
+          <button 
+            onClick={() => setCopilotDrawerOpen(prev => !prev)}
+            className={`h-7 w-7 items-center justify-center rounded-lg transition shrink-0 cursor-pointer hidden sm:flex ${
+              copilotDrawerOpen ? btnActiveClass : btnClass
+            }`}
+            title={t('aiCopilot')}
+            aria-label={t('aiCopilot')}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Comments & Highlights Drawer Toggle */}
         <button 
           onClick={() => setCommentsDrawerOpen(prev => !prev)}
@@ -341,6 +359,8 @@ export default function ReaderToolbar({
             toggleCenterVertically={toggleCenterVertically}
             showBottomProgress={showBottomProgress}
             toggleBottomProgress={toggleBottomProgress}
+            showChapterProgress={showChapterProgress}
+            toggleChapterProgress={toggleChapterProgress}
             trackpadSwipeEnabled={trackpadSwipeEnabled}
             toggleTrackpadSwipe={() => {
               setTrackpadSwipeEnabled((prev) => {
@@ -408,6 +428,8 @@ export default function ReaderToolbar({
             isFavorite={favState}
             onToggleComments={() => setCommentsDrawerOpen(prev => !prev)}
             commentsDrawerOpen={commentsDrawerOpen}
+            onToggleCopilot={setCopilotDrawerOpen ? () => setCopilotDrawerOpen(prev => !prev) : undefined}
+            copilotDrawerOpen={copilotDrawerOpen}
             annotationsCount={annotationsCount}
             onToggleInvertColors={onToggleInvertColors}
           />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { EpubCFI } from 'epubjs';
 import { applyThemeToDoc } from '../utils/epubThemeUtils';
+import { normalizeRangeToTextNodes, sanitizeCfiRange } from '../utils/epubLocationUtils';
 
 /**
  * Hook for managing EPUB navigation, keyboard shortcuts, wheel/touch gestures,
@@ -14,6 +15,7 @@ export function useEpubNavigation({
   setTocOpen,
   commentsDrawerOpen,
   setCommentsDrawerOpen,
+  copilotDrawerOpen = false,
   searchOpen,
   setSearchOpen,
   handleCloseSearch,
@@ -64,6 +66,24 @@ export function useEpubNavigation({
       const next = !prev;
       try {
         localStorage.setItem('reader_bottom_progress', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const [showChapterProgress, setShowChapterProgress] = useState(() => {
+    try {
+      return localStorage.getItem('reader_bottom_chapter_progress') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleChapterProgress = useCallback(() => {
+    setShowChapterProgress(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('reader_bottom_chapter_progress', String(next));
       } catch {}
       return next;
     });
@@ -147,6 +167,7 @@ export function useEpubNavigation({
   const isMouseOverHeaderRef = useRef(false);
   const tocOpenRef = useRef(tocOpen);
   const commentsDrawerOpenRef = useRef(commentsDrawerOpen);
+  const copilotDrawerOpenRef = useRef(copilotDrawerOpen);
   const searchOpenRef = useRef(searchOpen);
   const ttsOpenRef = useRef(ttsOpen);
 
@@ -161,6 +182,10 @@ export function useEpubNavigation({
   useEffect(() => {
     commentsDrawerOpenRef.current = commentsDrawerOpen;
   }, [commentsDrawerOpen]);
+
+  useEffect(() => {
+    copilotDrawerOpenRef.current = copilotDrawerOpen;
+  }, [copilotDrawerOpen]);
 
   useEffect(() => {
     searchOpenRef.current = searchOpen;
@@ -181,6 +206,7 @@ export function useEpubNavigation({
     Boolean(
       tocOpenRef.current ||
       commentsDrawerOpenRef.current ||
+      copilotDrawerOpenRef.current ||
       searchOpenRef.current ||
       ttsOpenRef.current ||
       readerSettingsOpenRef.current
@@ -303,7 +329,7 @@ export function useEpubNavigation({
     if (!headerPinned && !isAnyDrawerOpen() && isHeaderVisibleRef.current) {
       startHideTimer(2500, true);
     }
-  }, [tocOpen, commentsDrawerOpen, searchOpen, ttsOpen, readerSettingsOpen, headerPinned, isAnyDrawerOpen, startHideTimer]);
+  }, [tocOpen, commentsDrawerOpen, copilotDrawerOpen, searchOpen, ttsOpen, readerSettingsOpen, headerPinned, isAnyDrawerOpen, startHideTimer]);
 
   // Page flip controls
   const flipNext = useCallback(() => {
@@ -507,12 +533,61 @@ export function useEpubNavigation({
     handleIframeMouseMoveRef.current = handleIframeMouseMove;
   }, [handleIframeMouseMove]);
 
+  // Helper to resolve an accurate CFI range from a DOM range and document context
+  const resolveCfiFromRange = useCallback((range, targetDoc, targetWin, fallbackContents = null, selectedText = '') => {
+    if (!range) return null;
+
+    // Normalize Element-node endpoints to TextNode endpoints to avoid epub.js 1-character bug (/1:0,/1:1)
+    const normRange = normalizeRangeToTextNodes(range, targetDoc) || range;
+
+    // 1. Try from active Contents instances via rendition
+    try {
+      const contentsList = renditionRef?.current?.getContents() || [];
+      const found = contentsList.find(c => c?.document === targetDoc || c?.window === targetWin) || contentsList[0];
+      if (found && typeof found.cfiFromRange === 'function') {
+        const cfi = found.cfiFromRange(normRange);
+        if (cfi) return sanitizeCfiRange(cfi, selectedText);
+      }
+    } catch {}
+
+    // 2. Try from fallbackContents / section / manager views
+    try {
+      const views = renditionRef?.current?.manager?.views || [];
+      const v = views.find(view => view?.document === targetDoc || view?.window === targetWin) || views[0];
+      const cfiBase = fallbackContents?.cfiBase || fallbackContents?.section?.cfiBase || v?.contents?.cfiBase || v?.section?.cfiBase;
+      if (cfiBase) {
+        const cfi = new EpubCFI(normRange, cfiBase).toString();
+        if (cfi) return sanitizeCfiRange(cfi, selectedText);
+      }
+    } catch {}
+
+    // 3. Try from book spine / currentLocation
+    try {
+      const book = renditionRef?.current?.book;
+      const currLoc = renditionRef?.current?.currentLocation();
+      const href = currLoc?.start?.href;
+      if (book?.spine && href) {
+        const section = book.spine.get(href);
+        if (section?.cfiBase) {
+          const cfi = new EpubCFI(normRange, section.cfiBase).toString();
+          if (cfi) return sanitizeCfiRange(cfi, selectedText);
+        }
+      }
+    } catch {}
+
+    return null;
+  }, [renditionRef]);
+
   // Helper to attach wheel, touch, and interaction listeners to an EPUB iframe
   const attachListenersToIframe = useCallback((doc, win, contents = null) => {
     if (!doc && !win) return;
     const targetDoc = doc || win?.document;
     const targetWin = win || doc?.defaultView;
     if (!targetDoc || !targetWin) return;
+
+    if (contents) {
+      targetDoc._epubContents = contents;
+    }
 
     // Apply active theme immediately
     applyThemeToDoc(targetDoc, themeRef.current);
@@ -593,13 +668,8 @@ export function useEpubNavigation({
       e.preventDefault();
       const iframe = targetDoc.defaultView?.frameElement || viewerRef?.current?.querySelector('iframe');
       const iframeRect = iframe ? iframe.getBoundingClientRect() : { left: 0, top: 0 };
-      let cfiRange = null;
-      try {
-        const cfiBase = contents?.cfiBase || contents?.section?.cfiBase;
-        if (cfiBase) {
-          cfiRange = new EpubCFI(range, cfiBase).toString();
-        }
-      } catch {}
+      const docContents = targetDoc._epubContents || contents;
+      const cfiRange = resolveCfiFromRange(range, targetDoc, targetWin, docContents, text);
 
       const rangeRect = range.getBoundingClientRect();
       const posX = (isTouchOrMobile || !e.clientX)
@@ -609,13 +679,17 @@ export function useEpubNavigation({
         ? (iframeRect.top + rangeRect.top)
         : (iframeRect.top + e.clientY);
 
-      setSelectionMenu(prev => ({
-        isOpen: true,
-        x: posX,
-        y: posY,
-        text,
-        cfi: cfiRange || prev.cfi
-      }));
+      setSelectionMenu(prev => {
+        // Never reuse prev.cfi if the selected text does not match prev.text!
+        const matchingPrevCfi = (prev.text && prev.text.trim() === text) ? prev.cfi : null;
+        return {
+          isOpen: true,
+          x: posX,
+          y: posY,
+          text,
+          cfi: cfiRange || matchingPrevCfi
+        };
+      });
     });
 
     targetDoc.addEventListener('mousedown', (e) => {
@@ -645,30 +719,28 @@ export function useEpubNavigation({
 
           const iframe = targetDoc.defaultView?.frameElement || viewerRef?.current?.querySelector('iframe');
           const iframeRect = iframe ? iframe.getBoundingClientRect() : { left: 0, top: 0 };
-          let cfiRange = null;
-          try {
-            const cfiBase = contents?.cfiBase || contents?.section?.cfiBase;
-            if (cfiBase) {
-              cfiRange = new EpubCFI(range, cfiBase).toString();
-            }
-          } catch {}
+          const docContents = targetDoc._epubContents || contents;
+          const cfiRange = resolveCfiFromRange(range, targetDoc, targetWin, docContents, text);
 
           const posX = iframeRect.left + rangeRect.left + (rangeRect.width / 2);
           const posY = iframeRect.top + rangeRect.top;
 
-          setSelectionMenu(prev => ({
-            isOpen: true,
-            x: posX,
-            y: posY,
-            text,
-            cfi: cfiRange || prev.cfi
-          }));
+          setSelectionMenu(prev => {
+            const matchingPrevCfi = (prev.text && prev.text.trim() === text) ? prev.cfi : null;
+            return {
+              isOpen: true,
+              x: posX,
+              y: posY,
+              text,
+              cfi: cfiRange || matchingPrevCfi
+            };
+          });
         } catch {}
       }, 150);
     };
 
     targetDoc.addEventListener('selectionchange', handleSelectionChange);
-  }, [showHeader, themeRef, viewerRef, setSelectionMenu]);
+  }, [showHeader, themeRef, viewerRef, setSelectionMenu, resolveCfiFromRange]);
 
   useEffect(() => {
     attachListenersToIframeRef.current = attachListenersToIframe;
@@ -766,6 +838,7 @@ export function useEpubNavigation({
     isHeaderVisible ||
     tocOpen ||
     commentsDrawerOpen ||
+    copilotDrawerOpen ||
     searchOpen ||
     ttsOpen ||
     readerSettingsOpen;
@@ -789,6 +862,8 @@ export function useEpubNavigation({
     setReaderSettingsOpen,
     showBottomProgress,
     toggleBottomProgress,
+    showChapterProgress,
+    toggleChapterProgress,
     trackpadSwipeEnabled,
     toggleTrackpadSwipe,
     floatingButtonsEnabled,

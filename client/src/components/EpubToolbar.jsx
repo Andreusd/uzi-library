@@ -3,7 +3,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   Maximize2, Minimize2, Moon, Sun, ListTree,
   Heart, PanelTopClose, PanelTopOpen, Palette,
-  MessageSquare, Search, Headphones, Settings, MoreVertical
+  MessageSquare, Search, Headphones, Settings, MoreVertical, Sparkles
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import ReaderSettingsPopover from './ReaderSettingsPopover';
@@ -36,6 +36,8 @@ export default function EpubToolbar({
   handleFavToggle,
   commentsDrawerOpen,
   setCommentsDrawerOpen,
+  copilotDrawerOpen,
+  setCopilotDrawerOpen,
   annotationsCount = 0,
   tocOpen,
   setTocOpen,
@@ -53,6 +55,8 @@ export default function EpubToolbar({
   setReaderSettingsOpen,
   showBottomProgress,
   toggleBottomProgress,
+  showChapterProgress,
+  toggleChapterProgress,
   trackpadSwipeEnabled,
   toggleTrackpadSwipe,
   floatingButtonsEnabled,
@@ -342,6 +346,22 @@ export default function EpubToolbar({
           <Heart className={`w-4 h-4 ${favState ? 'fill-rose-500 text-rose-500' : ''}`} />
         </button>
 
+        {/* AI Copilot Drawer Toggle */}
+        {setCopilotDrawerOpen && (
+          <button
+            onClick={() => {
+              setCopilotDrawerOpen(prev => !prev);
+            }}
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer hidden sm:block ${
+              copilotDrawerOpen ? ht.iconBtnActive : ht.iconBtn
+            }`}
+            title={t('aiCopilot')}
+            aria-label={t('aiCopilot')}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Comments & Highlights Drawer Toggle */}
         <button
           onClick={() => {
@@ -407,6 +427,8 @@ export default function EpubToolbar({
             applyTheme={applyTheme}
             showBottomProgress={showBottomProgress}
             toggleBottomProgress={toggleBottomProgress}
+            showChapterProgress={showChapterProgress}
+            toggleChapterProgress={toggleChapterProgress}
             trackpadSwipeEnabled={trackpadSwipeEnabled}
             toggleTrackpadSwipe={toggleTrackpadSwipe}
             floatingButtonsEnabled={floatingButtonsEnabled}
@@ -452,6 +474,8 @@ export default function EpubToolbar({
             onToggleComments={() => setCommentsDrawerOpen(prev => !prev)}
             commentsDrawerOpen={commentsDrawerOpen}
             annotationsCount={annotationsCount}
+            onToggleCopilot={setCopilotDrawerOpen ? () => setCopilotDrawerOpen(prev => !prev) : undefined}
+            copilotDrawerOpen={copilotDrawerOpen}
           />
         </div>
       </div>

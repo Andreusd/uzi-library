@@ -3,7 +3,7 @@
  * Provides offline caching for the App Shell (HTML, JS, CSS, fonts, icons, PDF.js assets).
  */
 
-const CACHE_NAME = 'uzi-library-shell-v2';
+const CACHE_NAME = 'uzi-library-shell-v3';
 
 // Core static assets to precache on installation
 const PRECACHE_URLS = [

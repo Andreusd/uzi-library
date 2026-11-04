@@ -87,7 +87,7 @@ export default function LibraryContent({
     }
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10 5xl:grid-cols-12 gap-5 sm:gap-6">
         {displayFolders.map((folder) => (
           <FolderCard
             key={folder.id}
@@ -155,7 +155,7 @@ export default function LibraryContent({
     }
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10 5xl:grid-cols-12 gap-5 sm:gap-6">
         {displayTags.map((tag) => (
           <TagCard
             key={tag.id}
@@ -172,7 +172,7 @@ export default function LibraryContent({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10 5xl:grid-cols-12 gap-5 sm:gap-6">
         {[...Array(12)].map((_, i) => (
           <div key={i} className="flex flex-col gap-2">
             <div className="w-full aspect-[1/1.45] bg-neutral-900 rounded-md animate-pulse" />
@@ -216,7 +216,7 @@ export default function LibraryContent({
   if (books.length > 0) {
 
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 4xl:grid-cols-10 5xl:grid-cols-12 gap-5 sm:gap-6">
         {books.map((book) => (
           <BookCard
             key={book.id}

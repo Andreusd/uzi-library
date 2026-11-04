@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MessageSquare, Search, X, ArrowUpRight, Trash2, 
-  Edit3, Check, Copy, Download, FileText 
+  Edit3, Check, Copy, Download, FileText, RotateCcw 
 } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { useResizableDrawer } from '../hooks/useResizableDrawer';
 
 const COLOR_MAP = {
   yellow: { border: 'border-amber-400', badge: 'bg-amber-400/20 text-amber-300' },
@@ -27,6 +28,16 @@ export default function CommentsDrawer({
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [copied, setCopied] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => setHasEntered(true), 350);
+      return () => clearTimeout(timer);
+    } else {
+      setHasEntered(false);
+    }
+  }, [isOpen]);
 
   const getMarkdownContent = () => {
     const title = book?.title || t('commentsAndHighlights');
@@ -115,20 +126,65 @@ export default function CommentsDrawer({
     setEditingId(null);
   };
 
+  const {
+    width,
+    isResizing,
+    isCustomWidth,
+    resetWidth,
+    handleMouseDown,
+    handleTouchStart,
+  } = useResizableDrawer({
+    storageKey: 'uzi-comments-drawer-width',
+    defaultWidth: 320,
+    minWidth: 260,
+    maxWidth: 750,
+  });
+
   if (!isOpen) return null;
 
   return (
     <>
+      {/* Full-screen drag overlay to ensure smooth dragging across entire window and over iframes */}
+      {isResizing && (
+        <div 
+          className="fixed inset-0 z-[99999] cursor-col-resize select-none bg-transparent"
+          style={{ pointerEvents: 'auto' }}
+        />
+      )}
+
       {/* Backdrop - transparent click-catcher so background stays unblurred, clicking outside closes it */}
-      <div 
-        onClick={onClose}
-        className="fixed inset-0 z-30 bg-transparent"
-      />
+      {!isResizing && (
+        <div 
+          onClick={onClose}
+          className="fixed inset-0 z-30 bg-transparent"
+        />
+      )}
 
       {/* Slide-out Right Sidebar Drawer - floating overlay on top of the book */}
-      <aside className={`
-        fixed top-14 bottom-0 right-0 z-40 w-72 sm:w-80 bg-neutral-900 border-l border-neutral-800 flex flex-col shadow-2xl shadow-black/80 transition-all duration-300 ease-in-out animate-slide-in-right
-      `}>
+      <aside 
+        style={{ width: `${width}px` }}
+        onAnimationEnd={() => setHasEntered(true)}
+        className={`
+          fixed top-14 bottom-0 right-0 z-40 max-w-full bg-neutral-900 border-l border-neutral-800 flex flex-col shadow-2xl shadow-black/80
+          ${!hasEntered ? 'animate-slide-in-right' : ''}
+          ${isResizing ? 'transition-none select-none' : 'transition-[width] duration-200 ease-in-out'}
+        `}
+      >
+        {/* Left Drag Handle for Resizing */}
+        <div
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onDoubleClick={resetWidth}
+          className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-50 group flex items-center justify-center select-none touch-none"
+          title={t('resetWidth')}
+        >
+          <div className={`w-[2px] h-10 rounded-full transition-all duration-150 ${
+            isResizing 
+              ? 'bg-amber-400 opacity-100 scale-y-125 shadow-[0_0_8px_rgba(251,191,36,0.6)]' 
+              : 'bg-neutral-700/60 group-hover:bg-amber-400 group-hover:scale-y-125'
+          }`} />
+        </div>
+
         {/* Header */}
         <div className="h-12 px-4 border-b border-neutral-800 flex items-center justify-between shrink-0 bg-neutral-900/50">
           <div className="flex items-center gap-2 min-w-0">
@@ -140,13 +196,29 @@ export default function CommentsDrawer({
               {annotations.length}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition"
-            title={t('hideComments')}
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Reset to default width button */}
+            <button
+              onClick={resetWidth}
+              disabled={!isCustomWidth}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                isCustomWidth
+                  ? 'text-neutral-400 hover:text-amber-400 hover:bg-neutral-800'
+                  : 'text-neutral-600 opacity-30 cursor-not-allowed'
+              }`}
+              title={t('resetWidth')}
+              aria-label={t('resetWidth')}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition cursor-pointer"
+              title={t('hideComments')}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Export & Actions Toolbar */}

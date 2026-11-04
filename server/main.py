@@ -49,6 +49,7 @@ from .routers.libraries import router as libraries_router
 from .routers.books import router as books_router
 from .routers.tags import router as tags_router
 from .routers.lookup import router as lookup_router
+from .routers.ai import router as ai_router
 
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -104,6 +105,7 @@ app.include_router(libraries_router)
 app.include_router(books_router)
 app.include_router(tags_router)
 app.include_router(lookup_router)
+app.include_router(ai_router)
 
 # If client production build exists, mount static assets and index.html fallback
 if os.path.exists(CLIENT_DIST):
@@ -111,7 +113,10 @@ if os.path.exists(CLIENT_DIST):
 
     @app.get("/")
     async def serve_root():
-        return FileResponse(os.path.join(CLIENT_DIST, "index.html"))
+        return FileResponse(
+            os.path.join(CLIENT_DIST, "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
@@ -119,8 +124,14 @@ if os.path.exists(CLIENT_DIST):
             raise HTTPException(status_code=404, detail="Endpoint not found")
         file_path = os.path.join(CLIENT_DIST, full_path)
         if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(CLIENT_DIST, "index.html"))
+            headers = {}
+            if full_path in ("sw.js", "index.html"):
+                headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+            return FileResponse(file_path, headers=headers)
+        return FileResponse(
+            os.path.join(CLIENT_DIST, "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
 
 if __name__ == "__main__":
     import uvicorn

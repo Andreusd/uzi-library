@@ -263,7 +263,7 @@ export default function App() {
           />
 
           {/* Books Content */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto relative z-0">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full relative z-0">
             <LibraryHome
               selectedShelf={selectedShelf}
               debouncedQuery={debouncedQuery}

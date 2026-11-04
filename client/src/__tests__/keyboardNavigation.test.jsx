@@ -1208,6 +1208,50 @@ describe('Library Keyboard Navigation', () => {
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it('useEpubNavigation manages independent book and chapter progress bar states', () => {
+      const { result } = renderHook(() =>
+        useEpubNavigation({
+          book: mockBooks[0],
+          renditionRef: { current: null },
+          onClose: vi.fn(),
+          loading: false,
+          renditionReady: true,
+          setLocationInfo: vi.fn(),
+          setPageInfo: vi.fn(),
+          setPageInput: vi.fn(),
+          setSelectionMenu: vi.fn(),
+          toc: [],
+          tocOpen: false,
+          setTocOpen: vi.fn(),
+          commentsDrawerOpen: false,
+          setCommentsDrawerOpen: vi.fn(),
+          setThemeMenuOpen: vi.fn(),
+          tts: { ttsOpen: false, setTtsOpen: vi.fn(), isPlaying: false, activeSentence: null },
+          search: { searchOpen: false, handleCloseSearch: vi.fn(), clearSearch: vi.fn() },
+          toggleFullscreen: vi.fn(),
+          cycleTheme: vi.fn(),
+        })
+      );
+
+      // Both bars born enabled by default
+      expect(result.current.showBottomProgress).toBe(true);
+      expect(result.current.showChapterProgress).toBe(true);
+
+      // Independent toggle for book progress
+      act(() => {
+        result.current.toggleBottomProgress();
+      });
+      expect(result.current.showBottomProgress).toBe(false);
+      expect(result.current.showChapterProgress).toBe(true);
+
+      // Independent toggle for chapter progress
+      act(() => {
+        result.current.toggleChapterProgress();
+      });
+      expect(result.current.showBottomProgress).toBe(false);
+      expect(result.current.showChapterProgress).toBe(false);
+    });
   });
 
   describe('Sidebar component keyboard highlight rendering', () => {

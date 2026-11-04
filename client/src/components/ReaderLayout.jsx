@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '../i18n';
 import PdfOutline from './PdfOutline';
 import CommentsDrawer from './CommentsDrawer';
+import AiCopilotDrawer from './AiCopilotDrawer';
 import BookSearchBar from './BookSearchBar';
 import TtsPlayerBar from './TtsPlayerBar';
 import TextSelectionMenu from './TextSelectionMenu';
@@ -44,6 +45,20 @@ export default function ReaderLayout({
   onUpdateComment,
   onDeleteAnnotation,
   book,
+  // AI Copilot drawer
+  copilotDrawerOpen,
+  setCopilotDrawerOpen,
+  activeContexts,
+  onRemoveContext,
+  onAddContext,
+  transientContext,
+  onPinTransientContext,
+  onClearTransientContext,
+  pendingSelection,
+  onAttachPendingSelection,
+  onClearPendingSelection,
+  onAskCopilot,
+  currentLocation,
   // Consolidated search & TTS controllers (optional)
   search,
   tts,
@@ -72,8 +87,10 @@ export default function ReaderLayout({
   onHighlight,
   onCloseSelectionMenu,
   onReadAloud,
-  // Bottom progress bar
+  // Bottom progress bars
   showBottomProgress,
+  showChapterProgress,
+  chapterProgressPercent,
 }) {
   const { t } = useI18n();
 
@@ -208,6 +225,23 @@ export default function ReaderLayout({
           book={book}
         />
 
+        {/* Toggleable Right AI Copilot Drawer */}
+        <AiCopilotDrawer
+          isOpen={copilotDrawerOpen}
+          onClose={() => setCopilotDrawerOpen(false)}
+          book={book}
+          currentLocation={currentLocation}
+          activeContexts={activeContexts}
+          onRemoveContext={onRemoveContext}
+          onAddContext={onAddContext}
+          transientContext={transientContext || pendingSelection}
+          onPinTransientContext={onPinTransientContext || onAttachPendingSelection}
+          onClearTransientContext={onClearTransientContext || onClearPendingSelection}
+          pendingSelection={pendingSelection}
+          onAttachPendingSelection={onAttachPendingSelection}
+          onClearPendingSelection={onClearPendingSelection}
+        />
+
         {/* Floating In-Book Search Bar */}
         <BookSearchBar
           search={searchController}
@@ -230,16 +264,35 @@ export default function ReaderLayout({
           onHighlight={onHighlight}
           onClose={onCloseSelectionMenu}
           onReadAloud={onReadAloud}
+          onAskCopilot={onAskCopilot}
+          isCopilotOpen={copilotDrawerOpen}
         />
       )}
 
-      {/* Bottom Progress Bar */}
-      {showBottomProgress && (
-        <div className={`h-1 w-full overflow-hidden select-none ${invertColors ? 'bg-black' : 'bg-neutral-200'}`}>
-          <div 
-            className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-300"
-            style={{ width: `${progressPercent}%` }}
-          />
+      {/* Bottom Progress Bars (Book + Chapter) */}
+      {(showBottomProgress || (showChapterProgress && typeof chapterProgressPercent === 'number')) && (
+        <div className={`w-full overflow-hidden select-none flex flex-col ${invertColors ? 'bg-black' : 'bg-neutral-200'}`}>
+          {/* Top Bar: Book Progress */}
+          {showBottomProgress && (
+            <div className="h-1 w-full bg-transparent overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+                title={`Livro: ${progressPercent}%`}
+              />
+            </div>
+          )}
+
+          {/* Bottom Bar: Chapter Progress (renders only when chapterProgressPercent is valid) */}
+          {showChapterProgress && typeof chapterProgressPercent === 'number' && (
+            <div className="h-1 w-full bg-transparent overflow-hidden border-t border-black/10">
+              <div 
+                className="h-full bg-amber-400/80 transition-all duration-300 shadow-[0_0_4px_rgba(251,191,36,0.5)]"
+                style={{ width: `${Math.min(100, Math.max(0, chapterProgressPercent))}%` }}
+                title={`Capítulo: ${chapterProgressPercent}%`}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

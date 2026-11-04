@@ -58,6 +58,8 @@ export default function ReaderSettingsPopover({
   // Universal settings
   showBottomProgress,
   toggleBottomProgress,
+  showChapterProgress,
+  toggleChapterProgress,
   trackpadSwipeEnabled,
   toggleTrackpadSwipe,
   floatingButtonsEnabled,
@@ -291,13 +293,24 @@ export default function ReaderSettingsPopover({
             />
           )}
 
-          {/* Bottom Progress Bar */}
+          {/* Bottom Progress Bar (Total Book) */}
           {toggleBottomProgress && (
             <ToggleItem
-              title={t('bottomProgressBar')}
-              description={t('bottomProgressBarDesc')}
+              title={t('bookProgressBar') || t('bottomProgressBar')}
+              description={t('bookProgressBarDesc') || t('bottomProgressBarDesc')}
               checked={showBottomProgress}
               onChange={toggleBottomProgress}
+              theme={resolvedTheme}
+            />
+          )}
+
+          {/* Chapter Progress Bar */}
+          {toggleChapterProgress && (
+            <ToggleItem
+              title={t('chapterProgressBar')}
+              description={t('chapterProgressBarDesc')}
+              checked={showChapterProgress}
+              onChange={toggleChapterProgress}
               theme={resolvedTheme}
             />
           )}

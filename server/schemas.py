@@ -95,3 +95,34 @@ class ToggleBookTagPayload(BaseModel):
 
 class UserPayload(BaseModel):
     username: str
+
+class AIChatMessage(BaseModel):
+    role: str = "user"  # "user" | "assistant" | "system"
+    content: str
+
+class AIContextSnippet(BaseModel):
+    text: str
+    location: Optional[str] = None
+    page: Optional[int] = None
+
+class AIChatPayload(BaseModel):
+    messages: List[AIChatMessage]
+    conversation_id: Optional[str] = None
+    book_id: Optional[str] = None
+    book_title: Optional[str] = None
+    book_author: Optional[str] = None
+    location: Optional[str] = None
+    page: Optional[int] = None
+    contexts: Optional[List[AIContextSnippet]] = []
+    stream: Optional[bool] = True
+    system_prompt: Optional[str] = None
+
+class CreateAIConversationPayload(BaseModel):
+    book_id: str
+    title: Optional[str] = None
+    location: Optional[str] = None
+
+class UpdateAIConversationPayload(BaseModel):
+    title: str
+
+
