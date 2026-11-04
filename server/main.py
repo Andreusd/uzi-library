@@ -137,6 +137,18 @@ if os.path.exists(CLIENT_DIST):
             headers={"Cache-Control": "no-cache, must-revalidate"}
         )
 
+def run_server(port: int = 8000):
+    import socket, uvicorn
+    # Create dual-stack socket (IPv4 + IPv6) so mDNS .local (IPv6) and LAN IPs (IPv4) both work
+    try:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.bind(("::", port))
+        sock.listen(2048)
+        uvicorn.run("server.main:app", fd=sock.fileno())
+    except Exception as e:
+        print(f"Dual-stack bind fallback: {e}")
+        uvicorn.run("server.main:app", host="0.0.0.0", port=port)
+
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True)
+    run_server()

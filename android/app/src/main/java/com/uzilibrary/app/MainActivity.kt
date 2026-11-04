@@ -8,6 +8,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
 
     private var activeUrl: String? = null
     private var isPromptShowing = false
+    private var lastNetworkError: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -185,6 +187,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                lastNetworkError = null
+                Log.d("UziLibrary", "onPageFinished: $url")
+            }
+
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
@@ -193,17 +201,23 @@ class MainActivity : AppCompatActivity() {
                 super.onReceivedError(view, request, error)
                 if (request?.isForMainFrame == true) {
                     val failingUrl = request.url.toString()
+                    val errDesc = error?.description?.toString() ?: "Erro desconhecido"
+                    val errCode = error?.errorCode ?: 0
+                    Log.e("UziLibrary", "onReceivedError: url=$failingUrl, code=$errCode, desc=$errDesc, mode=${webView.settings.cacheMode}")
+
                     // If network failed while in LOAD_DEFAULT, immediately try loading from cache
                     if (webView.settings.cacheMode != WebSettings.LOAD_CACHE_ONLY) {
+                        lastNetworkError = "$errDesc (código $errCode)"
                         runOnUiThread {
                             webView.settings.cacheMode = WebSettings.LOAD_CACHE_ONLY
                             webView.loadUrl(failingUrl)
                         }
                     } else {
+                        val diag = lastNetworkError ?: "$errDesc (código $errCode)"
                         runOnUiThread {
                             promptServerUrl(
                                 title = "Servidor Inacessível",
-                                message = "Não foi possível conectar ao servidor e ainda não há cópia offline armazenada de:\n$failingUrl\n\nVerifique se o computador/servidor está ligado ou informe o novo endereço:",
+                                message = "Não foi possível conectar ao servidor em:\n$failingUrl\n\nDiagnóstico: $diag\n\nVerifique se o computador/servidor está ligado ou informe o novo endereço:",
                                 prefill = failingUrl
                             )
                         }
