@@ -37,7 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private val PREFS_NAME = "uzi_library_prefs"
     private val KEY_SERVER_URL = "server_url"
-    private val DEFAULT_URL = "http://andreusd-fedora.local:8000"
+    private val DEFAULT_URL = "http://192.168.0.21:8000"
 
     private var activeUrl: String? = null
     private var isPromptShowing = false
@@ -123,24 +123,89 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadUrl(url: String, forceCache: Boolean = false) {
-        activeUrl = url
+    private fun resolveMdnsHost(hostname: String, timeoutMs: Int = 1500): String? {
+        if (!hostname.endsWith(".local", ignoreCase = true)) return null
+        return try {
+            val socket = java.net.DatagramSocket()
+            socket.soTimeout = timeoutMs
+
+            val buffer = java.io.ByteArrayOutputStream()
+            // DNS Header: ID=0, Flags=0, Questions=1, Answer=0, Auth=0, Add=0
+            buffer.write(byteArrayOf(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0))
+            for (part in hostname.split(".")) {
+                if (part.isNotEmpty()) {
+                    val bytes = part.toByteArray()
+                    buffer.write(bytes.size)
+                    buffer.write(bytes)
+                }
+            }
+            buffer.write(0) // end of domain
+            buffer.write(byteArrayOf(0, 1, 0, 1)) // Type A, Class IN
+
+            val packet = java.net.DatagramPacket(
+                buffer.toByteArray(),
+                buffer.size(),
+                java.net.InetAddress.getByName("224.0.0.251"),
+                5353
+            )
+            socket.send(packet)
+
+            val recvBuf = ByteArray(1024)
+            val recvPacket = java.net.DatagramPacket(recvBuf, recvBuf.size)
+            val startTime = System.currentTimeMillis()
+            while (System.currentTimeMillis() - startTime < timeoutMs) {
+                socket.receive(recvPacket)
+                val senderIp = recvPacket.address.hostAddress
+                if (!senderIp.isNullOrBlank() && senderIp != "127.0.0.1") {
+                    socket.close()
+                    Log.d("UziLibrary", "mDNS resolved $hostname -> $senderIp")
+                    return senderIp
+                }
+            }
+            socket.close()
+            null
+        } catch (e: Exception) {
+            Log.w("UziLibrary", "mDNS resolve exception for $hostname: ${e.message}")
+            null
+        }
+    }
+
+    private fun loadUrl(rawUrl: String, forceCache: Boolean = false) {
+        activeUrl = rawUrl
         lastNetworkError = null
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_SERVER_URL, url).apply()
+        prefs.edit().putString(KEY_SERVER_URL, rawUrl).apply()
 
-        // If forceCache or completely offline, use LOAD_CACHE_ELSE_NETWORK.
-        // Otherwise, always use LOAD_DEFAULT so network requests go through cleanly.
         val cacheMode = if (forceCache || !isNetworkConnected()) {
             WebSettings.LOAD_CACHE_ELSE_NETWORK
         } else {
             WebSettings.LOAD_DEFAULT
         }
         webView.settings.cacheMode = cacheMode
-
-        Log.d("UziLibrary", "loadUrl: $url with cacheMode=$cacheMode (networkConnected=${isNetworkConnected()})")
         progressBar.visibility = View.VISIBLE
-        webView.loadUrl(url)
+
+        val uri = try { java.net.URI(rawUrl) } catch (e: Exception) { null }
+        val host = uri?.host
+
+        if (!forceCache && host != null && host.endsWith(".local", ignoreCase = true)) {
+            kotlin.concurrent.thread {
+                val resolvedIp = resolveMdnsHost(host)
+                val finalUrl = if (resolvedIp != null) {
+                    val portPart = if (uri.port != -1) ":${uri.port}" else ""
+                    val pathPart = uri.rawPath ?: ""
+                    "${uri.scheme ?: "http"}://$resolvedIp$portPart$pathPart"
+                } else {
+                    rawUrl
+                }
+                runOnUiThread {
+                    Log.d("UziLibrary", "loadUrl: finalUrl=$finalUrl (raw=$rawUrl) cacheMode=$cacheMode")
+                    webView.loadUrl(finalUrl)
+                }
+            }
+        } else {
+            Log.d("UziLibrary", "loadUrl: $rawUrl with cacheMode=$cacheMode")
+            webView.loadUrl(rawUrl)
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
