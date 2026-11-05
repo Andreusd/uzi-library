@@ -7,8 +7,9 @@
 }
 
 @layer base {
-  html, body {
+  html, body, #root {
     overscroll-behavior: none;
+    overscroll-behavior-y: none;
     overscroll-behavior-x: none;
   }
   body {

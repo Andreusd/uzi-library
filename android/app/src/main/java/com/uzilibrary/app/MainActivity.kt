@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         rootLayout = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#0a0a0a"))
+            overScrollMode = View.OVER_SCROLL_NEVER
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -270,6 +271,9 @@ class MainActivity : AppCompatActivity() {
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
             setBackgroundColor(Color.parseColor("#0a0a0a"))
+            overScrollMode = View.OVER_SCROLL_NEVER
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
             visibility = View.VISIBLE
         }
 
