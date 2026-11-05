@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressBar: ProgressBar
     private val PREFS_NAME = "uzi_library_prefs"
     private val KEY_SERVER_URL = "server_url"
-    private val DEFAULT_URL = "http://192.168.0.21:8000"
+    private val DEFAULT_URL = "http://andreusd-fedora.local:8000"
 
     private var activeUrl: String? = null
     private var isPromptShowing = false
@@ -432,7 +432,7 @@ class MainActivity : AppCompatActivity() {
             setText(prefill)
             setSelection(text.length)
             setSingleLine(true)
-            setHint("http://192.168.0.21:8000")
+            setHint("http://andreusd-fedora.local:8000")
             setTextColor(Color.WHITE)
             setHintTextColor(Color.GRAY)
             setBackgroundColor(Color.parseColor("#1a1a1a"))
