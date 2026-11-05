@@ -4,10 +4,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.jsx';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary.jsx';
+import { initGlobalErrorHandlers } from './services/errorLogger.js';
 import { I18nProvider } from './i18n';
 import { SettingsProvider } from './contexts/SettingsContext.jsx';
 
 setupFetchInterceptor();
+initGlobalErrorHandlers();
 
 // Register Service Worker for PWA offline caching
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -20,10 +23,12 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <SettingsProvider>
-      <I18nProvider>
-        <App />
-      </I18nProvider>
-    </SettingsProvider>
+    <GlobalErrorBoundary>
+      <SettingsProvider>
+        <I18nProvider>
+          <App />
+        </I18nProvider>
+      </SettingsProvider>
+    </GlobalErrorBoundary>
   </StrictMode>,
 );

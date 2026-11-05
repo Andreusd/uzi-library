@@ -12,7 +12,9 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.WebChromeClient
@@ -263,6 +265,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun recordError(category: String, message: String) {
+        try {
+            val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+            val entry = "[$timestamp][$category] $message"
+            prefs.edit().putString("last_native_error", entry).apply()
+
+            val existing = prefs.getString("all_error_logs", "") ?: ""
+            val updated = if (existing.isEmpty()) entry else "$entry\n---\n$existing".take(10000)
+            prefs.edit().putString("all_error_logs", updated).apply()
+        } catch (e: Exception) {
+            Log.e("UziLibrary", "recordError failed: ${e.message}")
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView(root: FrameLayout) {
         webView = WebView(this).apply {
@@ -321,6 +338,24 @@ class MainActivity : AppCompatActivity() {
             fun isFullscreen(): Boolean {
                 return isFullscreen
             }
+
+            @JavascriptInterface
+            fun reportError(errorJson: String) {
+                Log.e("UziLibraryFrontend", "Frontend reported error: $errorJson")
+                recordError("FRONTEND_CRASH", errorJson)
+            }
+
+            @JavascriptInterface
+            fun getErrorLogs(): String {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                return prefs.getString("all_error_logs", "") ?: ""
+            }
+
+            @JavascriptInterface
+            fun clearErrorLogs() {
+                val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().remove("last_native_error").remove("all_error_logs").apply()
+            }
         }, "AndroidApp")
 
         webView.webChromeClient = object : WebChromeClient() {
@@ -346,6 +381,17 @@ class MainActivity : AppCompatActivity() {
                     setFullscreenMode(false)
                 }
             }
+
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                val level = consoleMessage.messageLevel()
+                val msg = consoleMessage.message()
+                val source = "${consoleMessage.sourceId()}:${consoleMessage.lineNumber()}"
+                if (level == ConsoleMessage.MessageLevel.ERROR) {
+                    Log.e("UziLibraryJS", "[$level] $msg ($source)")
+                    recordError("JS_CONSOLE_ERROR", "$msg ($source)")
+                }
+                return super.onConsoleMessage(consoleMessage)
+            }
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -353,6 +399,24 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 lastNetworkError = null
                 Log.d("UziLibrary", "onPageFinished: $url")
+            }
+
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                val didCrash = detail?.didCrash() ?: false
+                val msg = "WebView render process gone! didCrash=$didCrash"
+                Log.e("UziLibrary", msg)
+                recordError("RENDER_PROCESS_GONE", msg)
+                runOnUiThread {
+                    try {
+                        rootLayout.removeView(webView)
+                        webView.destroy()
+                        setupWebView(rootLayout)
+                        activeUrl?.let { loadUrl(it) }
+                    } catch (e: Exception) {
+                        Log.e("UziLibrary", "Failed to recreate WebView: ${e.message}")
+                    }
+                }
+                return true
             }
 
             override fun onReceivedError(

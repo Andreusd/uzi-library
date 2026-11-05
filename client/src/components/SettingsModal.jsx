@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, Folder, CheckCircle, AlertCircle, AlertTriangle, 
-  X, Plus, Trash2, Edit3, Check, Globe, ShieldCheck, ArrowRight, Sliders, RefreshCw
+  X, Plus, Trash2, Edit3, Check, Globe, ShieldCheck, ArrowRight, Sliders, RefreshCw,
+  Copy, Bug
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { FlagUS, FlagBR, FlagES, FlagFR } from './FlagIcons';
+import { getErrorLogs, clearErrorLogs, generateDiagnosticReport } from '../services/errorLogger';
 
 export default function SettingsModal({ 
   isOpen, 
@@ -120,6 +122,31 @@ export default function SettingsModal({
       });
   };
 
+  const [errorLogs, setErrorLogs] = useState([]);
+  const [diagnosticsCopied, setDiagnosticsCopied] = useState(false);
+
+  const refreshErrorLogs = () => {
+    setErrorLogs(getErrorLogs());
+  };
+
+  const handleCopyDiagnostics = async () => {
+    try {
+      const report = generateDiagnosticReport();
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(report);
+      }
+      setDiagnosticsCopied(true);
+      setTimeout(() => setDiagnosticsCopied(false), 2500);
+    } catch (err) {
+      console.warn('Failed to copy diagnostics:', err);
+    }
+  };
+
+  const handleClearErrors = () => {
+    clearErrorLogs();
+    setErrorLogs([]);
+  };
+
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
@@ -129,6 +156,7 @@ export default function SettingsModal({
       setAddName('');
       setAddPath('');
       setAddValidation(null);
+      refreshErrorLogs();
     }
   }
 
@@ -836,6 +864,52 @@ export default function SettingsModal({
                 );
               })}
             </div>
+          </div>
+
+          {/* Error Diagnostics & Logs */}
+          <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bug className="w-4 h-4 text-amber-400" />
+                <h3 className="text-xs font-bold text-neutral-200">
+                  Diagnóstico e Relatório de Erros
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyDiagnostics}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{diagnosticsCopied ? 'Copiado!' : 'Copiar Diagnóstico'}</span>
+                </button>
+                {errorLogs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearErrors}
+                    className="p-1 text-neutral-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition cursor-pointer"
+                    title="Limpar logs"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              {errorLogs.length === 0
+                ? 'Nenhum erro registrado recentemente. O sistema está estável.'
+                : `${errorLogs.length} erro(s) registrado(s). Use o botão acima para copiar o relatório completo com stack trace e informações do dispositivo.`}
+            </p>
+            {errorLogs.length > 0 && (
+              <div className="bg-neutral-950 rounded-xl p-2.5 text-[10px] font-mono text-neutral-400 max-h-24 overflow-y-auto space-y-1 select-text border border-neutral-850">
+                {errorLogs.slice(0, 5).map((err, idx) => (
+                  <div key={idx} className="truncate text-rose-300/90">
+                    <span className="text-neutral-500">[{err.timestamp?.slice(11, 19)}]</span> {err.name}: {err.message}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Safety Notice */}
