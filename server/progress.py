@@ -117,6 +117,19 @@ class ProgressTracker:
             }
             return self.db.set_progress_record(self.user_slug, book_id, record)
 
+    def update_percent(self, book_id: str, percent: float) -> Optional[Dict[str, Any]]:
+        """Updates reading percentage for a book, saving it to database."""
+        with self._lock:
+            existing = self.db.get_progress(self.user_slug, book_id)
+            if existing:
+                existing["percent"] = round(max(0.0, min(100.0, float(percent))), 1)
+                return self.db.set_progress_record(self.user_slug, book_id, existing)
+            return None
+
+    def _save(self):
+        """No-op for backwards compatibility."""
+        pass
+
     def mark_completed(self, book_id: str, total_pages: int = 1) -> Dict[str, Any]:
         """Marks a book as 100% completed, preserving zoom and night mode."""
         with self._lock:
