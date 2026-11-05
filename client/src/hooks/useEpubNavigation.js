@@ -813,7 +813,44 @@ export function useEpubNavigation({
 
     handleKeyDownRef.current = handleKeyDown;
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    // Register Android Back navigation handler for Reader
+    window.__uziReaderBack = () => {
+      if (readerSettingsOpenRef.current) {
+        setReaderSettingsOpen(false);
+        return true;
+      }
+      if (ttsOpenRef.current) {
+        setTtsOpen(false);
+        return true;
+      }
+      if (searchOpenRef.current) {
+        handleCloseSearch();
+        return true;
+      }
+      if (selectionMenu?.isOpen) {
+        setSelectionMenu({ isOpen: false, x: 0, y: 0, text: '', cfi: null });
+        return true;
+      }
+      if (commentsDrawerOpen) {
+        setCommentsDrawerOpen(false);
+        return true;
+      }
+      if (tocOpen) {
+        setTocOpen(false);
+        return true;
+      }
+      if (handleClose) {
+        handleClose();
+        return true;
+      }
+      return false;
+    };
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      delete window.__uziReaderBack;
+    };
   }, [
     commentsDrawerOpen,
     tocOpen,

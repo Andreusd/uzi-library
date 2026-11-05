@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 /**
- * Custom hook to monitor and toggle browser fullscreen state,
- * with cross-browser support for mobile (WebKit / Safari / Chrome)
- * and smart automatic fullscreen recovery upon returning from background/app-switching.
+ * Custom hook to monitor and toggle fullscreen state.
+ * Supports native Android WebView bridge (window.AndroidApp) and cross-browser HTML5 Fullscreen API.
+ * In native Android WebView, fullscreen is managed via WindowInsetsControllerCompat rather than DOM APIs.
  */
 export function useFullscreen() {
   const getFullscreenElement = () => {
@@ -25,6 +25,7 @@ export function useFullscreen() {
     }
     return Boolean(getFullscreenElement());
   });
+
   const isFullscreenRef = useRef(isFullscreen);
   useEffect(() => {
     isFullscreenRef.current = isFullscreen;
@@ -72,6 +73,17 @@ export function useFullscreen() {
   }, []);
 
   const requestFullscreenInternal = useCallback(() => {
+    // In Android APK, use native AndroidApp bridge - NEVER call DOM webkitRequestFullscreen in WebView!
+    if (typeof window !== 'undefined' && window.AndroidApp?.setFullscreen) {
+      try {
+        window.AndroidApp.setFullscreen(true);
+        pendingFullscreenRestoreRef.current = false;
+        return;
+      } catch (err) {
+        console.warn('AndroidApp.setFullscreen failed:', err);
+      }
+    }
+
     if (typeof document === 'undefined') return;
     const docEl = document.documentElement;
     const req =
@@ -101,14 +113,52 @@ export function useFullscreen() {
     }
   }, []);
 
+  const exitFullscreenInternal = useCallback(() => {
+    if (typeof window !== 'undefined' && window.AndroidApp?.setFullscreen) {
+      try {
+        window.AndroidApp.setFullscreen(false);
+        pendingFullscreenRestoreRef.current = false;
+        return;
+      } catch (err) {
+        console.warn('AndroidApp.setFullscreen(false) failed:', err);
+      }
+    }
+
+    if (typeof document === 'undefined') return;
+    pendingFullscreenRestoreRef.current = false;
+    const exitFs =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.mozCancelFullScreen ||
+      document.msExitFullscreen;
+
+    if (exitFs) {
+      try {
+        const res = exitFs.call(document);
+        if (res && res.catch) {
+          res.catch((err) => console.warn('Failed to exit fullscreen mode:', err));
+        }
+      } catch (err) {
+        console.warn('Exit fullscreen failed:', err);
+      }
+    }
+  }, []);
+
   const restoreFullscreenOnUserGesture = useCallback(() => {
+    // In Android APK, native WindowInsetsController handles immersive restoration automatically on focus
+    if (typeof window !== 'undefined' && window.AndroidApp) {
+      pendingFullscreenRestoreRef.current = false;
+      return;
+    }
     if (!pendingFullscreenRestoreRef.current || getFullscreenElement()) return;
     requestFullscreenInternal();
   }, [requestFullscreenInternal]);
 
-  // Track app switching / backgrounding (visibilitychange, pagehide, blur)
+  // Track app switching / backgrounding (visibilitychange, pagehide, blur) for regular browsers
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    // Skip DOM background listeners inside Android APK (handled natively by MainActivity)
+    if (window.AndroidApp) return;
 
     const handleAppBackground = () => {
       // If fullscreen is currently active (or was active right before minimizing)
@@ -161,34 +211,24 @@ export function useFullscreen() {
       }
     }
 
-    if (typeof document === 'undefined') return;
+    if (typeof window !== 'undefined' && window.AndroidApp?.setFullscreen) {
+      try {
+        window.AndroidApp.setFullscreen(!isFullscreenRef.current);
+        return;
+      } catch (err) {
+        console.warn('AndroidApp.setFullscreen failed, falling back to browser API:', err);
+      }
+    }
 
     const fsElement = getFullscreenElement();
-    const docEl = document.documentElement;
-
     if (!fsElement) {
       pendingFullscreenRestoreRef.current = false;
       requestFullscreenInternal();
     } else {
       pendingFullscreenRestoreRef.current = false;
-      const exitFs =
-        document.exitFullscreen ||
-        document.webkitExitFullscreen ||
-        document.mozCancelFullScreen ||
-        document.msExitFullscreen;
-
-      if (exitFs) {
-        try {
-          const res = exitFs.call(document);
-          if (res && res.catch) {
-            res.catch((err) => console.warn('Failed to exit fullscreen mode:', err));
-          }
-        } catch (err) {
-          console.warn('Exit fullscreen failed:', err);
-        }
-      }
+      exitFullscreenInternal();
     }
-  }, [requestFullscreenInternal]);
+  }, [requestFullscreenInternal, exitFullscreenInternal]);
 
   return { isFullscreen, toggleFullscreen, restoreFullscreenOnUserGesture };
 }

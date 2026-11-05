@@ -50,6 +50,8 @@ class MainActivity : AppCompatActivity() {
     private var lastNetworkError: String? = null
     private var isFullscreen = false
     private var lastInsets: Insets? = null
+    private var customView: View? = null
+    private var customViewCallback: WebChromeClient.CustomViewCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,12 +86,25 @@ class MainActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (isFullscreen) {
-                    setFullscreenMode(false)
-                } else if (webView.canGoBack()) {
-                    webView.goBack()
-                } else {
-                    showExitOrConfigDialog()
+                if (customView != null) {
+                    webView.webChromeClient?.onHideCustomView()
+                    return
+                }
+
+                // Check if web application can handle the back navigation (modals, drawers, reader, shelf navigation)
+                webView.evaluateJavascript("(function(){ return Boolean(window.__uziHandleBack && window.__uziHandleBack()); })();") { result ->
+                    val handled = result?.trim()?.equals("true", ignoreCase = true) == true
+                    if (!handled) {
+                        runOnUiThread {
+                            if (isFullscreen) {
+                                setFullscreenMode(false)
+                            } else if (webView.canGoBack()) {
+                                webView.goBack()
+                            } else {
+                                showExitOrConfigDialog()
+                            }
+                        }
+                    }
                 }
             }
         })
@@ -369,14 +384,37 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-                super.onShowCustomView(view, callback)
+                if (customView != null) {
+                    onHideCustomView()
+                    return
+                }
+                customView = view
+                customViewCallback = callback
+                if (view != null) {
+                    view.setBackgroundColor(Color.parseColor("#0a0a0a"))
+                    rootLayout.addView(
+                        view,
+                        FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    )
+                    webView.visibility = View.GONE
+                }
                 runOnUiThread {
                     setFullscreenMode(true)
                 }
             }
 
             override fun onHideCustomView() {
-                super.onHideCustomView()
+                val cv = customView
+                if (cv != null) {
+                    rootLayout.removeView(cv)
+                    customView = null
+                    webView.visibility = View.VISIBLE
+                    customViewCallback?.onCustomViewHidden()
+                    customViewCallback = null
+                }
                 runOnUiThread {
                     setFullscreenMode(false)
                 }
@@ -543,5 +581,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         builder.show()
+    }
+
+    override fun onDestroy() {
+        if (customView != null) {
+            webView.webChromeClient?.onHideCustomView()
+        }
+        super.onDestroy()
     }
 }

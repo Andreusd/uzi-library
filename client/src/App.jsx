@@ -183,6 +183,79 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isReaderActive, toggleSidebar, closeReader]);
 
+  // Android Back navigation handler bridge
+  useEffect(() => {
+    window.__uziHandleBack = () => {
+      // 1. If active reader has registered sub-views (TOC, drawer, or close handler)
+      if (typeof window.__uziReaderBack === 'function' && window.__uziReaderBack()) {
+        return true;
+      }
+      // 2. Close active context menus
+      if (modals.contextMenu.isOpen) {
+        modals.closeBookContextMenu();
+        return true;
+      }
+      if (modals.shelfContextMenu.isOpen) {
+        modals.closeShelfContextMenu();
+        return true;
+      }
+      // 3. Close open modals / overlays
+      if (modals.detailsModal.isOpen) {
+        modals.closeDetailsModal();
+        return true;
+      }
+      if (modals.tagModal.isOpen) {
+        modals.closeTagModal();
+        return true;
+      }
+      if (modals.renameModal.isOpen) {
+        modals.closeRenameModal();
+        return true;
+      }
+      if (modals.iconModal.isOpen) {
+        modals.closeIconModal();
+        return true;
+      }
+      if (modals.settingsOpen) {
+        modals.setSettingsOpen(false);
+        return true;
+      }
+      if (modals.themeMenuOpen) {
+        modals.setThemeMenuOpen(false);
+        return true;
+      }
+      // 4. Close mobile sidebar drawer
+      if (sidebarOpen) {
+        setSidebarOpen(false);
+        return true;
+      }
+      // 5. Close reader if active
+      if (activeBook || isTransitionActive) {
+        closeReader();
+        return true;
+      }
+      // 6. Navigate to 'all' shelf if viewing a sub-shelf or tag
+      if (selectedShelf && selectedShelf !== 'all') {
+        navigateToShelf('all');
+        return true;
+      }
+      return false;
+    };
+
+    return () => {
+      delete window.__uziHandleBack;
+    };
+  }, [
+    modals,
+    sidebarOpen,
+    setSidebarOpen,
+    activeBook,
+    isTransitionActive,
+    closeReader,
+    selectedShelf,
+    navigateToShelf,
+  ]);
+
   const handleOpenDetails = useCallback((book) => {
     modals.openDetailsModal(book);
   }, [modals]);
