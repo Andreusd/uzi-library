@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.JavascriptInterface
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
 import android.webkit.WebChromeClient
@@ -27,12 +28,15 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var rootLayout: FrameLayout
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private val PREFS_NAME = "uzi_library_prefs"
@@ -42,13 +46,13 @@ class MainActivity : AppCompatActivity() {
     private var activeUrl: String? = null
     private var isPromptShowing = false
     private var lastNetworkError: String? = null
+    private var isFullscreen = false
+    private var lastInsets: Insets? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        enableImmersiveMode()
-
-        val rootLayout = FrameLayout(this).apply {
+        rootLayout = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#0a0a0a"))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -56,13 +60,30 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            lastInsets = insets
+            if (isFullscreen) {
+                view.setPadding(0, 0, 0, 0)
+            } else {
+                view.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+            }
+            windowInsets
+        }
+
         setupWebView(rootLayout)
         setupProgressBar(rootLayout)
         setContentView(rootLayout)
 
+        applyFullscreenState()
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) {
+                if (isFullscreen) {
+                    setFullscreenMode(false)
+                } else if (webView.canGoBack()) {
                     webView.goBack()
                 } else {
                     showExitOrConfigDialog()
@@ -86,27 +107,60 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        enableImmersiveMode()
+        applyFullscreenState()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
-            enableImmersiveMode()
+            applyFullscreenState()
         }
     }
 
-    private fun enableImmersiveMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val attrib = window.attributes
-            attrib.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            window.attributes = attrib
-        }
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+    fun setFullscreenMode(enabled: Boolean) {
+        if (isFullscreen == enabled) return
+        isFullscreen = enabled
+        applyFullscreenState()
+        val script = "window.dispatchEvent(new CustomEvent('uzi-fullscreen-change', { detail: { isFullscreen: $enabled } }));"
+        webView.evaluateJavascript(script, null)
+    }
+
+    private fun applyFullscreenState() {
+        val window = window
         val controller = WindowInsetsControllerCompat(window, window.decorView)
-        controller.hide(WindowInsetsCompat.Type.systemBars())
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        if (isFullscreen) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val attrib = window.attributes
+                attrib.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                window.attributes = attrib
+            }
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            rootLayout.setPadding(0, 0, 0, 0)
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val attrib = window.attributes
+                attrib.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+                window.attributes = attrib
+            }
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
+            window.statusBarColor = Color.parseColor("#0a0a0a")
+            window.navigationBarColor = Color.parseColor("#0a0a0a")
+
+            lastInsets?.let { insets ->
+                rootLayout.setPadding(insets.left, insets.top, insets.right, insets.bottom)
+            }
+        }
+
+        ViewCompat.requestApplyInsets(rootLayout)
     }
 
     private fun isNetworkConnected(): Boolean {
@@ -244,6 +298,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun toggleFullscreen() {
+                runOnUiThread {
+                    setFullscreenMode(!isFullscreen)
+                }
+            }
+
+            @JavascriptInterface
+            fun setFullscreen(enabled: Boolean) {
+                runOnUiThread {
+                    setFullscreenMode(enabled)
+                }
+            }
+
+            @JavascriptInterface
+            fun isFullscreen(): Boolean {
+                return isFullscreen
+            }
+        }, "AndroidApp")
+
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 if (newProgress < 100) {
@@ -251,6 +326,20 @@ class MainActivity : AppCompatActivity() {
                     progressBar.progress = newProgress
                 } else {
                     progressBar.visibility = View.GONE
+                }
+            }
+
+            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                super.onShowCustomView(view, callback)
+                runOnUiThread {
+                    setFullscreenMode(true)
+                }
+            }
+
+            override fun onHideCustomView() {
+                super.onHideCustomView()
+                runOnUiThread {
+                    setFullscreenMode(false)
                 }
             }
         }

@@ -17,7 +17,14 @@ export function useFullscreen() {
     );
   };
 
-  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(getFullscreenElement()));
+  const [isFullscreen, setIsFullscreen] = useState(() => {
+    if (typeof window !== 'undefined' && window.AndroidApp?.isFullscreen) {
+      try {
+        return Boolean(window.AndroidApp.isFullscreen());
+      } catch {}
+    }
+    return Boolean(getFullscreenElement());
+  });
   const isFullscreenRef = useRef(isFullscreen);
   useEffect(() => {
     isFullscreenRef.current = isFullscreen;
@@ -38,6 +45,16 @@ export function useFullscreen() {
       }
     };
 
+    const handleAndroidFullscreenChange = (e) => {
+      if (e?.detail && typeof e.detail.isFullscreen === 'boolean') {
+        setIsFullscreen(e.detail.isFullscreen);
+      } else if (typeof window !== 'undefined' && window.AndroidApp?.isFullscreen) {
+        try {
+          setIsFullscreen(Boolean(window.AndroidApp.isFullscreen()));
+        } catch {}
+      }
+    };
+
     const events = [
       'fullscreenchange',
       'webkitfullscreenchange',
@@ -46,8 +63,11 @@ export function useFullscreen() {
     ];
 
     events.forEach(evt => document.addEventListener(evt, handleFullscreenChange));
+    window.addEventListener('uzi-fullscreen-change', handleAndroidFullscreenChange);
+
     return () => {
       events.forEach(evt => document.removeEventListener(evt, handleFullscreenChange));
+      window.removeEventListener('uzi-fullscreen-change', handleAndroidFullscreenChange);
     };
   }, []);
 
@@ -132,6 +152,15 @@ export function useFullscreen() {
   }, [restoreFullscreenOnUserGesture]);
 
   const toggleFullscreen = useCallback(() => {
+    if (typeof window !== 'undefined' && window.AndroidApp?.toggleFullscreen) {
+      try {
+        window.AndroidApp.toggleFullscreen();
+        return;
+      } catch (err) {
+        console.warn('AndroidApp.toggleFullscreen failed, falling back to browser API:', err);
+      }
+    }
+
     if (typeof document === 'undefined') return;
 
     const fsElement = getFullscreenElement();

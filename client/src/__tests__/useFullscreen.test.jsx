@@ -133,4 +133,41 @@ describe('useFullscreen hook', () => {
 
     expect(mockRequestFullscreen).not.toHaveBeenCalled();
   });
+
+  describe('AndroidApp integration', () => {
+    it('uses window.AndroidApp.toggleFullscreen when available', () => {
+      const toggleFullscreenMock = vi.fn();
+      window.AndroidApp = {
+        isFullscreen: vi.fn().mockReturnValue(false),
+        toggleFullscreen: toggleFullscreenMock,
+      };
+
+      const { result } = renderHook(() => useFullscreen());
+      expect(result.current.isFullscreen).toBe(false);
+
+      act(() => {
+        result.current.toggleFullscreen();
+      });
+
+      expect(toggleFullscreenMock).toHaveBeenCalledTimes(1);
+      expect(mockRequestFullscreen).not.toHaveBeenCalled();
+
+      delete window.AndroidApp;
+    });
+
+    it('updates isFullscreen on uzi-fullscreen-change custom event', () => {
+      const { result } = renderHook(() => useFullscreen());
+      expect(result.current.isFullscreen).toBe(false);
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent('uzi-fullscreen-change', { detail: { isFullscreen: true } }));
+      });
+      expect(result.current.isFullscreen).toBe(true);
+
+      act(() => {
+        window.dispatchEvent(new CustomEvent('uzi-fullscreen-change', { detail: { isFullscreen: false } }));
+      });
+      expect(result.current.isFullscreen).toBe(false);
+    });
+  });
 });
