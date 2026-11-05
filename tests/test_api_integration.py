@@ -54,12 +54,7 @@ class BaseAPITestCase(unittest.TestCase):
         self.lib = self.config_mgr.add_library("Main Test Library", self.books_dir, set_active=True)
         self.library_id = self.lib["id"]
 
-        self.scanner = LibraryScanner(
-            config_mgr=self.config_mgr,
-            aliases_path=os.path.join(self.cache_dir, "shelf_aliases.json"),
-            icons_path=os.path.join(self.cache_dir, "shelf_icons.json"),
-            metadata_cache_path=os.path.join(self.cache_dir, "metadata_cache.json")
-        )
+        self.scanner = LibraryScanner(config_mgr=self.config_mgr)
         self.cover_mgr = CoverManager(cache_dir=os.path.join(self.cache_dir, "covers"))
         self.user_mgr = UserManager(cache_dir=self.cache_dir)
         self.lookup_mgr = LookupManager(cache_file=os.path.join(self.cache_dir, "lookups.json"))

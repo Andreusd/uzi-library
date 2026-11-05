@@ -27,8 +27,6 @@ class UserManager:
         self.cache_dir = cache_dir
         self.db_path = db_path or cache_dir
         self.db = get_db(self.db_path)
-        self.users_dir = os.path.join(self.cache_dir, "users")
-        os.makedirs(self.users_dir, exist_ok=True)
         self._lock = threading.RLock()
 
         self._trackers: Dict[str, ProgressTracker] = {}

@@ -59,29 +59,9 @@ export default function ReaderLayout({
   onClearPendingSelection,
   onAskCopilot,
   currentLocation,
-  // Consolidated search & TTS controllers (optional)
+  // Search & TTS controllers
   search,
   tts,
-  // Legacy Search bar props
-  searchOpen,
-  searchQuery,
-  matchesCount = { current: 0, total: 0 },
-  isSearching,
-  caseSensitive,
-  entireWord,
-  onCloseSearch,
-  onSearchQueryChange,
-  onFindNext,
-  onFindPrev,
-  onToggleCaseSensitive,
-  onToggleEntireWord,
-  // Legacy TTS bar props
-  ttsOpen,
-  setTtsOpen,
-  ttsText,
-  ttsMode,
-  ttsPageNumber,
-  totalPages,
   // Selection context menu
   selectionMenu,
   onHighlight,
@@ -95,46 +75,13 @@ export default function ReaderLayout({
   const { t } = useI18n();
 
   const searchController = search || {
-    isOpen: searchOpen,
-    searchOpen,
-    query: searchQuery,
-    searchQuery,
-    currentIndex: matchesCount?.current ?? 0,
-    totalMatches: matchesCount?.total ?? 0,
-    matchesCount,
-    isSearching,
-    caseSensitive,
-    entireWord,
-    onClose: onCloseSearch,
-    handleCloseSearch: onCloseSearch,
-    onQueryChange: onSearchQueryChange,
-    handleSearchQueryChange: onSearchQueryChange,
-    onNext: onFindNext,
-    handleFindNext: onFindNext,
-    onPrev: onFindPrev,
-    handleFindPrev: onFindPrev,
-    onToggleCaseSensitive,
-    handleToggleCaseSensitive: onToggleCaseSensitive,
-    onToggleEntireWord,
-    handleToggleEntireWord: onToggleEntireWord,
-    theme: invertColors ? 'dark' : 'light',
+    isOpen: false,
+    onClose: () => {},
   };
 
   const ttsController = tts || {
-    isOpen: ttsOpen,
-    ttsOpen,
-    onClose: () => (setTtsOpen ? setTtsOpen(false) : null),
-    text: ttsText,
-    ttsText,
-    mode: ttsMode,
-    ttsMode,
-    pageNumber: ttsPageNumber,
-    ttsPageNumber,
-    totalPages,
-    onNextPage: goToNextPage,
-    onPrevPage: goToPrevPage,
-    theme: invertColors ? 'dark' : 'light',
-    bookTitle: book?.title || '',
+    isOpen: false,
+    onClose: () => {},
   };
 
   const floatingBtnClass = invertColors

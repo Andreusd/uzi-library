@@ -49,14 +49,10 @@ class LibraryScanner:
     def __init__(
         self,
         config_mgr: Optional[ConfigManager] = None,
-        aliases_path: Optional[str] = None,
-        icons_path: Optional[str] = None,
-        metadata_cache_path: Optional[str] = None,
-        index_cache_path: Optional[str] = None,
         db: Optional[Database] = None
     ):
         self.config_mgr = config_mgr or ConfigManager()
-        self.db = db or getattr(self.config_mgr, "db", None) or get_db(metadata_cache_path or index_cache_path)
+        self.db = db or getattr(self.config_mgr, "db", None) or get_db()
         self._lock = threading.RLock()
 
     @property
