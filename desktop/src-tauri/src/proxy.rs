@@ -20,6 +20,7 @@ struct ApiResponse {
     error: Option<String>,
 }
 
+#[allow(dead_code)]
 pub struct ProxyServer {
     pub port: u16,
     pub cache_dir: PathBuf,
@@ -41,7 +42,7 @@ impl ProxyServer {
                 .timeout_read(Duration::from_millis(6000))
                 .build();
 
-            for mut request in server.incoming_requests() {
+            for request in server.incoming_requests() {
                 let cache_dir = server_thread_cache.clone();
                 let config_lock = Arc::clone(&server_thread_config);
                 let agent = ureq_agent.clone();

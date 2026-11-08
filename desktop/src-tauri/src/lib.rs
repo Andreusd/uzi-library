@@ -7,6 +7,7 @@ use tauri::{Manager, PhysicalPosition, PhysicalSize, Position, Size, WebviewWind
 use config::{resolve_cache_dir, AppConfig, WindowState};
 use proxy::ProxyServer;
 
+#[allow(dead_code)]
 struct AppState {
     pub cache_dir: std::path::PathBuf,
 }
