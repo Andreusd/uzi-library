@@ -164,6 +164,44 @@ fn is_page_route(rel_path: &Path) -> bool {
     rel_path.extension().is_none()
 }
 
+fn attach_headers(mut req: ureq::Request, headers: &[tiny_http::Header]) -> ureq::Request {
+    for h in headers {
+        let name = h.field.as_str();
+        let name_lower = name.to_ascii_lowercase();
+        // Não repassar cabeçalhos de controle de transporte para evitar conflito com ureq
+        if name_lower == "host" || name_lower == "content-length" || name_lower == "connection" {
+            continue;
+        }
+        req = req.set(name, h.value.as_str());
+    }
+    req
+}
+
+fn should_cache_response(url_str: &str, status: u16) -> bool {
+    if status != 200 {
+        return false;
+    }
+    let path = url_str.split('?').next().unwrap_or(url_str);
+    // Não cacheia chamadas de API como arquivos estáticos (são dinâmicas e contextuais por usuário)
+    if path.starts_with("/api/") || path.starts_with("/__uzi") {
+        return false;
+    }
+    // Cacheia index/páginas, assets, capas e recursos estáticos
+    is_page_route(Path::new(path))
+        || path.starts_with("/assets/")
+        || path.starts_with("/covers/")
+        || path.ends_with(".js")
+        || path.ends_with(".css")
+        || path.ends_with(".png")
+        || path.ends_with(".jpg")
+        || path.ends_with(".jpeg")
+        || path.ends_with(".webp")
+        || path.ends_with(".svg")
+        || path.ends_with(".woff2")
+        || path.ends_with(".woff")
+        || path.ends_with(".ico")
+}
+
 fn handle_get_request(
     request: tiny_http::Request,
     url_str: &str,
@@ -175,8 +213,11 @@ fn handle_get_request(
     let web_cache_dir = cache_dir.join("web");
     let upstream_url = format!("{}{}", server_url, url_str);
 
+    let mut ureq_req = agent.get(&upstream_url);
+    ureq_req = attach_headers(ureq_req, request.headers());
+
     // Tenta obter do upstream
-    let upstream_result = agent.get(&upstream_url).call();
+    let upstream_result = ureq_req.call();
 
     match upstream_result {
         Ok(resp) => {
@@ -187,8 +228,8 @@ fn handle_get_request(
             let mut bytes = Vec::new();
             let _ = reader.read_to_end(&mut bytes);
 
-            if status == 200 {
-                // Salva no cache local em disco
+            if should_cache_response(url_str, status) {
+                // Salva no cache local em disco apenas assets estáticos e páginas
                 let file_path = if is_page_route(&rel_path) {
                     web_cache_dir.join("index.html")
                 } else {
@@ -213,7 +254,19 @@ fn handle_get_request(
             let _ = request.respond(response);
         }
         Err(_) => {
-            // Servidor upstream inacessível -> Recorre ao cache local
+            // Se for rota de API e o upstream falhar, retorna 503 com JSON offline
+            let clean_path = url_str.split('?').next().unwrap_or(url_str);
+            if clean_path.starts_with("/api/") {
+                let json = r#"{"ok":false,"offline":true,"message":"Servidor offline"}"#;
+                let response = Response::from_string(json)
+                    .with_status_code(StatusCode(503))
+                    .with_header(Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap())
+                    .with_header(Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap());
+                let _ = request.respond(response);
+                return;
+            }
+
+            // Servidor upstream inacessível -> Recorre ao cache local para páginas e assets
             serve_from_cache_or_fallback(request, &rel_path, &web_cache_dir, server_url);
         }
     }
@@ -284,12 +337,14 @@ fn handle_mutation_request(
     let _ = request.as_reader().read_to_end(&mut body);
 
     let method_str = request.method().as_str();
-    let ureq_req = match method_str {
+    let mut ureq_req = match method_str {
         "POST" => agent.post(&upstream_url),
         "PUT" => agent.put(&upstream_url),
         "DELETE" => agent.delete(&upstream_url),
         _ => agent.request(method_str, &upstream_url),
     };
+
+    ureq_req = attach_headers(ureq_req, request.headers());
 
     match ureq_req.send_bytes(&body) {
         Ok(resp) => {
