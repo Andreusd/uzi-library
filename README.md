@@ -1,6 +1,19 @@
 # 📚 Uzi Library
 
-A modern, fast, responsive, and lightweight web application to organize, browse, and read your personal collection of PDF books.
+A modern, fast, responsive, and lightweight application to organize, browse, and read your personal collection of PDF books.
+
+[![Latest Release](https://img.shields.io/github/v/release/Andreusd/uzi-library?color=blue&label=Release)](https://github.com/Andreusd/uzi-library/releases/latest)
+[![Windows App](https://img.shields.io/badge/Windows-Standalone_.exe-0078D6?logo=windows)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.exe)
+[![Android App](https://img.shields.io/badge/Android-Installable_.apk-3DDC84?logo=android)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.apk)
+
+---
+
+## 📥 Downloads (Standalone & Mobile Apps)
+
+Você pode baixar os aplicativos compilados diretamente da aba de [Releases do GitHub](https://github.com/Andreusd/uzi-library/releases/latest):
+
+* 🪟 **[UziLibrary.exe (Windows Standalone)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.exe)**: Aplicativo desktop portátil com Tauri v2, aceleração por GPU e micro-proxy com cache offline local embutido. Não precisa de instalação.
+* 📱 **[UziLibrary.apk (Android)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.apk)**: Aplicativo Android empacotado para leitura em tablets e celulares conectados ao servidor local.
 
 ---
 
