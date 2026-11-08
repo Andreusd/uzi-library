@@ -52,7 +52,7 @@ impl ProxyServer {
 
                     // Rota de configuração interna
                     if url_str.starts_with("/__uzi_desktop__/") {
-                        handle_internal_route(&mut request, &url_str, &cache_dir, &config_lock, &agent);
+                        handle_internal_route(request, &url_str, &cache_dir, &config_lock, &agent);
                         return;
                     }
 
@@ -83,7 +83,7 @@ impl ProxyServer {
 }
 
 fn handle_internal_route(
-    request: &mut tiny_http::Request,
+    mut request: tiny_http::Request,
     url: &str,
     cache_dir: &Path,
     config_lock: &Arc<RwLock<AppConfig>>,
