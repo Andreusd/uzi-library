@@ -20,6 +20,8 @@ struct ApiResponse {
     error: Option<String>,
 }
 
+pub const DEFAULT_PROXY_PORT: u16 = 38482;
+
 #[allow(dead_code)]
 pub struct ProxyServer {
     pub port: u16,
@@ -29,7 +31,11 @@ pub struct ProxyServer {
 
 impl ProxyServer {
     pub fn start(cache_dir: PathBuf, config: AppConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let server = Server::http("127.0.0.1:0").map_err(|e| format!("Falha ao iniciar servidor HTTP local: {}", e))?;
+        // Tenta a porta fixa padrão 38482 para garantir que a origem (Origin) do WebView2
+        // permaneça idêntica entre execuções, preservando localStorage, IndexedDB e perfil.
+        let server = Server::http(format!("127.0.0.1:{}", DEFAULT_PROXY_PORT))
+            .or_else(|_| Server::http("127.0.0.1:0"))
+            .map_err(|e| format!("Falha ao iniciar servidor HTTP local: {}", e))?;
         let port = server.server_addr().to_ip().ok_or("Erro de endereço IP")?.port();
         let config_arc = Arc::new(RwLock::new(config));
 
