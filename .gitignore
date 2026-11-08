@@ -35,3 +35,4 @@ android/app/build/
 android/local.properties
 android/UziLibrary.apk
 *.apk
+dist-download/
