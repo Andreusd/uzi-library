@@ -1,0 +1,23 @@
+[package]
+name = "UziLibrary"
+version = "0.1.0"
+description = "Uzi Library Desktop Wrapper"
+authors = ["Andreusd"]
+edition = "2021"
+
+[lib]
+name = "uzi_library_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-log = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tiny_http = "0.12"
+ureq = { version = "2.10", features = ["json"] }
+mime_guess = "2.0"
+log = "0.4"
