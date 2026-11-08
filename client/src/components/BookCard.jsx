@@ -5,7 +5,7 @@ import { useBookActions } from '../hooks/useBookActions';
 import { getTagColorConfig } from '../utils/tagColors';
 import { getOfflineCoverBlob } from '../services/offlineStorage';
 
-export default function BookCard({ 
+function BookCard({ 
   book, 
   cardId,
   isFavorite, 
@@ -177,7 +177,7 @@ export default function BookCard({
             e.stopPropagation();
             if (toggleFav) toggleFav(book);
           }}
-          className={`absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-md transition-all duration-200 z-20 cursor-pointer ${
+          className={`absolute top-2 left-2 p-1.5 rounded-full transition-all duration-200 z-20 cursor-pointer ${
             isFav 
               ? 'bg-neutral-900/90 text-rose-500 border border-rose-500/40 opacity-100 shadow-lg hover:scale-110' 
               : 'bg-neutral-900/80 text-neutral-400 hover:text-rose-400 hover:scale-110 border border-neutral-700/50 opacity-0 group-hover:opacity-100 shadow-md'
@@ -189,7 +189,7 @@ export default function BookCard({
 
         {/* Reading Progress Badge / Ribbon */}
         {hasProgress && (
-          <div className={`absolute top-2 right-2 bg-neutral-900/90 backdrop-blur-md border text-[10px] font-medium px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1 ${
+          <div className={`absolute top-2 right-2 bg-neutral-900/95 border text-[10px] font-medium px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1 ${
             isFinished ? 'border-emerald-500/50 text-emerald-300' : 'border-amber-500/30 text-amber-300'
           }`}>
             {isFinished ? (
@@ -214,7 +214,7 @@ export default function BookCard({
         {/* Offline Saved Indicator Badge */}
         {book.is_offline && (
           <div 
-            className="absolute bottom-2 left-2 p-1 rounded-md bg-neutral-900/90 backdrop-blur-md border border-sky-500/40 text-sky-400 shadow-md z-10"
+            className="absolute bottom-2 left-2 p-1 rounded-md bg-neutral-900/95 border border-sky-500/40 text-sky-400 shadow-md z-10"
             title={t('offlineBadge')}
           >
             <CloudDownload className="w-3 h-3" />
@@ -248,12 +248,12 @@ export default function BookCard({
         {shouldShowExtension && (
           <div className="absolute bottom-2 right-2 z-10 transition-opacity duration-200 group-hover:opacity-0 pointer-events-none">
             {isEpub && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wider rounded bg-neutral-950/85 backdrop-blur-md border border-indigo-500/50 text-indigo-300 shadow-md uppercase">
+              <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wider rounded bg-neutral-950/95 border border-indigo-500/50 text-indigo-300 shadow-md uppercase">
                 EPUB
               </span>
             )}
             {isPdf && (
-              <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wider rounded bg-neutral-950/85 backdrop-blur-md border border-rose-500/50 text-rose-300 shadow-md uppercase">
+              <span className="px-1.5 py-0.5 text-[9px] font-bold tracking-wider rounded bg-neutral-950/95 border border-rose-500/50 text-rose-300 shadow-md uppercase">
                 PDF
               </span>
             )}
@@ -327,3 +327,5 @@ export default function BookCard({
     </div>
   );
 }
+
+export default React.memo(BookCard);

@@ -4,10 +4,11 @@
 fn main() {
     #[cfg(target_os = "windows")]
     {
-        // Força aceleração de GPU completa, rasterização por hardware e zero-copy no WebView2
+        // Força aceleração de GPU completa e rasterização por hardware no WebView2
+        // sem zero-copy nem Vaapi, que causam pipeline stalls no Windows com GPU híbrida (AMD + NVIDIA)
         std::env::set_var(
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-            "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --enable-features=VaapiVideoDecoder,CanvasOopRasterization",
+            "--enable-gpu-rasterization --ignore-gpu-blocklist",
         );
     }
 

@@ -115,15 +115,15 @@ export default function Sidebar({
       {/* Sidebar Container */}
       <aside className={`
         fixed top-0 bottom-0 left-0 z-40 bg-neutral-900 border-r border-neutral-800 flex flex-col shrink-0 overflow-hidden
-        lg:static lg:h-screen lg:sticky lg:top-0
-        transition-[width,transform] duration-200 ease-out
+        lg:static lg:h-screen lg:sticky lg:top-0 transform-gpu
+        transition-[width,transform,opacity] duration-200 ease-out will-change-[width,transform]
         ${isOpen
-          ? 'w-72 translate-x-0'
-          : 'max-lg:-translate-x-full lg:w-0 lg:border-r-0 pointer-events-none'
+          ? 'w-72 translate-x-0 opacity-100'
+          : '-translate-x-full lg:w-0 lg:border-r-0 opacity-0 pointer-events-none'
         }
       `}>
         {/* Inner wrapper to keep content width consistent during smooth collapse animation */}
-        <div className="w-72 flex flex-col h-full shrink-0">
+        <div className="w-72 flex flex-col h-full shrink-0 transform-gpu">
           {/* Brand Header */}
           <div className="h-16 px-5 border-b border-neutral-800 flex items-center justify-between shrink-0 bg-neutral-900/40">
             <button

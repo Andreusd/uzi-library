@@ -41,7 +41,7 @@ const matchesBook = (book, query) => {
  * filtering items when search queries or format filters are active.
  * Book interactions are automatically provided via BookActionsContext.
  */
-export default function LibraryHome({
+function LibraryHome({
   selectedShelf,
   debouncedQuery,
   formatFilter,
@@ -61,10 +61,6 @@ export default function LibraryHome({
   handleToggleFavorite,
   showFileExtension,
 }) {
-  if (selectedShelf) {
-    return null;
-  }
-
   const isFormatFiltered = Boolean(formatFilter && formatFilter !== 'all');
 
   const displayContinueReading = React.useMemo(() => {
@@ -124,6 +120,8 @@ export default function LibraryHome({
 
   const handleShelfContext = onShelfContextMenu || modals?.openShelfContextMenu;
   const handleOpenTags = onOpenTagManager || (() => modals?.openTagModal(null));
+
+  if (selectedShelf) return null;
 
   return (
     <>
@@ -192,3 +190,5 @@ export default function LibraryHome({
     </>
   );
 }
+
+export default React.memo(LibraryHome);

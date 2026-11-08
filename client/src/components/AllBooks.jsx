@@ -7,7 +7,7 @@ import { useI18n } from '../i18n';
  * AllBooks carousel and grid view component.
  * Book interactions are provided via BookActionsContext or optional explicit props.
  */
-export default function AllBooks({
+function AllBooks({
   books = [],
   favoriteIds,
   onSelectBook,
@@ -147,3 +147,5 @@ export default function AllBooks({
     </section>
   );
 }
+
+export default React.memo(AllBooks);

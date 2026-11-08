@@ -43,6 +43,8 @@
 /* Book Cover 3D & Elevation Effects */
 .book-card {
   perspective: 1000px;
+  contain: paint;
+  transform: translateZ(0);
 }
 
 .book-cover-container {
