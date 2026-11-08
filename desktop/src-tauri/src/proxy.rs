@@ -166,13 +166,14 @@ fn is_page_route(rel_path: &Path) -> bool {
 
 fn attach_headers(mut req: ureq::Request, headers: &[tiny_http::Header]) -> ureq::Request {
     for h in headers {
-        let name = h.field.as_str();
+        let name: &str = h.field.as_str().as_str();
         let name_lower = name.to_ascii_lowercase();
         // Não repassar cabeçalhos de controle de transporte para evitar conflito com ureq
         if name_lower == "host" || name_lower == "content-length" || name_lower == "connection" {
             continue;
         }
-        req = req.set(name, h.value.as_str());
+        let val: &str = h.value.as_str().as_str();
+        req = req.set(name, val);
     }
     req
 }
