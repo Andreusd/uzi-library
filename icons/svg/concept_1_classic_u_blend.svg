@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="goldGradLeft" x1="15%" y1="10%" x2="85%" y2="90%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="40%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="goldGradRight" x1="85%" y1="10%" x2="15%" y2="90%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="40%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <linearGradient id="spineShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#78350F" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#78350F" stop-opacity="0.1"/>
+    </linearGradient>
+    <filter id="subtleDrop" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Left 'U' Page Wing -->
+  <path d="M 120 120
+           C 120 105, 135 95, 150 100
+           C 195 115, 230 135, 252 165
+           C 256 170, 256 185, 256 370
+           C 235 348, 195 330, 150 330
+           C 130 330, 120 342, 120 365
+           L 120 120 Z"
+        fill="url(#goldGradLeft)"
+        stroke="#1C1917"
+        stroke-width="16"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        filter="url(#subtleDrop)"/>
+
+  <!-- Right 'U' Page Wing -->
+  <path d="M 392 120
+           C 392 105, 377 95, 362 100
+           C 317 115, 282 135, 260 165
+           C 256 170, 256 185, 256 370
+           C 277 348, 317 330, 362 330
+           C 382 330, 392 342, 392 365
+           L 392 120 Z"
+        fill="url(#goldGradRight)"
+        stroke="#1C1917"
+        stroke-width="16"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        filter="url(#subtleDrop)"/>
+
+  <!-- Lower U-loop connection: binds the two book pages into a bold, continuous 'U' -->
+  <path d="M 120 350
+           C 120 425, 175 465, 256 465
+           C 337 465, 392 425, 392 350
+           C 392 320, 365 320, 365 350
+           C 365 405, 320 435, 256 435
+           C 192 435, 147 405, 147 350
+           C 147 320, 120 320, 120 350 Z"
+        fill="url(#goldGradLeft)"
+        stroke="#1C1917"
+        stroke-width="14"
+        stroke-linejoin="round"/>
+
+  <!-- Classic page lines from current Uzi Library icon -->
+  <line x1="160" y1="180" x2="220" y2="198" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+  <line x1="160" y1="225" x2="220" y2="243" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+  <line x1="160" y1="270" x2="215" y2="286" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+
+  <line x1="352" y1="180" x2="292" y2="198" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+  <line x1="352" y1="225" x2="292" y2="243" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+  <line x1="352" y1="270" x2="297" y2="286" stroke="#78350F" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
+</svg>

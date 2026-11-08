@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="goldSolid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The Bold 'U' Book Glyph -->
+  <!-- Outer U curve, with the top inner cut shaped exactly like an open book -->
+  <path d="M 110 100
+           L 180 100
+           C 180 200, 200 230, 240 230
+           L 240 140
+           C 246 142, 250 144, 256 146
+           C 262 144, 266 142, 272 140
+           L 272 230
+           C 312 230, 332 200, 332 100
+           L 402 100
+           L 402 300
+           C 402 390, 336 440, 256 440
+           C 176 440, 110 390, 110 300
+           Z"
+        fill="url(#goldSolid)"
+        stroke="#18181B"
+        stroke-width="12"
+        stroke-linejoin="round"/>
+
+  <!-- Open page lines carved inside the left & right stems -->
+  <path d="M 135 150 C 155 160, 175 165, 195 165" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 135 195 C 155 205, 175 210, 195 210" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.85"/>
+
+  <path d="M 377 150 C 357 160, 337 165, 317 165" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 377 195 C 357 205, 337 210, 317 210" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.85"/>
+</svg>

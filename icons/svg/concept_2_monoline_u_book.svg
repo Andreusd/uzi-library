@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1E24"/>
+      <stop offset="100%" stop-color="#0E0E11"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Modern dark squircle base -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" stroke="#27272A" stroke-width="4"/>
+
+  <!-- Left & Right Page Outer 'U' Stems -->
+  <path d="M 145 130
+           L 145 320
+           C 145 390, 195 425, 256 425
+           C 317 425, 367 390, 367 320
+           L 367 130"
+        fill="none"
+        stroke="url(#lineGrad)"
+        stroke-width="28"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Open Book Page Tops curving into center spine -->
+  <path d="M 145 130
+           C 185 155, 225 160, 256 185
+           C 287 160, 327 155, 367 130"
+        fill="none"
+        stroke="url(#lineGrad)"
+        stroke-width="26"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Center vertical spine line -->
+  <line x1="256" y1="185" x2="256" y2="350"
+        stroke="url(#lineGrad)"
+        stroke-width="24"
+        stroke-linecap="round"/>
+
+  <!-- Minimalist reading bookmark tag / accent -->
+  <polygon points="256,350 240,385 256,375 272,385" fill="#FDE68A"/>
+</svg>
