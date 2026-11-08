@@ -114,11 +114,12 @@ export default function Sidebar({
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed top-0 bottom-0 left-0 z-40 bg-neutral-900 border-r border-neutral-800 flex flex-col transition-all duration-300 ease-in-out shrink-0 overflow-hidden
+        fixed top-0 bottom-0 left-0 z-40 bg-neutral-900 border-r border-neutral-800 flex flex-col shrink-0 overflow-hidden
         lg:static lg:h-screen lg:sticky lg:top-0
+        transition-[width,transform] duration-200 ease-out
         ${isOpen
-          ? 'w-72 translate-x-0 opacity-100'
-          : 'w-72 -translate-x-full opacity-0 pointer-events-none lg:w-0 lg:border-r-0'
+          ? 'w-72 translate-x-0'
+          : 'max-lg:-translate-x-full lg:w-0 lg:border-r-0 pointer-events-none'
         }
       `}>
         {/* Inner wrapper to keep content width consistent during smooth collapse animation */}
