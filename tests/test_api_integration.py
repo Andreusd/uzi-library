@@ -21,6 +21,7 @@ from server.deps import (
     set_lookup_mgr_override,
     reset_overrides,
 )
+from server.database import reset_db_instances
 
 class BaseAPITestCase(unittest.TestCase):
     def setUp(self):
@@ -56,6 +57,7 @@ class BaseAPITestCase(unittest.TestCase):
 
         self.scanner = LibraryScanner(config_mgr=self.config_mgr)
         self.cover_mgr = CoverManager(cache_dir=os.path.join(self.cache_dir, "covers"))
+        self.cover_mgr.pre_cache_all = lambda books: None
         self.user_mgr = UserManager(cache_dir=self.cache_dir)
         self.lookup_mgr = LookupManager(cache_file=os.path.join(self.cache_dir, "lookups.json"))
 
@@ -68,7 +70,12 @@ class BaseAPITestCase(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
+        try:
+            self.client.close()
+        except Exception:
+            pass
         reset_overrides()
+        reset_db_instances()
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
 
@@ -407,6 +414,33 @@ class TestTagsAPI(BaseAPITestCase):
         self.assertEqual(up_resp.status_code, 200)
         self.assertEqual(up_resp.json()["tag"]["name"], "Masterpieces")
 
+        # Set book tags in batch
+        batch_resp = self.client.post(f"/api/books/{book_id}/tags", json={"tag_ids": [tag_id]})
+        self.assertEqual(batch_resp.status_code, 200)
+        self.assertEqual(len(batch_resp.json()["tags"]), 1)
+
+        # List tags with and without library_id filter
+        list_all = self.client.get("/api/tags").json()["tags"]
+        self.assertTrue(len(list_all) >= 1)
+        list_lib = self.client.get(f"/api/tags?library_id={self.library_id}").json()["tags"]
+        self.assertTrue(len(list_lib) >= 1)
+
+        # Tag error cases
+        err_create = self.client.post("/api/tags", json={"name": "   ", "library_id": self.library_id})
+        self.assertEqual(err_create.status_code, 400)
+
+        err_update = self.client.put("/api/tags/nonexistent_tag", json={"name": "Ghost"})
+        self.assertEqual(err_update.status_code, 404)
+
+        err_toggle = self.client.post("/api/books/nonexistent_book/tags/toggle", json={"tag_id": tag_id})
+        self.assertEqual(err_toggle.status_code, 404)
+
+        err_batch = self.client.post("/api/books/nonexistent_book/tags", json={"tag_ids": [tag_id]})
+        self.assertEqual(err_batch.status_code, 404)
+
+        err_delete = self.client.delete("/api/tags/nonexistent_tag")
+        self.assertEqual(err_delete.status_code, 404)
+
         # Delete tag
         del_resp = self.client.delete(f"/api/tags/{tag_id}")
         self.assertEqual(del_resp.status_code, 200)
@@ -448,6 +482,13 @@ class TestAnnotationsAPI(BaseAPITestCase):
         del_resp = self.client.delete(f"/api/annotations/{book_id}/{ann_id}")
         self.assertEqual(del_resp.status_code, 200)
         self.assertEqual(len(self.client.get(f"/api/annotations/{book_id}").json()["annotations"]), 0)
+
+        # Annotation error cases (404 on update and delete nonexistent)
+        err_up = self.client.put(f"/api/annotations/{book_id}/nonexistent_ann", json={"comment": "Ghost"})
+        self.assertEqual(err_up.status_code, 404)
+
+        err_del = self.client.delete(f"/api/annotations/{book_id}/nonexistent_ann")
+        self.assertEqual(err_del.status_code, 404)
 
 
 class TestUsersAndIsolationAPI(BaseAPITestCase):

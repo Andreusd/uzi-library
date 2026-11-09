@@ -168,6 +168,56 @@ class TestProgressTracker(unittest.TestCase):
         self.assertEqual(reset["percent"], 0.0)
         self.assertEqual(reset["status"], "not_started")
 
+    def test_set_zoom_and_night_mode(self):
+        self.tracker.set_progress("book_custom", page=5, total_pages=20, zoom=1.5, invert_colors=True)
+        rec = self.tracker.get_progress("book_custom")
+        self.assertEqual(rec["zoom"], 1.5)
+        self.assertTrue(rec["invert_colors"])
+
+        # Change zoom independently
+        updated_zoom = self.tracker.set_zoom("book_custom", 2.0)
+        self.assertEqual(updated_zoom["zoom"], 2.0)
+        self.assertEqual(updated_zoom["page"], 5)
+        self.assertTrue(updated_zoom["invert_colors"])
+
+        # Change night mode independently
+        updated_mode = self.tracker.set_night_mode("book_custom", False)
+        self.assertFalse(updated_mode["invert_colors"])
+        self.assertEqual(updated_mode["zoom"], 2.0)
+
+    def test_update_percent_and_recent_and_completed(self):
+        self.tracker.set_progress("book_1", page=10, total_pages=100)
+        self.tracker.set_progress("book_2", page=90, total_pages=100)
+        self.tracker.mark_completed("book_3", total_pages=50)
+
+        # Update percent on book_1
+        self.tracker.update_percent("book_1", 25.5)
+        p1 = self.tracker.get_progress("book_1")
+        self.assertEqual(p1["percent"], 25.5)
+
+        # get_all
+        all_prog = self.tracker.get_all()
+        self.assertIn("book_1", all_prog)
+        self.assertIn("book_2", all_prog)
+
+        # get_recent
+        recent = self.tracker.get_recent(limit=5)
+        recent_ids = [r["book_id"] for r in recent]
+        self.assertIn("book_1", recent_ids)
+        self.assertIn("book_2", recent_ids)
+
+        # get_completed
+        completed = self.tracker.get_completed()
+        completed_ids = [c["book_id"] for c in completed]
+        self.assertIn("book_3", completed_ids)
+        self.assertNotIn("book_1", completed_ids)
+
+    def test_cfi_epub_progress(self):
+        rec = self.tracker.set_progress("book_epub", page=1, total_pages=1, cfi="epubcfi(/6/4!/4/2/1:0)", percent=15.0)
+        self.assertEqual(rec["cfi"], "epubcfi(/6/4!/4/2/1:0)")
+        self.assertEqual(rec["percent"], 15.0)
+        self.assertEqual(rec["status"], "in_progress")
+
 
 class TestFavoritesAndTags(unittest.TestCase):
     def setUp(self):

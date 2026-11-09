@@ -5,6 +5,7 @@ import sqlite3
 import json
 import threading
 import uuid
+import contextlib
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -49,14 +50,19 @@ class Database:
         self._lock = threading.RLock()
         self._init_schema()
 
-    def get_connection(self) -> sqlite3.Connection:
+    @contextlib.contextmanager
+    def get_connection(self):
         conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=30.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA synchronous = NORMAL;")
         conn.execute("PRAGMA busy_timeout = 5000;")
         conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_schema(self):
         with self._lock, self.get_connection() as conn:
@@ -1028,6 +1034,11 @@ class Database:
 
 _db_instances: Dict[str, Database] = {}
 _db_lock = threading.Lock()
+
+def reset_db_instances():
+    """Clears cached database instances for test isolation."""
+    with _db_lock:
+        _db_instances.clear()
 
 def get_db(db_path: Optional[str] = None) -> Database:
     """Returns singleton Database instance for a given path."""
