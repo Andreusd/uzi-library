@@ -3,6 +3,10 @@ node_modules/
 client/node_modules/
 dist/
 client/dist/
+coverage/
+client/coverage/
+.coverage
+htmlcov/
 
 # Local cache & User data (covers, progress, favorites, shelf configs)
 .cache/

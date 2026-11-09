@@ -12,6 +12,10 @@ import FolderCard from '../components/FolderCard';
 import TagCard from '../components/TagCard';
 import LibrarySelector from '../components/LibrarySelector';
 import ContextMenu from '../components/ContextMenu';
+import ShelfIconModal from '../components/ShelfIconModal';
+import ShelfContextMenu from '../components/ShelfContextMenu';
+import BookDetailsModal from '../components/BookDetailsModal';
+import ThemeMenu from '../components/ThemeMenu';
 import { I18nProvider } from '../i18n';
 
 describe('Library Keyboard Navigation', () => {
@@ -1476,6 +1480,67 @@ describe('Library Keyboard Navigation', () => {
       });
 
       expect(onOpenReader).toHaveBeenCalledWith(book);
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe('ShelfIconModal rendering and navigation', () => {
+    it('renders closed ShelfIconModal without TDZ / ReferenceError', () => {
+      const { container } = render(
+        <I18nProvider>
+          <ShelfIconModal
+            shelf={{ id: 's1', name: 'Dev Shelf', folder: 'dev' }}
+            isOpen={false}
+            onClose={() => {}}
+            onSave={() => {}}
+          />
+        </I18nProvider>
+      );
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('renders open ShelfIconModal and handles Escape key', () => {
+      const onClose = vi.fn();
+      render(
+        <I18nProvider>
+          <ShelfIconModal
+            shelf={{ id: 's1', name: 'Dev Shelf', folder: 'dev' }}
+            isOpen={true}
+            onClose={onClose}
+            onSave={() => {}}
+          />
+        </I18nProvider>
+      );
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      });
+
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  describe('ShelfContextMenu rendering and navigation', () => {
+    it('renders ShelfContextMenu and handles Escape key', () => {
+      const onClose = vi.fn();
+      render(
+        <I18nProvider>
+          <ShelfContextMenu
+            x={50}
+            y={50}
+            shelf={{ id: 's1', name: 'Dev Shelf', folder: 'dev' }}
+            onClose={onClose}
+            onOpenRename={() => {}}
+            onOpenIconModal={() => {}}
+            onResetName={() => {}}
+          />
+        </I18nProvider>
+      );
+
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      });
+
       expect(onClose).toHaveBeenCalled();
     });
   });

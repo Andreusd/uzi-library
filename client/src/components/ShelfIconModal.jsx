@@ -4,6 +4,17 @@ import ShelfIcon from './ShelfIcon';
 import { AVAILABLE_SHELF_ICONS } from '../utils/shelfIcons';
 import { useI18n } from '../i18n';
 
+const CATEGORIES = [
+  { id: 'all', labelPt: 'Todos', labelEn: 'All' },
+  { id: 'Dev', labelPt: 'Dev & Código', labelEn: 'Dev & Code' },
+  { id: 'Architecture', labelPt: 'Arquitetura', labelEn: 'Architecture' },
+  { id: 'System', labelPt: 'Sistemas', labelEn: 'Systems' },
+  { id: 'Science', labelPt: 'Ciência & IA', labelEn: 'Science & AI' },
+  { id: 'Math', labelPt: 'Matemática', labelEn: 'Math' },
+  { id: 'Data', labelPt: 'Dados', labelEn: 'Data' },
+  { id: 'General', labelPt: 'Geral', labelEn: 'General' },
+];
+
 export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
   const [prevShelf, setPrevShelf] = useState(shelf);
   const [selectedIcon, setSelectedIcon] = useState(shelf?.icon || '');
@@ -20,6 +31,22 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
   }
 
   const [focusedIconIndex, setFocusedIconIndex] = useState(0);
+
+  const categories = CATEGORIES;
+
+  const filteredIcons = useMemo(() => {
+    const q = searchTerm.toLowerCase().trim();
+    return AVAILABLE_SHELF_ICONS.filter((item) => {
+      const matchCategory = activeCategory === 'all' || item.category === activeCategory;
+      if (!matchCategory) return false;
+      if (!q) return true;
+
+      const matchName = item.name.toLowerCase().includes(q);
+      const matchLabel = item.label.toLowerCase().includes(q) || item.labelEn.toLowerCase().includes(q);
+      const matchTags = (item.tags || []).some((tag) => tag.toLowerCase().includes(q));
+      return matchName || matchLabel || matchTags;
+    });
+  }, [searchTerm, activeCategory]);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,31 +114,6 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
       btn?.scrollIntoView?.({ block: 'nearest' });
     }
   }, [isOpen, focusedIconIndex]);
-
-  const categories = [
-    { id: 'all', labelPt: 'Todos', labelEn: 'All' },
-    { id: 'Dev', labelPt: 'Dev & Código', labelEn: 'Dev & Code' },
-    { id: 'Architecture', labelPt: 'Arquitetura', labelEn: 'Architecture' },
-    { id: 'System', labelPt: 'Sistemas', labelEn: 'Systems' },
-    { id: 'Science', labelPt: 'Ciência & IA', labelEn: 'Science & AI' },
-    { id: 'Math', labelPt: 'Matemática', labelEn: 'Math' },
-    { id: 'Data', labelPt: 'Dados', labelEn: 'Data' },
-    { id: 'General', labelPt: 'Geral', labelEn: 'General' },
-  ];
-
-  const filteredIcons = useMemo(() => {
-    const q = searchTerm.toLowerCase().trim();
-    return AVAILABLE_SHELF_ICONS.filter((item) => {
-      const matchCategory = activeCategory === 'all' || item.category === activeCategory;
-      if (!matchCategory) return false;
-      if (!q) return true;
-
-      const matchName = item.name.toLowerCase().includes(q);
-      const matchLabel = item.label.toLowerCase().includes(q) || item.labelEn.toLowerCase().includes(q);
-      const matchTags = (item.tags || []).some((tag) => tag.toLowerCase().includes(q));
-      return matchName || matchLabel || matchTags;
-    });
-  }, [searchTerm, activeCategory]);
 
   if (!isOpen || !shelf) return null;
 
