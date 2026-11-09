@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   Search,
   Headphones,
@@ -40,12 +40,34 @@ export default function ReaderMoreMenu({
 }) {
   const { t } = useI18n();
   const menuRef = useRef(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      const buttons = Array.from(
+        menuRef.current?.querySelectorAll('button:not(:disabled)') || []
+      );
+      if (buttons.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % buttons.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + buttons.length) % buttons.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (buttons[focusedIndex]) {
+          buttons[focusedIndex].click();
+        }
+      }
     };
 
     const handleClickOutside = (e) => {
@@ -64,7 +86,23 @@ export default function ReaderMoreMenu({
       window.removeEventListener('pointerdown', handleClickOutside);
       clearTimeout(timer);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, focusedIndex]);
+
+  // Apply visual focus ring when navigating with arrows
+  useEffect(() => {
+    if (!isOpen || !menuRef.current) return;
+    const buttons = Array.from(
+      menuRef.current.querySelectorAll('button:not(:disabled)')
+    );
+    buttons.forEach((btn, idx) => {
+      if (idx === focusedIndex) {
+        btn.classList.add('ring-1', 'ring-amber-500/60', 'bg-amber-500/20');
+        btn?.scrollIntoView?.({ block: 'nearest' });
+      } else {
+        btn.classList.remove('ring-1', 'ring-amber-500/60', 'bg-amber-500/20');
+      }
+    });
+  }, [isOpen, focusedIndex]);
 
   if (!isOpen) return null;
 

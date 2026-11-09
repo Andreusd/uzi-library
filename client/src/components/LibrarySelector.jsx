@@ -127,6 +127,12 @@ export default function LibrarySelector({
     (u) => usernameInput && u.slug === usernameInput.trim().toLowerCase()
   );
 
+  const [highlightedId, setHighlightedId] = useState(null);
+  const highlightedIdRef = useRef(highlightedId);
+  useEffect(() => {
+    highlightedIdRef.current = highlightedId;
+  }, [highlightedId]);
+
   const handleLibraryClick = (libraryId) => {
     if (!currentUser) {
       setIsEditingUser(true);
@@ -136,6 +142,160 @@ export default function LibrarySelector({
     }
     onSelectLibrary(libraryId);
   };
+
+  // Keyboard navigation across libraries, users, and actions using Arrow keys + Enter + Esc
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // If typing in input, allow arrow down to move out to recent users or buttons
+      const isInput = document.activeElement === inputRef.current;
+      if (isInput) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          inputRef.current?.blur();
+          if (existingUsers.length > 0) {
+            setHighlightedId(`user-${existingUsers[0].slug}`);
+          } else {
+            setHighlightedId('submit-user');
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (userToDelete) {
+          e.preventDefault();
+          setUserToDelete(null);
+          return;
+        }
+        if (isEditingUser && currentUser) {
+          e.preventDefault();
+          setIsEditingUser(false);
+          setUsernameInput(currentUser);
+          setErrorMessage('');
+          setHighlightedId(libraries[0]?.id ? `lib-${libraries[0].id}` : 'lib-add-new');
+          return;
+        }
+        setHighlightedId(null);
+        return;
+      }
+
+      const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+      if (isArrow) {
+        e.preventDefault();
+        const currentId = highlightedIdRef.current;
+        const navElements = Array.from(document.querySelectorAll('[data-selector-nav="true"]'));
+        if (navElements.length === 0) return;
+
+        if (!currentId) {
+          if (isEditingUser) {
+            if (existingUsers.length > 0) {
+              setHighlightedId(`user-${existingUsers[0].slug}`);
+            } else {
+              setHighlightedId('submit-user');
+            }
+          } else {
+            const firstLib = libraries[0];
+            setHighlightedId(firstLib ? `lib-${firstLib.id}` : 'lib-add-new');
+          }
+          return;
+        }
+
+        const currentEl = document.querySelector(`[data-selector-id="${currentId}"]`);
+        if (!currentEl) {
+          const firstLib = libraries[0];
+          setHighlightedId(firstLib ? `lib-${firstLib.id}` : 'lib-add-new');
+          return;
+        }
+
+        const currentRect = currentEl.getBoundingClientRect();
+        const currentCenter = {
+          x: currentRect.left + currentRect.width / 2,
+          y: currentRect.top + currentRect.height / 2,
+        };
+
+        const candidates = navElements
+          .filter((el) => el !== currentEl)
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return {
+              id: el.getAttribute('data-selector-id'),
+              el,
+              x: r.left + r.width / 2,
+              y: r.top + r.height / 2,
+            };
+          });
+
+        let next = null;
+        const rowTolerance = 35;
+
+        if (e.key === 'ArrowRight') {
+          const inRowRight = candidates.filter(
+            (c) => c.x > currentCenter.x + 10 && Math.abs(c.y - currentCenter.y) <= rowTolerance
+          );
+          if (inRowRight.length > 0) {
+            inRowRight.sort((a, b) => a.x - b.x);
+            next = inRowRight[0];
+          } else {
+            const below = candidates.filter((c) => c.y > currentCenter.y + rowTolerance);
+            if (below.length > 0) {
+              below.sort((a, b) => a.y - b.y || a.x - b.x);
+              next = below[0];
+            }
+          }
+        } else if (e.key === 'ArrowLeft') {
+          const inRowLeft = candidates.filter(
+            (c) => c.x < currentCenter.x - 10 && Math.abs(c.y - currentCenter.y) <= rowTolerance
+          );
+          if (inRowLeft.length > 0) {
+            inRowLeft.sort((a, b) => b.x - a.x);
+            next = inRowLeft[0];
+          } else {
+            const above = candidates.filter((c) => c.y < currentCenter.y - rowTolerance);
+            if (above.length > 0) {
+              above.sort((a, b) => b.y - a.y || b.x - a.x);
+              next = above[0];
+            }
+          }
+        } else if (e.key === 'ArrowDown') {
+          const below = candidates.filter((c) => c.y > currentCenter.y + rowTolerance);
+          if (below.length > 0) {
+            const minY = Math.min(...below.map((c) => c.y));
+            const nextRow = below.filter((c) => Math.abs(c.y - minY) <= rowTolerance);
+            nextRow.sort((a, b) => Math.abs(a.x - currentCenter.x) - Math.abs(b.x - currentCenter.x));
+            next = nextRow[0];
+          }
+        } else if (e.key === 'ArrowUp') {
+          const above = candidates.filter((c) => c.y < currentCenter.y - rowTolerance);
+          if (above.length > 0) {
+            const maxY = Math.max(...above.map((c) => c.y));
+            const prevRow = above.filter((c) => Math.abs(c.y - maxY) <= rowTolerance);
+            prevRow.sort((a, b) => Math.abs(a.x - currentCenter.x) - Math.abs(b.x - currentCenter.x));
+            next = prevRow[0];
+          }
+        }
+
+        if (next) {
+          setHighlightedId(next.id);
+          next.el?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const currentId = highlightedIdRef.current;
+        if (!currentId) return;
+
+        const currentEl = document.querySelector(`[data-selector-id="${currentId}"]`);
+        if (currentEl) {
+          e.preventDefault();
+          currentEl.click();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditingUser, existingUsers, libraries, currentUser, userToDelete]);
 
   return (
     <div className="h-screen bg-neutral-950 text-neutral-100 flex flex-col overflow-y-auto lg:overflow-hidden selection:bg-amber-500/30 selection:text-amber-200">
@@ -170,11 +330,17 @@ export default function LibrarySelector({
           {/* Active User Chip / Switcher */}
           {currentUser && !isEditingUser ? (
             <button
+              data-selector-nav="true"
+              data-selector-id="header-user"
               onClick={() => {
                 setIsEditingUser(true);
                 setTimeout(() => inputRef.current?.focus(), 50);
               }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-amber-500/40 text-neutral-200 hover:text-amber-300 transition text-xs font-medium cursor-pointer shadow-xs group"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border transition text-xs font-medium cursor-pointer shadow-xs group ${
+                highlightedId === 'header-user'
+                  ? 'border-amber-500 ring-2 ring-amber-500 text-amber-300'
+                  : 'border-neutral-800 hover:border-amber-500/40 text-neutral-200 hover:text-amber-300'
+              }`}
               title={t('switchUser')}
             >
               <div className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -187,11 +353,17 @@ export default function LibrarySelector({
             </button>
           ) : (
             <button
+              data-selector-nav="true"
+              data-selector-id="header-user"
               onClick={() => {
                 setIsEditingUser(true);
                 setTimeout(() => inputRef.current?.focus(), 50);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 transition text-xs font-semibold cursor-pointer shadow-xs"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer shadow-xs transition ${
+                highlightedId === 'header-user'
+                  ? 'bg-amber-500/30 border-amber-500 ring-2 ring-amber-500 text-amber-200'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+              }`}
               title={t('whoIsReading')}
             >
               <User className="w-3.5 h-3.5 text-amber-400" />
@@ -201,8 +373,14 @@ export default function LibrarySelector({
 
           {/* Settings / Manage Button */}
           <button
+            data-selector-nav="true"
+            data-selector-id="header-settings"
             onClick={onOpenSettings}
-            className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30 transition shadow-xs cursor-pointer"
+            className={`p-2 rounded-lg bg-neutral-900 border transition shadow-xs cursor-pointer ${
+              highlightedId === 'header-settings'
+                ? 'border-amber-500 ring-2 ring-amber-500 text-amber-300'
+                : 'border-neutral-800 text-neutral-400 hover:text-amber-400 hover:border-amber-500/30'
+            }`}
             title={t('settings')}
           >
             <Settings className="w-4 h-4" />
@@ -303,17 +481,22 @@ export default function LibrarySelector({
                       <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
                         {existingUsers.map((u) => {
                           const isSelected = currentUser && u.slug === currentUser.toLowerCase();
+                          const isChipHighlighted = highlightedId === `user-${u.slug}`;
                           return (
                             <div
                               key={u.slug}
                               className={`group/user pl-2 pr-1 py-0.5 rounded-md text-[11px] font-medium transition flex items-center gap-1 border ${
-                                isSelected
+                                isChipHighlighted
+                                  ? 'bg-amber-500/30 border-amber-500 ring-2 ring-amber-500 text-amber-200 font-semibold'
+                                  : isSelected
                                   ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-semibold'
                                   : 'bg-neutral-800/70 hover:bg-neutral-800 border-neutral-700/60 text-neutral-300 hover:text-neutral-100'
                               }`}
                             >
                               <button
                                 type="button"
+                                data-selector-nav="true"
+                                data-selector-id={`user-${u.slug}`}
                                 onClick={() => handleSelectExistingUser(u.username)}
                                 className="flex items-center gap-1.5 cursor-pointer text-left focus:outline-hidden"
                                 title={u.username}
@@ -344,7 +527,11 @@ export default function LibrarySelector({
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       type="submit"
-                      className="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs rounded-lg shadow-md shadow-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      data-selector-nav="true"
+                      data-selector-id="submit-user"
+                      className={`flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs rounded-lg shadow-md shadow-amber-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        highlightedId === 'submit-user' ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900' : ''
+                      }`}
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>{t('startReading')}</span>
@@ -362,12 +549,16 @@ export default function LibrarySelector({
                     {currentUser && (
                       <button
                         type="button"
+                        data-selector-nav="true"
+                        data-selector-id="cancel-user"
                         onClick={() => {
                           setIsEditingUser(false);
                           setUsernameInput(currentUser);
                           setErrorMessage('');
                         }}
-                        className="py-2 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-medium rounded-lg transition cursor-pointer"
+                        className={`py-2 px-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-medium rounded-lg transition cursor-pointer ${
+                          highlightedId === 'cancel-user' ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900' : ''
+                        }`}
                       >
                         {t('cancel')}
                       </button>
@@ -396,8 +587,12 @@ export default function LibrarySelector({
             {offlineBooksCount > 0 && onSelectOffline && (
               <button
                 type="button"
+                data-selector-nav="true"
+                data-selector-id="offline-btn"
                 onClick={onSelectOffline}
-                className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition cursor-pointer shadow-sm"
+                className={`shrink-0 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs transition cursor-pointer shadow-sm ${
+                  highlightedId === 'offline-btn' ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-neutral-900' : ''
+                }`}
               >
                 {t('viewOfflineBooks')} ({offlineBooksCount})
               </button>
@@ -437,12 +632,19 @@ export default function LibrarySelector({
             const bookCount = lib.book_count || 0;
             const folderCount = lib.folder_count || 0;
             const isValid = lib.valid !== false;
+            const isHighlighted = highlightedId === `lib-${lib.id}`;
 
             return (
               <div
                 key={lib.id}
+                data-selector-nav="true"
+                data-selector-id={`lib-${lib.id}`}
                 onClick={() => handleLibraryClick(lib.id)}
-                className="group relative bg-neutral-900/70 hover:bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 rounded-2xl p-5 sm:p-6 transition-all duration-300 shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1 flex flex-col justify-between cursor-pointer overflow-hidden isolate"
+                className={`group relative bg-neutral-900/70 hover:bg-neutral-900 border rounded-2xl p-5 sm:p-6 transition-all duration-200 shadow-lg flex flex-col justify-between cursor-pointer overflow-hidden isolate ${
+                  isHighlighted
+                    ? 'border-amber-500 ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 -translate-y-1 bg-neutral-900'
+                    : 'border-neutral-800 hover:border-amber-500/50 hover:shadow-amber-500/10 hover:-translate-y-1'
+                }`}
               >
                 {/* Visual Cover Preview Stack */}
                 <div className="w-full h-44 sm:h-48 md:h-52 mb-4 relative rounded-xl bg-neutral-950/80 border border-neutral-800/80 flex items-center justify-center overflow-hidden isolate">
@@ -547,8 +749,14 @@ export default function LibrarySelector({
 
           {/* Add New Library Card */}
           <div
+            data-selector-nav="true"
+            data-selector-id="lib-add-new"
             onClick={onAddNewLibrary || onOpenSettings}
-            className="group border-2 border-dashed border-neutral-800 hover:border-amber-500/50 bg-neutral-900/30 hover:bg-neutral-900/60 rounded-2xl p-6 transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer min-h-[350px] lg:min-h-[390px]"
+            className={`group border-2 border-dashed rounded-2xl p-6 transition-all duration-200 flex flex-col items-center justify-center text-center cursor-pointer min-h-[350px] lg:min-h-[390px] ${
+              highlightedId === 'lib-add-new'
+                ? 'border-amber-500 ring-2 ring-amber-500 shadow-xl shadow-amber-500/20 -translate-y-1 bg-neutral-900/60'
+                : 'border-neutral-800 hover:border-amber-500/50 bg-neutral-900/30 hover:bg-neutral-900/60'
+            }`}
           >
             <div className="w-14 h-14 rounded-2xl bg-neutral-800 group-hover:bg-amber-500/20 border border-neutral-700 group-hover:border-amber-500/40 flex items-center justify-center text-neutral-400 group-hover:text-amber-400 transition-all duration-300 shadow-lg mb-3.5">
               <Plus className="w-7 h-7" />

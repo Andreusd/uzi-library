@@ -62,15 +62,52 @@ export default function BookDetailsModal({
     return () => { active = false; };
   }, [isOpen, book?.id]);
 
-  // Handle escape key
+  // Handle keyboard navigation (Arrow keys + Enter + Escape)
+  const [focusedIndex, setFocusedIndex] = useState(0);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      const buttons = Array.from(
+        document.querySelectorAll('[data-details-btn="true"]:not(:disabled)')
+      );
+      if (buttons.length === 0) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % buttons.length);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev - 1 + buttons.length) % buttons.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (buttons[focusedIndex]) {
+          buttons[focusedIndex].click();
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, focusedIndex]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const buttons = Array.from(
+      document.querySelectorAll('[data-details-btn="true"]:not(:disabled)')
+    );
+    buttons.forEach((btn, idx) => {
+      if (idx === focusedIndex) {
+        btn.classList.add('ring-2', 'ring-amber-500', 'shadow-md');
+        btn?.scrollIntoView?.({ block: 'nearest' });
+      } else {
+        btn.classList.remove('ring-2', 'ring-amber-500', 'shadow-md');
+      }
+    });
+  }, [isOpen, focusedIndex]);
 
   if (!isOpen || !details) return null;
 
@@ -164,6 +201,7 @@ export default function BookDetailsModal({
           </div>
 
           <button
+            data-details-btn="true"
             onClick={onClose}
             className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition cursor-pointer"
             title={t('cancel')}
@@ -204,6 +242,7 @@ export default function BookDetailsModal({
               <div className="w-full mt-3 space-y-1.5">
                 <button
                   type="button"
+                  data-details-btn="true"
                   onClick={() => {
                     onClose();
                     if (onOpenReader) onOpenReader(details);
@@ -217,6 +256,7 @@ export default function BookDetailsModal({
                 <div className="flex items-center gap-1.5 w-full">
                   <button
                     type="button"
+                    data-details-btn="true"
                     onClick={() => onToggleFavorite && onToggleFavorite(details)}
                     className={`flex-1 py-1.5 px-2 rounded-lg border text-xs font-medium transition flex items-center justify-center gap-1 cursor-pointer ${
                       isFav 
@@ -231,6 +271,7 @@ export default function BookDetailsModal({
 
                   <button
                     type="button"
+                    data-details-btn="true"
                     onClick={() => onManageTags && onManageTags(details)}
                     className="p-1.5 rounded-lg bg-neutral-800/80 border border-neutral-700/60 hover:bg-neutral-800 text-neutral-300 hover:text-amber-400 transition cursor-pointer"
                     title={t('manageTags')}
@@ -242,6 +283,7 @@ export default function BookDetailsModal({
                 {/* Offline Availability Toggle */}
                 <button
                   type="button"
+                  data-details-btn="true"
                   onClick={handleToggleOffline}
                   disabled={isSavingOffline}
                   className={`w-full py-1.5 px-2 rounded-lg border text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
@@ -271,6 +313,7 @@ export default function BookDetailsModal({
                 {/* Direct File Download */}
                 {details?.id && (
                   <a
+                    data-details-btn="true"
                     href={`/api/book-file/${encodeURIComponent(details.id)}`}
                     download={details.filename || `${details.title}.${details.format || 'epub'}`}
                     className="w-full py-1.5 px-2 rounded-lg border border-neutral-700/60 bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-neutral-100 text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer"
@@ -425,6 +468,7 @@ export default function BookDetailsModal({
                   </span>
                   <button
                     type="button"
+                    data-details-btn="true"
                     onClick={handleCopyPath}
                     className="p-1 rounded bg-neutral-800 hover:bg-neutral-750 text-neutral-300 hover:text-neutral-100 transition shrink-0 cursor-pointer"
                     title={t('copyFilePath')}

@@ -723,6 +723,12 @@ export function useLibraryKeyboardNavigation({
             (a, b) => Math.abs(a.centerX - current.centerX) - Math.abs(b.centerX - current.centerX)
           );
           next = prevRow[0];
+        } else if (searchInputRef?.current) {
+          // Reached the top row of cards: smoothly transition focus to search input
+          e.preventDefault();
+          setHighlightedCardId(null);
+          searchInputRef.current.focus();
+          return;
         }
       }
 

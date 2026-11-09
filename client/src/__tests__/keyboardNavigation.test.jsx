@@ -10,6 +10,8 @@ import { useEpubNavigation } from '../hooks/useEpubNavigation';
 import Sidebar from '../components/Sidebar';
 import FolderCard from '../components/FolderCard';
 import TagCard from '../components/TagCard';
+import LibrarySelector from '../components/LibrarySelector';
+import ContextMenu from '../components/ContextMenu';
 import { I18nProvider } from '../i18n';
 
 describe('Library Keyboard Navigation', () => {
@@ -1410,6 +1412,71 @@ describe('Library Keyboard Navigation', () => {
       fireEvent.click(card);
       expect(setHighlightedCardId).not.toHaveBeenCalled();
       expect(onSelectTag).toHaveBeenCalledWith(tag);
+    });
+  });
+
+  describe('LibrarySelector Keyboard Navigation', () => {
+    it('navigates through library cards with Arrow keys and activates with Enter', () => {
+      const mockLibraries = [
+        { id: 'lib1', name: 'Tech Library', path: '/books/tech', book_count: 10, folder_count: 2 },
+        { id: 'lib2', name: 'Fiction Library', path: '/books/fiction', book_count: 25, folder_count: 5 },
+      ];
+      const onSelectLibrary = vi.fn();
+
+      const { container } = render(
+        <I18nProvider>
+          <LibrarySelector
+            libraries={mockLibraries}
+            currentUser="Andreusd"
+            onSelectLibrary={onSelectLibrary}
+          />
+        </I18nProvider>
+      );
+
+      // Press ArrowRight to activate navigation
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      });
+
+      // The first library card should now have the highlight ring
+      const lib1Card = container.querySelector('[data-selector-id="lib-lib1"]');
+      expect(lib1Card).toBeInTheDocument();
+      expect(lib1Card.className).toContain('ring-amber-500');
+
+      // Press Enter to open the highlighted library
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      });
+
+      expect(onSelectLibrary).toHaveBeenCalledWith('lib1');
+    });
+  });
+
+  describe('ContextMenu Keyboard Navigation', () => {
+    it('navigates context menu items with ArrowDown and activates with Enter', () => {
+      const book = { id: 'b1', title: 'Test Book', format: 'epub', path: '/test.epub' };
+      const onOpenReader = vi.fn();
+      const onClose = vi.fn();
+
+      render(
+        <I18nProvider>
+          <ContextMenu
+            x={100}
+            y={100}
+            book={book}
+            onClose={onClose}
+            onOpenReader={onOpenReader}
+          />
+        </I18nProvider>
+      );
+
+      // Initially focused on first item (Read Now). Press Enter to activate it
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      });
+
+      expect(onOpenReader).toHaveBeenCalledWith(book);
+      expect(onClose).toHaveBeenCalled();
     });
   });
 });

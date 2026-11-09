@@ -19,9 +19,12 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
     setActiveCategory('all');
   }
 
+  const [focusedIconIndex, setFocusedIconIndex] = useState(0);
+
   useEffect(() => {
     if (isOpen) {
       searchInputRef.current?.focus();
+      setFocusedIconIndex(0);
     }
   }, [isOpen]);
 
@@ -30,11 +33,60 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
       if (!isOpen) return;
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+
+      const isSearchFocused = document.activeElement === searchInputRef.current;
+      if (isSearchFocused) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          searchInputRef.current?.blur();
+          setFocusedIconIndex(0);
+        }
+        return;
+      }
+
+      if (filteredIcons.length === 0) return;
+
+      const cols = window.innerWidth >= 768 ? 8 : window.innerWidth >= 640 ? 6 : 4;
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setFocusedIconIndex((prev) => (prev + 1) % filteredIcons.length);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setFocusedIconIndex((prev) => (prev - 1 + filteredIcons.length) % filteredIcons.length);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIconIndex((prev) => Math.min(filteredIcons.length - 1, prev + cols));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIconIndex((prev) => {
+          if (prev < cols) {
+            searchInputRef.current?.focus();
+            return prev;
+          }
+          return Math.max(0, prev - cols);
+        });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = filteredIcons[focusedIconIndex];
+        if (target) {
+          setSelectedIcon(target.name === 'Folder' ? '' : target.name);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, filteredIcons, focusedIconIndex]);
+
+  // Scroll focused icon into view
+  useEffect(() => {
+    if (isOpen && focusedIconIndex >= 0) {
+      const btn = document.querySelector(`[data-icon-idx="${focusedIconIndex}"]`);
+      btn?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [isOpen, focusedIconIndex]);
 
   const categories = [
     { id: 'all', labelPt: 'Todos', labelEn: 'All' },
@@ -153,16 +205,20 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
             </div>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-              {filteredIcons.map((item) => {
+              {filteredIcons.map((item, idx) => {
                 const isSelected = selectedIcon === item.name || (!selectedIcon && item.name === 'Folder');
+                const isFocused = focusedIconIndex === idx;
                 return (
                   <button
                     key={item.name}
+                    data-icon-idx={idx}
                     type="button"
                     onClick={() => setSelectedIcon(item.name === 'Folder' ? '' : item.name)}
                     className={`
                       group relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-150 cursor-pointer
-                      ${isSelected
+                      ${isFocused
+                        ? 'border-amber-500 ring-2 ring-amber-500 bg-amber-500/25 text-amber-200 shadow-lg scale-105'
+                        : isSelected
                         ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md ring-1 ring-amber-500/50'
                         : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-700 hover:text-neutral-100'}
                     `}

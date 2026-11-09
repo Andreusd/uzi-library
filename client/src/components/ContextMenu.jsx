@@ -23,6 +23,7 @@ export default function ContextMenu({
   const [copied, setCopied] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [isSavingOffline, setIsSavingOffline] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function ContextMenu({
     };
   }, [book?.id]);
 
-  // Close on outside click or scroll or escape
+  // Close on outside click or scroll, or navigate with Arrow keys / Enter / Escape
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -48,6 +49,33 @@ export default function ContextMenu({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = Array.from(
+          menuRef.current?.querySelectorAll('button:not(:disabled), a:not(:disabled)') || []
+        );
+        if (items.length === 0) return;
+        setFocusedIndex((prev) => {
+          if (e.key === 'ArrowDown') {
+            return (prev + 1) % items.length;
+          } else {
+            return (prev - 1 + items.length) % items.length;
+          }
+        });
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const items = Array.from(
+          menuRef.current?.querySelectorAll('button:not(:disabled), a:not(:disabled)') || []
+        );
+        const target = items[focusedIndex];
+        if (target) {
+          target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          target.click();
+        }
       }
     };
 
@@ -56,15 +84,32 @@ export default function ContextMenu({
     };
 
     document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('scroll', handleScroll, true);
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [onClose]);
+  }, [onClose, focusedIndex]);
+
+  // Apply visual focus ring when navigating with arrows
+  useEffect(() => {
+    if (focusedIndex >= 0 && menuRef.current) {
+      const items = Array.from(
+        menuRef.current.querySelectorAll('button:not(:disabled), a:not(:disabled)')
+      );
+      items.forEach((item, idx) => {
+        if (idx === focusedIndex) {
+          item.classList.add('bg-amber-500/20', 'text-amber-200', 'ring-1', 'ring-amber-500/50');
+          item?.scrollIntoView?.({ block: 'nearest' });
+        } else {
+          item.classList.remove('bg-amber-500/20', 'text-amber-200', 'ring-1', 'ring-amber-500/50');
+        }
+      });
+    }
+  }, [focusedIndex]);
 
   // Adjust coordinates to ensure the menu stays within viewport boundaries
   const menuWidth = 230;

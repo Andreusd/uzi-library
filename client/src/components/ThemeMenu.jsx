@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Palette, Check, X, Moon, Sun } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -78,11 +78,46 @@ export default function ThemeMenu({
 }) {
   const { t } = useI18n();
   const popoverRef = useRef(null);
+  const [focusedIndex, setFocusedIndex] = useState(() => {
+    const idx = THEMES.findIndex((t) => t.id === currentTheme);
+    return idx >= 0 ? idx + 2 : 2; // Default to active theme
+  });
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+
+      const buttons = Array.from(
+        popoverRef.current?.querySelectorAll('button[data-theme-item="true"]') || []
+      );
+      if (buttons.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          if (prev === 0 || prev === 1) return 2; // from mode switch to first theme
+          return (prev + 1) % buttons.length;
+        });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedIndex((prev) => {
+          if (prev === 2) return 0; // from first theme to dark mode
+          return (prev - 1 + buttons.length) % buttons.length;
+        });
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev === 0 ? 1 : prev));
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev === 1 ? 0 : prev));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (buttons[focusedIndex]) {
+          buttons[focusedIndex].click();
+        }
       }
     };
 
@@ -102,7 +137,19 @@ export default function ThemeMenu({
       window.removeEventListener('pointerdown', handleClickOutside);
       clearTimeout(timer);
     };
-  }, [onClose]);
+  }, [onClose, focusedIndex]);
+
+  // Scroll focused theme item into view
+  useEffect(() => {
+    if (focusedIndex >= 2 && popoverRef.current) {
+      const buttons = Array.from(
+        popoverRef.current.querySelectorAll('button[data-theme-item="true"]')
+      );
+      if (buttons[focusedIndex]) {
+        buttons[focusedIndex]?.scrollIntoView?.({ block: 'nearest' });
+      }
+    }
+  }, [focusedIndex]);
 
   return (
     <>
@@ -141,8 +188,11 @@ export default function ThemeMenu({
       <div className="mt-2.5 p-1 rounded-xl bg-neutral-950/70 border border-neutral-800/90 flex items-center gap-1">
         <button
           type="button"
+          data-theme-item="true"
           onClick={() => onSelectMode && onSelectMode('dark')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            focusedIndex === 0 ? 'ring-2 ring-amber-400 ' : ''
+          }${
             currentMode === 'dark'
               ? 'bg-neutral-800 text-amber-400 shadow-sm border border-neutral-700/80 font-bold'
               : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50'
@@ -154,8 +204,11 @@ export default function ThemeMenu({
 
         <button
           type="button"
+          data-theme-item="true"
           onClick={() => onSelectMode && onSelectMode('light')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            focusedIndex === 1 ? 'ring-2 ring-amber-400 ' : ''
+          }${
             currentMode === 'light'
               ? 'bg-neutral-800 text-amber-400 shadow-sm border border-neutral-700/80 font-bold'
               : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/50'
@@ -175,8 +228,9 @@ export default function ThemeMenu({
 
       {/* Themes List */}
       <div className="max-h-76 overflow-y-auto no-scrollbar space-y-1.5 pr-0.5">
-        {THEMES.map((theme) => {
+        {THEMES.map((theme, idx) => {
           const isSelected = (currentTheme || 'default') === theme.id;
+          const isFocused = focusedIndex === idx + 2;
           const swatches = currentMode === 'light' 
             ? (theme.swatchesLight || theme.swatches) 
             : (theme.swatchesDark || theme.swatches);
@@ -185,11 +239,14 @@ export default function ThemeMenu({
             <button
               key={theme.id}
               type="button"
+              data-theme-item="true"
               onClick={() => {
                 onSelectTheme(theme.id);
               }}
               className={`w-full flex items-center justify-between p-2 rounded-xl border transition-all text-left group cursor-pointer ${
-                isSelected
+                isFocused
+                  ? 'border-amber-500 ring-2 ring-amber-500 bg-amber-500/15 text-neutral-100 shadow-md'
+                  : isSelected
                   ? 'bg-amber-500/15 border-amber-500/40 text-neutral-100 shadow-sm'
                   : 'bg-neutral-950/40 border-neutral-800/80 hover:bg-neutral-800/70 hover:border-neutral-700 text-neutral-300 hover:text-neutral-50'
               }`}
