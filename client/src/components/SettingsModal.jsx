@@ -7,6 +7,7 @@ import {
 import { useI18n } from '../i18n';
 import { FlagUS, FlagBR, FlagES, FlagFR } from './FlagIcons';
 import { getErrorLogs, clearErrorLogs, generateDiagnosticReport } from '../services/errorLogger';
+import { copyToClipboard } from '../utils/clipboard';
 
 export default function SettingsModal({ 
   isOpen, 
@@ -132,11 +133,11 @@ export default function SettingsModal({
   const handleCopyDiagnostics = async () => {
     try {
       const report = generateDiagnosticReport();
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(report);
+      const copied = await copyToClipboard(report);
+      if (copied) {
+        setDiagnosticsCopied(true);
+        setTimeout(() => setDiagnosticsCopied(false), 2500);
       }
-      setDiagnosticsCopied(true);
-      setTimeout(() => setDiagnosticsCopied(false), 2500);
     } catch (err) {
       console.warn('Failed to copy diagnostics:', err);
     }

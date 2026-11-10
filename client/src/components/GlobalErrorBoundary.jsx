@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Copy, Check, RefreshCw, Home, ChevronDown, ChevronUp } from 'lucide-react';
 import { logError, generateDiagnosticReport } from '../services/errorLogger';
+import { copyToClipboard } from '../utils/clipboard';
 
 export default class GlobalErrorBoundary extends React.Component {
   constructor(props) {
@@ -33,20 +34,11 @@ export default class GlobalErrorBoundary extends React.Component {
   handleCopyReport = async () => {
     try {
       const report = generateDiagnosticReport(this.state.error);
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(report);
-      } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = report;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
+      const copied = await copyToClipboard(report);
+      if (copied) {
+        this.setState({ copied: true });
+        setTimeout(() => this.setState({ copied: false }), 2500);
       }
-      this.setState({ copied: true });
-      setTimeout(() => this.setState({ copied: false }), 2500);
     } catch (err) {
       console.warn('Failed to copy error report to clipboard:', err);
     }

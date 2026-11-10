@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ePub from 'epubjs';
+import '../utils/epubPolyfills';
 import CommentsDrawer from './CommentsDrawer';
 import AiCopilotDrawer from './AiCopilotDrawer';
 import TextSelectionMenu from './TextSelectionMenu';
@@ -613,6 +614,20 @@ export default function EpubViewer({
 
         // Register content hooks
         rendition.hooks.content.register((contents) => {
+          // Firefox getComputedStyle safety wrapper (prevents null getComputedStyle crashes on detached/transitioning iframes)
+          if (contents?.window && typeof contents.window.getComputedStyle === 'function') {
+            try {
+              const origGetComputed = contents.window.getComputedStyle.bind(contents.window);
+              contents.window.getComputedStyle = function (el, pseudo) {
+                try {
+                  const style = origGetComputed(el, pseudo);
+                  if (style) return style;
+                } catch {}
+                return el?.style || {};
+              };
+            } catch {}
+          }
+
           attachListenersToIframeRef.current?.(contents.document, contents.window, contents);
 
           // Track in-text link clicks to allow returning to previous reading position
