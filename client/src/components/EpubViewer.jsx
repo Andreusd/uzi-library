@@ -92,8 +92,10 @@ export default function EpubViewer({
 
   const initialCfi = getInitialCfi(book);
   const initialPercent = getInitialPercent(book);
+  const initialPage = getInitialPage(book);
   const initialCfiRef = useRef(initialCfi);
   const initialPercentRef = useRef(initialPercent);
+  const initialPageRef = useRef(initialPage);
   const isInitialRelocationRef = useRef(true);
 
   // Reading location & chapter
@@ -295,16 +297,86 @@ export default function EpubViewer({
     }
   }, [annotationsSystem.commentsDrawerOpen]);
 
+  const pendingProgressRef = useRef(null);
+
+  // Immediate progress persistence helper
+  const saveProgressImmediate = useCallback((cfi, percent, page, total) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    let computedPage = (typeof page === 'number' && page > 0) ? page : 1;
+    if ((!page || page <= 1) && cfi && typeof cfi === 'string') {
+      const match = cfi.match(/\/6\/(\d+)!/);
+      if (match) {
+        const spineIndex = Math.max(0, Math.floor(parseInt(match[1], 10) / 2) - 1);
+        computedPage = spineIndex + 1;
+      }
+    }
+
+    const totalPages = (typeof total === 'number' && total > 0) ? total : 100;
+    let finalPercent = typeof percent === 'number' ? percent : Math.round((computedPage / totalPages) * 100);
+    if (finalPercent > 0 && finalPercent < 0.5) finalPercent = 1;
+    const nowIso = new Date().toISOString();
+
+    try {
+      if (cfi) localStorage.setItem(`book_cfi_${book.id}`, cfi);
+      localStorage.setItem(`book_percent_${book.id}`, String(finalPercent));
+      localStorage.setItem(`book_page_${book.id}`, String(computedPage));
+      localStorage.setItem(`book_total_pages_${book.id}`, String(totalPages));
+      localStorage.setItem(`book_updated_at_${book.id}`, nowIso);
+    } catch {}
+
+    const payload = {
+      book_id: book.id,
+      page: computedPage,
+      total_pages: totalPages,
+      percent: finalPercent,
+      cfi: cfi || undefined,
+      updated_at: nowIso,
+    };
+
+    fetch('/api/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(err => {
+      console.warn('Network progress sync failed, saving offline:', err);
+      saveOfflineProgress(book.id, payload).catch(e => console.error(e));
+    });
+
+    if (onProgressUpdate) {
+      onProgressUpdate(book.id, payload);
+    }
+
+    pendingProgressRef.current = null;
+  }, [book.id, onProgressUpdate]);
+
+  const saveProgressImmediateRef = useRef(saveProgressImmediate);
+  useEffect(() => {
+    saveProgressImmediateRef.current = saveProgressImmediate;
+  }, [saveProgressImmediate]);
+
+  const flushProgressImmediate = useCallback(() => {
+    if (pendingProgressRef.current) {
+      const { cfi, percent, page, total } = pendingProgressRef.current;
+      saveProgressImmediate(cfi, percent, page, total);
+    }
+  }, [saveProgressImmediate]);
+
   // Handle Close & Flush Progress
   const handleClose = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
 
     const cfi = locationInfo.cfi;
     const percent = locationInfo.percentage;
-    let computedPage = pageInfo.page || 1;
-    if (cfi && typeof cfi === 'string') {
+    let computedPage = (typeof pageInfo.page === 'number' && pageInfo.page > 0) ? pageInfo.page : 1;
+    if ((!pageInfo.page || pageInfo.page <= 1) && cfi && typeof cfi === 'string') {
       const match = cfi.match(/\/6\/(\d+)!/);
       if (match) {
         const spineIndex = Math.max(0, Math.floor(parseInt(match[1], 10) / 2) - 1);
@@ -313,12 +385,14 @@ export default function EpubViewer({
     }
 
     const totalPages = pageInfo.total > 0 ? pageInfo.total : 100;
+    const nowIso = new Date().toISOString();
     const payload = {
       book_id: book.id,
       page: computedPage,
       total_pages: totalPages,
       percent: percent,
       cfi: cfi || undefined,
+      updated_at: nowIso,
     };
 
     try {
@@ -326,12 +400,14 @@ export default function EpubViewer({
       localStorage.setItem(`book_percent_${book.id}`, String(percent));
       localStorage.setItem(`book_page_${book.id}`, String(computedPage));
       localStorage.setItem(`book_total_pages_${book.id}`, String(totalPages));
+      localStorage.setItem(`book_updated_at_${book.id}`, nowIso);
     } catch {}
 
     fetch('/api/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      keepalive: true,
     }).catch(err => {
       console.warn('Network progress sync failed on exit, saving offline:', err);
       saveOfflineProgress(book.id, payload).catch(e => console.error(e));
@@ -341,6 +417,7 @@ export default function EpubViewer({
       onProgressUpdate(book.id, payload);
     }
 
+    pendingProgressRef.current = null;
     onClose();
   }, [book.id, locationInfo.cfi, locationInfo.percentage, pageInfo.page, pageInfo.total, onClose, onProgressUpdate]);
 
@@ -373,58 +450,39 @@ export default function EpubViewer({
 
   // Debounced progress saver
   const saveProgressDebounced = useCallback((cfi, percent, page, total) => {
+    pendingProgressRef.current = { cfi, percent, page, total };
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      let computedPage = page || 1;
-      if (cfi && typeof cfi === 'string') {
-        const match = cfi.match(/\/6\/(\d+)!/);
-        if (match) {
-          const spineIndex = Math.max(0, Math.floor(parseInt(match[1], 10) / 2) - 1);
-          computedPage = spineIndex + 1;
-        }
-      }
-
-      const totalPages = (typeof total === 'number' && total > 0) ? total : 100;
-      let finalPercent = typeof percent === 'number' ? percent : Math.round((computedPage / totalPages) * 100);
-      if (finalPercent > 0 && finalPercent < 0.5) finalPercent = 1;
-
-      try {
-        if (cfi) localStorage.setItem(`book_cfi_${book.id}`, cfi);
-        localStorage.setItem(`book_percent_${book.id}`, String(finalPercent));
-        localStorage.setItem(`book_page_${book.id}`, String(computedPage));
-        localStorage.setItem(`book_total_pages_${book.id}`, String(totalPages));
-      } catch {}
-
-      const payload = {
-        book_id: book.id,
-        page: computedPage,
-        total_pages: totalPages,
-        percent: finalPercent,
-        cfi: cfi || undefined,
-      };
-
-      fetch('/api/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).catch(err => {
-        console.warn('Network progress sync failed, saving offline:', err);
-        saveOfflineProgress(book.id, payload).catch(e => console.error(e));
-      });
-
-      if (onProgressUpdate) {
-        onProgressUpdate(book.id, payload);
-      }
+      saveProgressImmediate(cfi, percent, page, total);
     }, 400);
-  }, [book.id, onProgressUpdate]);
+  }, [saveProgressImmediate]);
 
   const saveProgressDebouncedRef = useRef(saveProgressDebounced);
   useEffect(() => {
     saveProgressDebouncedRef.current = saveProgressDebounced;
   }, [saveProgressDebounced]);
+
+  // Window beforeunload & pagehide: flush any pending progress immediately with keepalive
+  useEffect(() => {
+    const handleUnload = () => {
+      if (pendingProgressRef.current) {
+        const { cfi, percent, page, total } = pendingProgressRef.current;
+        saveProgressImmediateRef.current?.(cfi, percent, page, total);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      handleUnload();
+    };
+  }, []);
 
   // Resize and overscroll cleanup with debouncing and exact dimensional recalculation
   useEffect(() => {
@@ -521,6 +579,19 @@ export default function EpubViewer({
 
         const epubBook = ePub(arrayBuffer);
         bookRef.current = epubBook;
+
+        await epubBook.ready;
+        if (isCancelled) return;
+
+        try {
+          const cached = localStorage.getItem(`book_locations_${book.id}`);
+          if (cached) {
+            epubBook.locations.load(cached);
+            if (epubBook.locations && epubBook.locations.total > 0) {
+              isLocationsReadyRef.current = true;
+            }
+          }
+        } catch {}
 
         if (!viewerRef.current || isCancelled) return;
 
@@ -627,7 +698,17 @@ export default function EpubViewer({
         });
 
         // Initial display
-        const startCfi = initialCfiRef.current;
+        let startCfi = initialCfiRef.current;
+        if (isLocationsReadyRef.current && initialPageRef.current > 1) {
+          try {
+            const targetLoc = initialPageRef.current - 1;
+            const currentLoc = startCfi ? epubBook.locations.locationFromCfi(startCfi) : null;
+            if (currentLoc == null || currentLoc < targetLoc) {
+              const exactCfi = epubBook.locations.cfiFromLocation(targetLoc);
+              if (exactCfi) startCfi = exactCfi;
+            }
+          } catch {}
+        }
         try {
           if (startCfi) {
             await rendition.display(startCfi);
@@ -796,6 +877,13 @@ export default function EpubViewer({
           }
 
           const pct = getAccuratePercentage(rendition.currentLocation(), currentCfi, curPage, totalLocs);
+
+          const targetPage = initialPageRef.current;
+          if (targetPage > 1 && curPage < targetPage && (targetPage - curPage) <= 2 && isInitialRelocationRef.current) {
+            isInitialRelocationRef.current = false;
+            rendition.next();
+            return;
+          }
 
           if (totalLocs > 0 && isLocationsReadyRef.current) {
             setPageInfo({ page: curPage, total: totalLocs });
@@ -991,6 +1079,11 @@ export default function EpubViewer({
 
           if (isInitialRelocationRef.current) {
             isInitialRelocationRef.current = false;
+            const targetPage = initialPageRef.current;
+            if (targetPage > 1 && curPage < targetPage && (targetPage - curPage) <= 2) {
+              rendition.next();
+              return;
+            }
             if (pct > 0 && (!bookPropRef.current?.progress?.percent || bookPropRef.current.progress.percent === 0)) {
               saveProgressDebouncedRef.current(cfi, pct, curPage, totalPages);
             }
@@ -1020,6 +1113,7 @@ export default function EpubViewer({
       if (domObserver) domObserver.disconnect();
       setRenditionReady(false);
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      flushProgressImmediate();
       try {
         if (renditionRef.current) renditionRef.current.destroy();
         if (bookRef.current) bookRef.current.destroy();

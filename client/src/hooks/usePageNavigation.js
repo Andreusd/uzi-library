@@ -389,9 +389,20 @@ export function usePageNavigation({
     onProgressUpdateRef.current = onProgressUpdate;
   }, [onProgressUpdate]);
 
+  const pendingSaveRef = useRef(null);
+
   const saveProgress = useCallback((page, total) => {
     if (!page || !total || !book?.id) return;
     const calcPercent = Number(((page / total) * 100).toFixed(1));
+    const nowIso = new Date().toISOString();
+
+    try {
+      localStorage.setItem(`book_page_${book.id}`, String(page));
+      localStorage.setItem(`book_total_pages_${book.id}`, String(total));
+      localStorage.setItem(`book_percent_${book.id}`, String(calcPercent));
+      localStorage.setItem(`book_updated_at_${book.id}`, nowIso);
+    } catch {}
+
     const payload = {
       book_id: book.id,
       page: page,
@@ -399,11 +410,14 @@ export function usePageNavigation({
       percent: calcPercent,
       zoom: scaleRef?.current || 1.2,
       invert_colors: invertColorsRef?.current || false,
+      updated_at: nowIso,
     };
+
     fetch('/api/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      keepalive: true,
     })
     .then(r => r.json())
     .then(data => {
@@ -418,17 +432,41 @@ export function usePageNavigation({
         onProgressUpdateRef.current(book.id, payload);
       }
     });
+
+    pendingSaveRef.current = null;
   }, [book, scaleRef, invertColorsRef]);
+
+  const saveProgressRef = useRef(saveProgress);
+  useEffect(() => {
+    saveProgressRef.current = saveProgress;
+  }, [saveProgress]);
 
   // Persist progress to backend with debounce (only when progressed past page 1)
   useEffect(() => {
     if (!pdfDoc || totalPages < 1) return;
     if (currentPage <= 1) return;
+    pendingSaveRef.current = { page: currentPage, total: totalPages };
     const timer = setTimeout(() => {
       saveProgress(currentPage, totalPages);
     }, 400);
     return () => clearTimeout(timer);
   }, [pdfDoc, currentPage, totalPages, saveProgress]);
+
+  // Flush any pending progress immediately on beforeunload, pagehide, or unmount
+  useEffect(() => {
+    const handleUnload = () => {
+      if (pendingSaveRef.current) {
+        saveProgressRef.current?.(pendingSaveRef.current.page, pendingSaveRef.current.total);
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      handleUnload();
+    };
+  }, []);
 
   return {
     currentPage,

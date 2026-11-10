@@ -22,6 +22,7 @@ import { usePdfKeyboardGestures } from '../hooks/usePdfKeyboardGestures';
 import { SimpleLinkService } from '../utils/SimpleLinkService';
 import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
 import { getOfflineBookArrayBuffer } from '../services/offlineStorage';
+import { getInitialPage } from '../utils/epubLocationUtils';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -275,7 +276,7 @@ export default function PdfViewer({
   } = useReaderHeaderPin();
 
   // Page dimensions map & visible pages
-  const [visiblePageNumbers, setVisiblePageNumbers] = useState(() => new Set([book?.progress?.page || 1]));
+  const [visiblePageNumbers, setVisiblePageNumbers] = useState(() => new Set([getInitialPage(book)]));
   const pageDimsMapRef = useRef({});
   const [pageDimsMap, setPageDimsMap] = useState({});
   const pageRefsMap = useRef(new Map());
@@ -518,7 +519,7 @@ export default function PdfViewer({
   }, [pdfDoc, linkService, findController]);
 
   const { initializeDocument } = nav;
-  const initialPage = book?.progress?.page || 1;
+  const initialPage = getInitialPage(book);
   const bookId = book?.id;
 
   // Load PDF Document

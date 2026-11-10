@@ -4,10 +4,10 @@
 
 export function findChapterLabel(items, href) {
   if (!items || !href) return '';
-  const cleanHref = href.split('#')[0];
+
+  // 1. Exact match (including fragment)
   for (const item of items) {
-    const itemClean = (item.href || '').split('#')[0];
-    if (item.href === href || itemClean === cleanHref) {
+    if (item.href === href) {
       return item.label ? item.label.trim() : '';
     }
     if (item.subitems && item.subitems.length > 0) {
@@ -15,61 +15,107 @@ export function findChapterLabel(items, href) {
       if (sub) return sub;
     }
   }
+
+  // 2. Base href match without fragment
+  const cleanHref = href.split('#')[0];
+  for (const item of items) {
+    const itemClean = (item.href || '').split('#')[0];
+    if (itemClean === cleanHref) {
+      return item.label ? item.label.trim() : '';
+    }
+    if (item.subitems && item.subitems.length > 0) {
+      const sub = findChapterLabel(item.subitems, cleanHref);
+      if (sub) return sub;
+    }
+  }
   return '';
 }
 
-export function getInitialCfi(book) {
-  if (book?.progress?.cfi && typeof book.progress.cfi === 'string' && book.progress.cfi.trim() !== '') {
-    return book.progress.cfi;
+export function getEffectiveProgress(book) {
+  if (!book?.id) {
+    return {
+      cfi: book?.progress?.cfi || null,
+      page: book?.progress?.page || 1,
+      percent: book?.progress?.percent || 0,
+      totalPages: book?.progress?.total_pages || 0,
+    };
   }
+
+  let localCfi = null;
+  let localPage = null;
+  let localPercent = null;
+  let localTotalPages = null;
+  let localUpdatedAt = null;
+
   try {
-    const local = localStorage.getItem(`book_cfi_${book?.id}`);
-    if (local && local.trim() !== '') return local;
+    const cfi = localStorage.getItem(`book_cfi_${book.id}`);
+    if (cfi && typeof cfi === 'string' && cfi.trim() !== '') localCfi = cfi.trim();
+
+    const pageStr = localStorage.getItem(`book_page_${book.id}`);
+    if (pageStr !== null) {
+      const parsed = parseInt(pageStr, 10);
+      if (!isNaN(parsed) && parsed > 0) localPage = parsed;
+    }
+
+    const pctStr = localStorage.getItem(`book_percent_${book.id}`);
+    if (pctStr !== null) {
+      const parsed = parseFloat(pctStr);
+      if (!isNaN(parsed) && parsed >= 0) localPercent = parsed;
+    }
+
+    const totalStr = localStorage.getItem(`book_total_pages_${book.id}`);
+    if (totalStr !== null) {
+      const parsed = parseInt(totalStr, 10);
+      if (!isNaN(parsed) && parsed > 0) localTotalPages = parsed;
+    }
+
+    localUpdatedAt = localStorage.getItem(`book_updated_at_${book.id}`);
   } catch {}
-  return null;
+
+  const serverProgress = book?.progress;
+  const serverUpdatedAt = serverProgress?.updated_at;
+
+  // Decide if local storage has fresher reading progress than the server record.
+  // This is critical for tab refreshes (F5) and local reading persistence.
+  let preferLocal = false;
+  if (localCfi || (localPage && localPage > 1)) {
+    if (localUpdatedAt && serverUpdatedAt) {
+      try {
+        preferLocal = new Date(localUpdatedAt).getTime() >= new Date(serverUpdatedAt).getTime();
+      } catch {
+        preferLocal = true;
+      }
+    } else if (localPage && serverProgress?.page) {
+      preferLocal = localPage >= serverProgress.page;
+    } else {
+      preferLocal = true;
+    }
+  }
+
+  const cfi = preferLocal && localCfi ? localCfi : (serverProgress?.cfi || localCfi || null);
+  const page = preferLocal && localPage ? localPage : (serverProgress?.page || localPage || 1);
+  const percent = preferLocal && localPercent !== null ? localPercent : (serverProgress?.percent ?? localPercent ?? 0);
+  const totalPages = (serverProgress?.total_pages && serverProgress.total_pages > 0)
+    ? serverProgress.total_pages
+    : (localTotalPages || 0);
+
+  return { cfi, page, percent, totalPages };
+}
+
+export function getInitialCfi(book) {
+  return getEffectiveProgress(book).cfi;
 }
 
 export function getInitialPercent(book) {
-  if (book?.progress?.percent !== undefined && book?.progress?.percent !== null) {
-    const p = parseFloat(book.progress.percent);
-    if (!isNaN(p) && p >= 0) return p;
-  }
-  try {
-    const local = localStorage.getItem(`book_percent_${book?.id}`);
-    if (local) {
-      const p = parseFloat(local);
-      if (!isNaN(p) && p >= 0) return p;
-    }
-  } catch {}
-  return 0;
+  return getEffectiveProgress(book).percent;
 }
 
 export function getInitialPage(book) {
-  if (book?.progress?.page && typeof book.progress.page === 'number' && book.progress.page > 0) {
-    return book.progress.page;
-  }
-  try {
-    const local = localStorage.getItem(`book_page_${book?.id}`);
-    if (local !== null) {
-      const val = parseInt(local, 10);
-      if (!isNaN(val) && val > 0) return val;
-    }
-  } catch {}
-  return 1;
+  return getEffectiveProgress(book).page;
 }
 
 export function getInitialTotalPages(book) {
-  if (book?.progress?.total_pages && typeof book.progress.total_pages === 'number' && book.progress.total_pages > 0) {
-    return book.progress.total_pages;
-  }
-  try {
-    const local = localStorage.getItem(`book_total_pages_${book?.id}`);
-    if (local !== null) {
-      const val = parseInt(local, 10);
-      if (!isNaN(val) && val > 0) return val;
-    }
-  } catch {}
-  return 0;
+  return getEffectiveProgress(book).totalPages;
 }
 
 /**
