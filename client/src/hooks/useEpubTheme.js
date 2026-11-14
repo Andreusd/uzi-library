@@ -43,14 +43,31 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
 
   const themeRef = useRef(theme);
 
-  // Synchronize theme across all active EPUB contents and iframes whenever theme changes
+  // Preferences: Font family ('default' | 'georgia' | 'palatino' | 'charter' | 'sans' | 'monospace' | 'accessible')
+  const [fontFamily, setFontFamily] = useState(() => {
+    try {
+      const savedBook = localStorage.getItem(`book_font_family_${book?.id}`);
+      if (savedBook) return savedBook;
+      const savedGlobal = localStorage.getItem('reader_font_family');
+      if (savedGlobal) return savedGlobal;
+    } catch {}
+    return 'default';
+  });
+
+  const fontFamilyRef = useRef(fontFamily);
+  useEffect(() => {
+    fontFamilyRef.current = fontFamily;
+  }, [fontFamily]);
+
+  // Synchronize theme and font across all active EPUB contents and iframes
   useEffect(() => {
     themeRef.current = theme;
+    fontFamilyRef.current = fontFamily;
     try {
       const contentsList = renditionRef?.current?.getContents() || [];
       contentsList.forEach(contents => {
         if (contents?.document) {
-          applyThemeToDoc(contents.document, theme);
+          applyThemeToDoc(contents.document, theme, fontFamily);
         }
       });
     } catch {}
@@ -60,11 +77,11 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
       iframes.forEach(iframe => {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (doc) {
-          applyThemeToDoc(doc, theme);
+          applyThemeToDoc(doc, theme, fontFamily);
         }
       });
     } catch {}
-  }, [theme, renditionRef, viewerRef]);
+  }, [theme, fontFamily, renditionRef, viewerRef]);
 
   const applyTheme = useCallback((newTheme) => {
     themeRef.current = newTheme;
@@ -95,11 +112,13 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
       } catch {}
     }
 
+    const curFont = fontFamilyRef.current || 'default';
+
     try {
       const contentsList = renditionRef?.current?.getContents() || [];
       contentsList.forEach(contents => {
         if (contents?.document) {
-          applyThemeToDoc(contents.document, newTheme);
+          applyThemeToDoc(contents.document, newTheme, curFont);
         }
       });
     } catch {}
@@ -109,7 +128,7 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
       iframes.forEach(iframe => {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (doc) {
-          applyThemeToDoc(doc, newTheme);
+          applyThemeToDoc(doc, newTheme, curFont);
         }
       });
     } catch {}
@@ -160,6 +179,38 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
     }
   }, [book, renditionRef]);
 
+  const changeFontFamily = useCallback((newFontId) => {
+    fontFamilyRef.current = newFontId;
+    setFontFamily(newFontId);
+    try {
+      localStorage.setItem('reader_font_family', newFontId);
+      if (book?.id) {
+        localStorage.setItem(`book_font_family_${book.id}`, newFontId);
+      }
+    } catch {}
+
+    const curTheme = themeRef.current || theme;
+
+    try {
+      const contentsList = renditionRef?.current?.getContents() || [];
+      contentsList.forEach(contents => {
+        if (contents?.document) {
+          applyThemeToDoc(contents.document, curTheme, newFontId);
+        }
+      });
+    } catch {}
+
+    try {
+      const iframes = viewerRef?.current?.querySelectorAll('iframe') || [];
+      iframes.forEach(iframe => {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc) {
+          applyThemeToDoc(doc, curTheme, newFontId);
+        }
+      });
+    } catch {}
+  }, [book, renditionRef, theme, viewerRef]);
+
   const viewerBgClass = theme === 'dark'
     ? 'bg-black text-slate-200'
     : theme === 'sepia'
@@ -171,10 +222,13 @@ export function useEpubTheme({ book, mode, onModeChange, renditionRef, viewerRef
     themeRef,
     fontSize,
     fontSizeRef,
+    fontFamily,
+    fontFamilyRef,
     applyTheme,
     cycleTheme,
     changeFontSize,
     resetFontSize,
+    changeFontFamily,
     viewerBgClass,
   };
 }

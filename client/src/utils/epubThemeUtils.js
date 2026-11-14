@@ -35,6 +35,71 @@ export const EPUB_THEMES = {
   }
 };
 
+export const EPUB_FONTS = [
+  {
+    id: 'default',
+    labelPt: 'Padrão do Tema',
+    labelEn: 'Theme Default',
+    fontFamily: '',
+    sample: 'Aa',
+    category: 'default',
+  },
+  {
+    id: 'georgia',
+    labelPt: 'Georgia',
+    labelEn: 'Georgia',
+    fontFamily: 'Georgia, "Times New Roman", "DejaVu Serif", serif',
+    sample: 'Aa',
+    category: 'serif',
+  },
+  {
+    id: 'palatino',
+    labelPt: 'Palatino',
+    labelEn: 'Palatino',
+    fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, Garamond, "Baskerville", serif',
+    sample: 'Aa',
+    category: 'serif',
+  },
+  {
+    id: 'charter',
+    labelPt: 'Charter',
+    labelEn: 'Charter',
+    fontFamily: '"Charter", "Bitstream Charter", "Sitka Text", Cambria, serif',
+    sample: 'Aa',
+    category: 'serif',
+  },
+  {
+    id: 'sans',
+    labelPt: 'Sans-Serif',
+    labelEn: 'Sans-Serif',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    sample: 'Aa',
+    category: 'sans',
+  },
+  {
+    id: 'monospace',
+    labelPt: 'Monoespaçada',
+    labelEn: 'Monospace',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    sample: 'Aa',
+    category: 'monospace',
+  },
+  {
+    id: 'accessible',
+    labelPt: 'Acessível',
+    labelEn: 'Accessible',
+    fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+    sample: 'Aa',
+    category: 'accessible',
+  },
+];
+
+export function getFontFamilyCss(fontId, fallbackThemeFont) {
+  if (!fontId || fontId === 'default') return fallbackThemeFont;
+  const match = EPUB_FONTS.find(f => f.id === fontId);
+  return (match && match.fontFamily) ? match.fontFamily : fallbackThemeFont;
+}
+
 /**
  * Intelligent color adaptation for dark mode.
  * Preserves hues while ensuring high contrast and legibility on dark backgrounds.
@@ -293,18 +358,19 @@ export function fixEpubViewportUnits(doc) {
 }
 
 /**
- * Build dedicated CSS stylesheet string for EPUB rendering based on theme.
+ * Build dedicated CSS stylesheet string for EPUB rendering based on theme and font family.
  */
-function buildThemeCss(themeName, cfg) {
+export function buildThemeCss(themeName, cfg, fontId = 'default') {
   const isDark = themeName === 'dark';
   const isSepia = themeName === 'sepia';
+  const activeFont = getFontFamilyCss(fontId, cfg.fontFamily);
 
   if (isDark) {
     return `
       html, body {
         background-color: ${cfg.bg} !important;
         color: ${cfg.text} !important;
-        font-family: ${cfg.fontFamily} !important;
+        font-family: ${activeFont} !important;
         line-height: 1.8 !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -320,6 +386,9 @@ function buildThemeCss(themeName, cfg) {
       }
       div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
         background-color: transparent !important;
+      }
+      p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption, h1, h2, h3, h4, h5, h6 {
+        font-family: ${activeFont} !important;
       }
       p:not([style*="color"]), li:not([style*="color"]), blockquote, dd, dt, article, section, label, td:not([style*="color"]), th:not([style*="color"]), caption {
         color: ${cfg.text} !important;
@@ -337,13 +406,14 @@ function buildThemeCss(themeName, cfg) {
         max-width: 100% !important;
         height: auto !important;
       }
+      pre, pre *, code, code * {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+      }
       pre {
         background-color: transparent !important;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
         overflow-x: auto !important;
       }
       code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
         background-color: transparent !important;
       }
       :not(pre) > code {
@@ -533,7 +603,7 @@ function buildThemeCss(themeName, cfg) {
     html, body {
       background-color: ${cfg.bg} !important;
       color: ${cfg.text} !important;
-      font-family: ${cfg.fontFamily} !important;
+      font-family: ${activeFont} !important;
       line-height: 1.8 !important;
       margin: 0 !important;
       padding: 0 !important;
@@ -550,6 +620,9 @@ function buildThemeCss(themeName, cfg) {
     div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
       background-color: transparent !important;
     }
+    p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption, h1, h2, h3, h4, h5, h6 {
+      font-family: ${activeFont} !important;
+    }
     h1, h2, h3, h4, h5, h6 {
       color: ${cfg.heading} !important;
       font-weight: 600 !important;
@@ -563,15 +636,16 @@ function buildThemeCss(themeName, cfg) {
       max-width: 100% !important;
       height: auto !important;
     }
+    pre, pre *, code, code * {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    }
     pre {
       background-color: ${isSepia ? 'rgba(67, 52, 34, 0.06)' : 'rgba(0, 0, 0, 0.03)'} !important;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
       border-radius: 6px;
       padding: 12px 16px;
       overflow-x: auto !important;
     }
     code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
       background-color: transparent !important;
     }
     :not(pre) > code {
@@ -667,10 +741,11 @@ function buildThemeCss(themeName, cfg) {
   `;
 }
 
-export const applyThemeToDoc = (doc, themeName) => {
+export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
   if (!doc) return;
   const cfg = EPUB_THEMES[themeName] || EPUB_THEMES.dark;
   const isDark = themeName === 'dark';
+  const activeFont = getFontFamilyCss(fontId, cfg.fontFamily);
 
   // Remove any conflicting epubjs theme style tags
   try {
@@ -688,17 +763,19 @@ export const applyThemeToDoc = (doc, themeName) => {
     doc.head?.appendChild(styleTag);
   }
 
-  styleTag.textContent = buildThemeCss(themeName, cfg);
+  styleTag.textContent = buildThemeCss(themeName, cfg, fontId);
 
   // Direct element-level properties for instant consistency
   try {
     if (doc.documentElement) {
       doc.documentElement.style.setProperty('background-color', cfg.bg, 'important');
       doc.documentElement.style.setProperty('color', cfg.text, 'important');
+      doc.documentElement.style.setProperty('font-family', activeFont, 'important');
     }
     if (doc.body) {
       doc.body.style.setProperty('background-color', cfg.bg, 'important');
       doc.body.style.setProperty('color', cfg.text, 'important');
+      doc.body.style.setProperty('font-family', activeFont, 'important');
       doc.body.classList.remove('dark', 'light', 'sepia');
       doc.body.classList.add(themeName);
     }

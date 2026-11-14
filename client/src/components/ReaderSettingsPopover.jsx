@@ -1,6 +1,7 @@
 import React from 'react';
-import { SlidersHorizontal, X, ZoomIn, ZoomOut, Moon, Sun, Palette } from 'lucide-react';
+import { SlidersHorizontal, X, ZoomIn, ZoomOut, Moon, Sun, Palette, Type } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { EPUB_FONTS } from '../utils/epubThemeUtils';
 
 function ToggleItem({
   title,
@@ -89,6 +90,8 @@ export default function ReaderSettingsPopover({
   fontSize,
   changeFontSize,
   resetFontSize,
+  fontFamily,
+  changeFontFamily,
   applyTheme,
   // Zoom controls (for PDF & quick mobile access)
   zoomScale,
@@ -97,7 +100,7 @@ export default function ReaderSettingsPopover({
   handleResetZoom,
   fitWidth,
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   if (!isOpen) return null;
 
@@ -181,6 +184,50 @@ export default function ReaderSettingsPopover({
                 >
                   <ZoomIn className="w-4 h-4" />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Font Family (EPUB) */}
+          {changeFontFamily && (
+            <div className={`p-2.5 rounded-xl border mb-2 ${
+              isDark ? 'bg-neutral-800/40 border-neutral-700/60' : isSepia ? 'bg-[#efe0c2]/40 border-[#e5d5b5]' : 'bg-neutral-100 border-neutral-200'
+            }`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Type className="w-3.5 h-3.5 text-amber-500" />
+                <span className={`text-xs font-semibold ${headerTitle}`}>
+                  {t('fontFamily') || 'Font Family'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {EPUB_FONTS.map(font => {
+                  const isSelected = (fontFamily || 'default') === font.id;
+                  const label = lang === 'pt' ? font.labelPt : font.labelEn;
+                  return (
+                    <button
+                      key={font.id}
+                      type="button"
+                      onClick={() => changeFontFamily(font.id)}
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer text-left border ${
+                        isSelected
+                          ? isDark
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-medium'
+                            : isSepia
+                            ? 'bg-amber-600/20 border-amber-600/50 text-amber-900 font-medium'
+                            : 'bg-amber-50 border-amber-500 text-amber-800 font-medium'
+                          : isDark
+                          ? 'border-neutral-700/50 text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100'
+                          : isSepia
+                          ? 'border-[#d8c5a0] text-[#433422] hover:bg-[#efe0c2] hover:text-[#292014]'
+                          : 'border-neutral-200 text-neutral-600 hover:bg-neutral-200/60 hover:text-neutral-900'
+                      }`}
+                      style={font.fontFamily ? { fontFamily: font.fontFamily } : undefined}
+                    >
+                      <span className="truncate">{label}</span>
+                      <span className="text-[10px] opacity-60 ml-1 shrink-0 font-normal">{font.sample}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

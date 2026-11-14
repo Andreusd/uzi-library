@@ -427,6 +427,7 @@ export default function EpubViewer({
     renditionRef,
     viewerRef,
     themeRef: themeSystem.themeRef,
+    fontFamilyRef: themeSystem.fontFamilyRef,
     tocOpen,
     setTocOpen,
     commentsDrawerOpen: annotationsSystem.commentsDrawerOpen,
@@ -1164,6 +1165,8 @@ export default function EpubViewer({
         shouldShowExtension={shouldShowExtension}
         theme={themeSystem.theme}
         fontSize={themeSystem.fontSize}
+        fontFamily={themeSystem.fontFamily}
+        changeFontFamily={themeSystem.changeFontFamily}
         pageInfo={pageInfo}
         pageInput={pageInput}
         setPageInput={setPageInput}

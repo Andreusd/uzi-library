@@ -131,6 +131,32 @@ describe('EPUB Viewer Subsystem Hooks', () => {
       });
       expect(result.current.fontSize).toBe(100);
     });
+
+    it('initializes font family and allows changing it with localStorage persistence', () => {
+      const renditionRef = { current: { themes: { select: vi.fn(), fontSize: vi.fn() }, getContents: () => [] } };
+      const viewerRef = { current: { querySelectorAll: () => [] } };
+
+      const { result } = renderHook(() =>
+        useEpubTheme({
+          book: { id: 'book-1', progress: {} },
+          mode: 'dark',
+          onModeChange: vi.fn(),
+          renditionRef,
+          viewerRef,
+        }),
+        { wrapper }
+      );
+
+      expect(result.current.fontFamily).toBe('default');
+
+      act(() => {
+        result.current.changeFontFamily('georgia');
+      });
+
+      expect(result.current.fontFamily).toBe('georgia');
+      expect(localStorage.setItem).toHaveBeenCalledWith('reader_font_family', 'georgia');
+      expect(localStorage.setItem).toHaveBeenCalledWith('book_font_family_book-1', 'georgia');
+    });
   });
 
   describe('useEpubSearch', () => {

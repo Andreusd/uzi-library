@@ -11,6 +11,7 @@ export function useEpubNavigation({
   renditionRef,
   viewerRef,
   themeRef,
+  fontFamilyRef,
   tocOpen,
   setTocOpen,
   commentsDrawerOpen,
@@ -590,7 +591,7 @@ export function useEpubNavigation({
     }
 
     // Apply active theme immediately
-    applyThemeToDoc(targetDoc, themeRef.current);
+    applyThemeToDoc(targetDoc, themeRef.current, fontFamilyRef?.current || 'default');
 
     if (targetDoc._hasEpubListenersAttached) return;
     targetDoc._hasEpubListenersAttached = true;
@@ -740,7 +741,7 @@ export function useEpubNavigation({
     };
 
     targetDoc.addEventListener('selectionchange', handleSelectionChange);
-  }, [showHeader, themeRef, viewerRef, setSelectionMenu, resolveCfiFromRange]);
+  }, [showHeader, themeRef, fontFamilyRef, viewerRef, setSelectionMenu, resolveCfiFromRange]);
 
   useEffect(() => {
     attachListenersToIframeRef.current = attachListenersToIframe;

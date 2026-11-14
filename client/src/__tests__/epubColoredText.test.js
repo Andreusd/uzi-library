@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   adaptColorForDarkMode,
   tokenizeCodeText,
   highlightUnstyledCodeBlocks,
   applyThemeToDoc,
   fixEpubViewportUnits,
+  buildThemeCss,
+  getFontFamilyCss,
+  EPUB_FONTS,
   EPUB_THEMES,
 } from '../utils/epubThemeUtils';
 
@@ -275,6 +278,82 @@ def cancel_order(order_id: str) -> str:
       expect(mockMath.style['max-width']).toBe('100%');
       expect(mockVwEl.style['font-size']).toBe('1em');
       expect(mockVwEl.style['width']).toBe('100%');
+    });
+  });
+
+  describe('EPUB Typography & Custom Font Stacks', () => {
+    it('defines distinct offline-first font options', () => {
+      expect(EPUB_FONTS.length).toBeGreaterThanOrEqual(6);
+      const ids = EPUB_FONTS.map(f => f.id);
+      expect(ids).toContain('default');
+      expect(ids).toContain('georgia');
+      expect(ids).toContain('palatino');
+      expect(ids).toContain('charter');
+      expect(ids).toContain('sans');
+      expect(ids).toContain('monospace');
+      expect(ids).toContain('accessible');
+    });
+
+    it('resolves correct font family css string or falls back to theme default', () => {
+      const fallback = 'system-ui, sans-serif';
+      expect(getFontFamilyCss('default', fallback)).toBe(fallback);
+      expect(getFontFamilyCss(null, fallback)).toBe(fallback);
+      expect(getFontFamilyCss('unknown_id', fallback)).toBe(fallback);
+
+      const georgiaCss = getFontFamilyCss('georgia', fallback);
+      expect(georgiaCss).toContain('Georgia');
+
+      const sansCss = getFontFamilyCss('sans', fallback);
+      expect(sansCss).toContain('system-ui');
+
+      const monoCss = getFontFamilyCss('monospace', fallback);
+      expect(monoCss).toContain('ui-monospace');
+    });
+
+    it('injects selected font into buildThemeCss while preserving monospace for code blocks', () => {
+      const darkCfg = EPUB_THEMES.dark;
+      const cssGeorgia = buildThemeCss('dark', darkCfg, 'georgia');
+
+      expect(cssGeorgia).toContain('font-family: Georgia');
+      // Code and pre elements must maintain ui-monospace
+      expect(cssGeorgia).toContain('pre, pre *, code, code * {\n        font-family: ui-monospace');
+
+      const sepiaCfg = EPUB_THEMES.sepia;
+      const cssMono = buildThemeCss('sepia', sepiaCfg, 'monospace');
+      expect(cssMono).toContain('font-family: ui-monospace');
+    });
+
+    it('applies custom font family directly to documentElement and body in applyThemeToDoc', () => {
+      const mockStyleTag = { id: '', textContent: '' };
+      const docElementStyles = {};
+      const bodyStyles = {};
+      const bodyClassList = new Set();
+
+      const mockDoc = {
+        getElementById: () => mockStyleTag,
+        head: { appendChild: vi.fn() },
+        documentElement: {
+          style: {
+            setProperty(prop, val) { docElementStyles[prop] = val; }
+          }
+        },
+        body: {
+          style: {
+            setProperty(prop, val) { bodyStyles[prop] = val; }
+          },
+          classList: {
+            remove: (cls) => bodyClassList.delete(cls),
+            add: (cls) => bodyClassList.add(cls)
+          }
+        },
+        querySelectorAll: () => [],
+        readyState: 'complete'
+      };
+
+      applyThemeToDoc(mockDoc, 'dark', 'palatino');
+      expect(docElementStyles['font-family']).toContain('Palatino');
+      expect(bodyStyles['font-family']).toContain('Palatino');
+      expect(mockStyleTag.textContent).toContain('Palatino');
     });
   });
 });

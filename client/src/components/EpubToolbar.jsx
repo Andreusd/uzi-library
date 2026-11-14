@@ -26,6 +26,8 @@ export default function EpubToolbar({
   flipNext,
   changeFontSize,
   resetFontSize,
+  fontFamily,
+  changeFontFamily,
   applyTheme,
   searchOpen,
   setSearchOpen,
@@ -424,6 +426,8 @@ export default function EpubToolbar({
             fontSize={fontSize}
             changeFontSize={changeFontSize}
             resetFontSize={resetFontSize}
+            fontFamily={fontFamily}
+            changeFontFamily={changeFontFamily}
             applyTheme={applyTheme}
             showBottomProgress={showBottomProgress}
             toggleBottomProgress={toggleBottomProgress}
