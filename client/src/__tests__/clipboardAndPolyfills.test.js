@@ -85,4 +85,15 @@ describe('epub.js Defensive Polyfills', () => {
     const overflowResult = ePub.Contents.prototype.overflow.call(mockContents);
     expect(overflowResult).toBe('');
   });
+
+  it('prevents TypeError when section is destroyed during in-flight load', () => {
+    applyEpubPolyfills();
+    const Section = require('epubjs/lib/section').default;
+    const section = new Section({ idref: 'sec-1', href: 'ch1.xhtml' });
+    section.destroy();
+
+    // hooks should not be undefined, preventing Cannot read properties of undefined (reading 'content')
+    expect(section.hooks).toBeDefined();
+    expect(typeof section.hooks.content.trigger).toBe('function');
+  });
 });
