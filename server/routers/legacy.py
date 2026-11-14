@@ -36,7 +36,21 @@ def get_legacy_view(
     Uses JPEG covers and native browser PDF/EPUB opening.
     """
     libraries = scanner.config_mgr.get_libraries()
-    active_lib_id = library_id if library_id else scanner.config_mgr.get_active_library_id()
+    # Resolve library: query param -> cookie -> active_library_id -> first library -> "default"
+    selected_lib_id = library_id or request.cookies.get("uzi_library") or scanner.config_mgr.get_active_library_id()
+    if not selected_lib_id and libraries:
+        selected_lib_id = libraries[0]["id"]
+    active_lib_id = selected_lib_id or "default"
+
+    if libraries and not any(l["id"] == active_lib_id for l in libraries):
+        active_lib_id = libraries[0]["id"]
+
+    library_options_html = []
+    for l_item in libraries:
+        l_name = html.escape(l_item.get("name") or "Library")
+        l_id = html.escape(l_item.get("id"))
+        is_sel = "selected" if l_id == active_lib_id else ""
+        library_options_html.append(f'<option value="{l_id}" {is_sel}>{l_name}</option>')
     
     folders = scanner.get_folders(library_id=active_lib_id)
     all_books = scanner.get_books(library_id=active_lib_id)
@@ -133,10 +147,10 @@ def get_legacy_view(
     fav_active = "active" if selected_shelf == "__favorites__" else ""
 
     pills_html = [
-        f'<a href="/legacy?sort={sort_key}&user={html.escape(active_user)}" class="shelf-pill {all_active}">All Books ({len(all_books)})</a>',
-        f'<a href="/legacy?shelf=__continue__&sort={sort_key}&user={html.escape(active_user)}" class="shelf-pill {cont_active}">Continue ({continue_count})</a>',
-        f'<a href="/legacy?shelf=__completed__&sort={sort_key}&user={html.escape(active_user)}" class="shelf-pill {comp_active}">Completed ({completed_count})</a>',
-        f'<a href="/legacy?shelf=__favorites__&sort={sort_key}&user={html.escape(active_user)}" class="shelf-pill {fav_active}">Favorites ({fav_count})</a>',
+        f'<a href="/legacy?sort={sort_key}&user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="shelf-pill {all_active}">All Books ({len(all_books)})</a>',
+        f'<a href="/legacy?shelf=__continue__&sort={sort_key}&user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="shelf-pill {cont_active}">Continue ({continue_count})</a>',
+        f'<a href="/legacy?shelf=__completed__&sort={sort_key}&user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="shelf-pill {comp_active}">Completed ({completed_count})</a>',
+        f'<a href="/legacy?shelf=__favorites__&sort={sort_key}&user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="shelf-pill {fav_active}">Favorites ({fav_count})</a>',
     ]
 
     for f in folders:
@@ -144,7 +158,7 @@ def get_legacy_view(
         f_id = f.get("id") or f.get("name")
         f_active = "active" if selected_shelf == f_id or selected_shelf == f.get("name") else ""
         pills_html.append(
-            f'<a href="/legacy?shelf={html.escape(f_id)}&sort={sort_key}&user={html.escape(active_user)}" class="shelf-pill {f_active}">{html.escape(f_name)} ({f.get("book_count", 0)})</a>'
+            f'<a href="/legacy?shelf={html.escape(f_id)}&sort={sort_key}&user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="shelf-pill {f_active}">{html.escape(f_name)} ({f.get("book_count", 0)})</a>'
         )
 
     # Build Books HTML
@@ -281,7 +295,29 @@ def get_legacy_view(
             font-weight: 600;
             letter-spacing: 0.5px;
         }}
-        .profile-form {{
+        .brand-and-selectors {{
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            gap: 10px;
+        }}
+        .selectors-group {{
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            gap: 8px;
+        }}
+        .selector-form, .profile-form {{
             display: -webkit-box;
             display: -webkit-flex;
             display: flex;
@@ -292,13 +328,12 @@ def get_legacy_view(
             border: 1px solid #363640;
             border-radius: 6px;
             padding: 2px 8px;
-            margin-left: 10px;
         }}
-        .profile-icon {{
+        .selector-icon, .profile-icon {{
             font-size: 13px;
             margin-right: 4px;
         }}
-        .profile-select {{
+        .selector-select, .profile-select {{
             background: transparent;
             color: #ffffff;
             font-size: 13px;
@@ -308,6 +343,7 @@ def get_legacy_view(
             cursor: pointer;
             padding: 2px 0;
             -webkit-appearance: menulist;
+            max-width: 170px;
         }}
         .modern-link {{
             color: #818cf8;
@@ -548,25 +584,37 @@ def get_legacy_view(
 <body>
     <header>
         <div class="header-top">
-            <div style="display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center;">
-                <a href="/legacy?user={html.escape(active_user)}" class="brand">
+            <div class="brand-and-selectors">
+                <a href="/legacy?user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="brand">
                     📚 Uzi Library
                     <span class="brand-sub">LEGACY</span>
                 </a>
-                <form method="GET" action="/legacy" class="profile-form">
-                    <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
-                    <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
-                    <input type="hidden" name="q" value="{html.escape(q or '')}" />
-                    <span class="profile-icon">👤</span>
-                    <select name="user" class="profile-select" onchange="this.form.submit()">
-                        {''.join(user_options_html)}
-                    </select>
-                </form>
+                <div class="selectors-group">
+                    <form method="GET" action="/legacy" class="selector-form">
+                        <input type="hidden" name="user" value="{html.escape(active_user)}" />
+                        <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
+                        <span class="selector-icon">📖</span>
+                        <select name="library_id" class="selector-select" onchange="this.form.submit()">
+                            {''.join(library_options_html)}
+                        </select>
+                    </form>
+                    <form method="GET" action="/legacy" class="selector-form">
+                        <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
+                        <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
+                        <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
+                        <input type="hidden" name="q" value="{html.escape(q or '')}" />
+                        <span class="selector-icon">👤</span>
+                        <select name="user" class="selector-select" onchange="this.form.submit()">
+                            {''.join(user_options_html)}
+                        </select>
+                    </form>
+                </div>
             </div>
             <a href="/" class="modern-link">Switch to Modern View →</a>
         </div>
         <form method="GET" action="/legacy" class="search-row" id="search-form">
             <input type="hidden" name="user" value="{html.escape(active_user)}" />
+            <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
             <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
             <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
             <input type="text" name="q" id="search-input" class="search-input" placeholder="Search books by title or author..." value="{html.escape(q or '')}" autocomplete="off" />
@@ -616,4 +664,5 @@ def get_legacy_view(
 '''
     response = HTMLResponse(content=html_page)
     response.set_cookie(key="uzi_user", value=active_user, max_age=31536000, path="/", samesite="lax")
+    response.set_cookie(key="uzi_library", value=active_lib_id, max_age=31536000, path="/", samesite="lax")
     return response

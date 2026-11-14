@@ -9,13 +9,19 @@ def test_legacy_view_html():
     assert "Uzi Library" in response.text
     assert "LEGACY" in response.text
     assert "<!DOCTYPE html>" in response.text
-    assert "profile-select" in response.text
+    assert "selector-select" in response.text
 
 def test_legacy_view_with_user_selection():
     response = client.get("/legacy?user=Andreusd")
     assert response.status_code == 200
     assert "Andreusd" in response.text
     assert "uzi_user" in response.cookies or "set-cookie" in response.headers
+
+def test_legacy_view_with_library_selection():
+    response = client.get("/legacy?library_id=lib_831d8c10")
+    assert response.status_code == 200
+    assert "Livros Recreativos" in response.text
+    assert "uzi_library" in response.cookies or "set-cookie" in response.headers
 
 def test_legacy_view_with_search_and_shelf():
     response = client.get("/legacy?q=test&shelf=__favorites__&sort=title_desc&user=Andreusd")
