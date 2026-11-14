@@ -23,6 +23,20 @@ def test_legacy_view_with_library_selection():
     assert "Livros Recreativos" in response.text
     assert "uzi_library" in response.cookies or "set-cookie" in response.headers
 
+def test_legacy_view_device_detection_ios():
+    headers = {"User-Agent": "Mozilla/5.0 (iPad; CPU OS 9_3_6 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13G37 Safari/601.1"}
+    response = client.get("/legacy?library_id=lib_831d8c10", headers=headers)
+    assert response.status_code == 200
+    assert "Android Tip" not in response.text
+    assert "Open in iBooks" in response.text
+
+def test_legacy_view_device_detection_android():
+    headers = {"User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-T510) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Safari/537.36"}
+    response = client.get("/legacy?library_id=lib_831d8c10", headers=headers)
+    assert response.status_code == 200
+    assert "Android Tip" in response.text
+    assert "Open in E-Reader" in response.text
+
 def test_legacy_view_with_search_and_shelf():
     response = client.get("/legacy?q=test&shelf=__favorites__&sort=title_desc&user=Andreusd")
     assert response.status_code == 200

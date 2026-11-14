@@ -55,6 +55,11 @@ def get_legacy_view(
     folders = scanner.get_folders(library_id=active_lib_id)
     all_books = scanner.get_books(library_id=active_lib_id)
 
+    # Device detection
+    ua = (request.headers.get("user-agent") or "").lower()
+    is_android = "android" in ua
+    is_ios = "ipad" in ua or "iphone" in ua or "ipod" in ua or ("os x" in ua and "mobile" in ua)
+
     # Multi-user profile handling
     active_user = (user or "default").strip() or "default"
     available_users = user_mgr.list_users()
@@ -175,7 +180,12 @@ def get_legacy_view(
         # Read URL & Actions
         if is_epub:
             read_url = f"/api/epub/{bid}.epub"
-            read_btn_label = "📖 Open in iBooks"
+            if is_ios:
+                read_btn_label = "📖 Open in iBooks"
+            elif is_android:
+                read_btn_label = "📖 Open in E-Reader"
+            else:
+                read_btn_label = "📖 Open EPUB"
             download_url = f"/api/book-file/{bid}"
         else:
             read_url = f"/api/pdf/{bid}"
@@ -236,6 +246,14 @@ def get_legacy_view(
         books_cards_html.append(card_html)
 
     books_content = "\n".join(books_cards_html) if books_cards_html else '<div class="empty-msg">No books found in this selection.</div>'
+
+    android_tip_html = ""
+    if is_android:
+        android_tip_html = '''
+        <div class="device-tip">
+            💡 <strong>Android Tip:</strong> Tap <em>"Open in E-Reader"</em> on any book to read with <strong>ReadEra</strong>, Moon+ Reader, or Google Play Books.
+        </div>
+        '''
 
     html_page = f'''<!DOCTYPE html>
 <html lang="en">
@@ -353,6 +371,16 @@ def get_legacy_view(
             border: 1px solid #4338ca;
             border-radius: 6px;
             background-color: rgba(99, 102, 241, 0.1);
+        }}
+        .device-tip {{
+            background-color: rgba(99, 102, 241, 0.12);
+            border: 1px solid #4338ca;
+            color: #c7d2fe;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 14px;
+            line-height: 1.4;
         }}
         .search-row {{
             display: -webkit-box;
@@ -626,6 +654,7 @@ def get_legacy_view(
     </header>
 
     <div class="container">
+        {android_tip_html}
         <div class="books-grid" id="books-grid">
             {books_content}
         </div>
