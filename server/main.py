@@ -50,6 +50,7 @@ from .routers.books import router as books_router
 from .routers.tags import router as tags_router
 from .routers.lookup import router as lookup_router
 from .routers.ai import router as ai_router
+from .routers.legacy import router as legacy_router
 
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -106,13 +107,18 @@ app.include_router(books_router)
 app.include_router(tags_router)
 app.include_router(lookup_router)
 app.include_router(ai_router)
+app.include_router(legacy_router)
 
 # If client production build exists, mount static assets and index.html fallback
 if os.path.exists(CLIENT_DIST):
     app.mount("/assets", StaticFiles(directory=os.path.join(CLIENT_DIST, "assets")), name="assets")
 
     @app.get("/")
-    async def serve_root():
+    async def serve_root(request: Request):
+        ua = request.headers.get("user-agent", "")
+        if "OS 9_" in ua or "OS 8_" in ua or "OS 7_" in ua:
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(url="/legacy")
         return FileResponse(
             os.path.join(CLIENT_DIST, "index.html"),
             headers={"Cache-Control": "no-cache, must-revalidate"}
@@ -142,6 +148,7 @@ def run_server(port: int = 8000):
     # Create dual-stack socket (IPv4 + IPv6) so mDNS .local (IPv6) and LAN IPs (IPv4) both work
     try:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
         sock.bind(("::", port))
         sock.listen(2048)

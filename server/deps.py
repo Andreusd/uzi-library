@@ -52,11 +52,20 @@ def get_ai_mgr() -> AIManager:
     return _ai_mgr_instance
 
 def get_request_user(request: Request) -> str:
-    """Extracts username from X-User header or user query param."""
-    x_user = request.headers.get("x-user") or request.headers.get("X-User")
-    if not x_user:
-        x_user = request.query_params.get("user")
-    return (x_user or "default").strip() or "default"
+    """Extracts username from X-User header, user query param, or uzi_user cookie."""
+    headers = getattr(request, "headers", {})
+    query_params = getattr(request, "query_params", {})
+    cookies = getattr(request, "cookies", {})
+
+    x_user = headers.get("x-user") or headers.get("X-User") if hasattr(headers, "get") else None
+    if not x_user and hasattr(query_params, "get"):
+        x_user = query_params.get("user")
+    if not x_user and isinstance(cookies, dict):
+        x_user = cookies.get("uzi_user") or cookies.get("user")
+
+    if not x_user or not isinstance(x_user, str):
+        return "default"
+    return x_user.strip() or "default"
 
 def set_scanner_override(scanner: Optional[LibraryScanner]):
     global _scanner_instance

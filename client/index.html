@@ -13,6 +13,10 @@
     <title>Uzi Library</title>
     <script>
       (function() {
+        if (!window.fetch || !('noModule' in HTMLScriptElement.prototype)) {
+          window.location.replace('/legacy');
+          return;
+        }
         try {
           var t = localStorage.getItem('app_theme');
           if (t && t !== 'default') {

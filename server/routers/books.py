@@ -446,16 +446,28 @@ def get_book(
     return b_copy
 
 @router.get("/api/cover/{book_id}")
-def get_cover(book_id: str, scanner: LibraryScanner = Depends(get_scanner), cover_mgr: CoverManager = Depends(get_cover_mgr)):
-    """Serves the WebP cover thumbnail for a book (generates on-the-fly if needed)."""
+def get_cover(
+    book_id: str,
+    format: Optional[str] = Query(None, description="Image format: webp or jpeg/jpg"),
+    scanner: LibraryScanner = Depends(get_scanner),
+    cover_mgr: CoverManager = Depends(get_cover_mgr)
+):
+    """Serves the cover thumbnail for a book (generates on-the-fly if needed). Supports WebP and JPEG."""
     b = scanner.find_book(book_id)
     if not b:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    cover_path = cover_mgr.generate_cover(b["path"], book_id, b["title"])
+    fmt = (format or "").lower().strip()
+    if fmt in ("jpg", "jpeg"):
+        cover_path = cover_mgr.get_jpeg_cover_path(book_id, original_file_path=b["path"], title=b["title"])
+        media_type = "image/jpeg"
+    else:
+        cover_path = cover_mgr.generate_cover(b["path"], book_id, b["title"])
+        media_type = "image/webp"
+
     return FileResponse(
         cover_path,
-        media_type="image/webp",
+        media_type=media_type,
         headers={"Cache-Control": "public, max-age=86400"}
     )
 

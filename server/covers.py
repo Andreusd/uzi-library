@@ -21,6 +21,31 @@ class CoverManager:
         """Returns the file path for the cached cover image."""
         return os.path.join(self.cache_dir, f"{book_id}.webp")
 
+    def get_jpeg_cover_path(self, book_id: str, original_file_path: Optional[str] = None, title: str = "") -> str:
+        """Returns the file path for a cached JPEG cover image (for iOS < 14 / legacy clients)."""
+        jpg_path = os.path.join(self.cache_dir, f"{book_id}.jpg")
+        if os.path.exists(jpg_path) and os.path.getsize(jpg_path) > 0:
+            return jpg_path
+
+        webp_path = self.get_cover_path(book_id)
+        if not (os.path.exists(webp_path) and os.path.getsize(webp_path) > 0):
+            if original_file_path:
+                webp_path = self.generate_cover(original_file_path, book_id, title)
+            else:
+                return webp_path
+
+        with self._lock:
+            if os.path.exists(jpg_path) and os.path.getsize(jpg_path) > 0:
+                return jpg_path
+            try:
+                with Image.open(webp_path) as img:
+                    rgb_img = img.convert("RGB")
+                    rgb_img.save(jpg_path, "JPEG", quality=85)
+                    return jpg_path
+            except Exception as e:
+                print(f"Error converting cover to JPEG for {book_id}: {e}")
+                return webp_path
+
     def has_cover(self, book_id: str) -> bool:
         """Checks if a cached cover exists and is non-empty."""
         path = self.get_cover_path(book_id)
