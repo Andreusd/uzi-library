@@ -11,7 +11,16 @@ export function getErrorLogs() {
     const raw = localStorage.getItem(STORAGE_KEY_ERRORS);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const filtered = parsed.filter(
+      (log) =>
+        !log?.message?.includes('ResizeObserver loop completed with undelivered notifications') &&
+        !log?.message?.includes('ResizeObserver loop limit exceeded')
+    );
+    if (filtered.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY_ERRORS, JSON.stringify(filtered));
+    }
+    return filtered;
   } catch {
     return [];
   }
@@ -84,7 +93,16 @@ export function generateDiagnosticReport(specificError = null) {
   let nativeLogs = '';
   try {
     if (typeof window !== 'undefined' && window.AndroidApp?.getErrorLogs) {
-      nativeLogs = window.AndroidApp.getErrorLogs() || '';
+      const rawNative = window.AndroidApp.getErrorLogs() || '';
+      nativeLogs = rawNative
+        .split('\n')
+        .filter(
+          (line) =>
+            !line.includes('ResizeObserver loop completed with undelivered notifications') &&
+            !line.includes('ResizeObserver loop limit exceeded')
+        )
+        .join('\n')
+        .trim();
     }
   } catch {}
 
