@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, X, ZoomIn, ZoomOut, Moon, Sun, Palette, Type } from 'lucide-react';
+import { SlidersHorizontal, X, ZoomIn, ZoomOut, Moon, Sun, Palette, Type, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { EPUB_FONTS } from '../utils/epubThemeUtils';
 
@@ -190,44 +190,48 @@ export default function ReaderSettingsPopover({
 
           {/* Font Family (EPUB) */}
           {changeFontFamily && (
-            <div className={`p-2.5 rounded-xl border mb-2 ${
+            <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between gap-3 ${
               isDark ? 'bg-neutral-800/40 border-neutral-700/60' : isSepia ? 'bg-[#efe0c2]/40 border-[#e5d5b5]' : 'bg-neutral-100 border-neutral-200'
             }`}>
-              <div className="flex items-center gap-1.5 mb-2">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Type className="w-3.5 h-3.5 text-amber-500" />
                 <span className={`text-xs font-semibold ${headerTitle}`}>
                   {t('fontFamily') || 'Font Family'}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {EPUB_FONTS.map(font => {
-                  const isSelected = (fontFamily || 'default') === font.id;
-                  const label = lang === 'pt' ? font.labelPt : font.labelEn;
-                  return (
-                    <button
-                      key={font.id}
-                      type="button"
-                      onClick={() => changeFontFamily(font.id)}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition cursor-pointer text-left border ${
-                        isSelected
-                          ? isDark
-                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-medium'
-                            : isSepia
-                            ? 'bg-amber-600/20 border-amber-600/50 text-amber-900 font-medium'
-                            : 'bg-amber-50 border-amber-500 text-amber-800 font-medium'
-                          : isDark
-                          ? 'border-neutral-700/50 text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100'
-                          : isSepia
-                          ? 'border-[#d8c5a0] text-[#433422] hover:bg-[#efe0c2] hover:text-[#292014]'
-                          : 'border-neutral-200 text-neutral-600 hover:bg-neutral-200/60 hover:text-neutral-900'
-                      }`}
-                      style={font.fontFamily ? { fontFamily: font.fontFamily } : undefined}
-                    >
-                      <span className="truncate">{label}</span>
-                      <span className="text-[10px] opacity-60 ml-1 shrink-0 font-normal">{font.sample}</span>
-                    </button>
-                  );
-                })}
+              <div className="relative min-w-0 flex-1 max-w-[170px] sm:max-w-[190px]">
+                <select
+                  value={fontFamily || 'default'}
+                  onChange={(e) => changeFontFamily(e.target.value)}
+                  className={`w-full py-1.5 pl-2.5 pr-7 text-xs rounded-lg border appearance-none font-medium cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-amber-500 truncate ${
+                    isDark
+                      ? 'bg-neutral-800 border-neutral-700 text-neutral-100 hover:bg-neutral-700'
+                      : isSepia
+                      ? 'bg-[#efe0c2] border-[#d8c5a0] text-[#292014] hover:bg-[#e4d2b0]'
+                      : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-50'
+                  }`}
+                  style={{
+                    fontFamily: (EPUB_FONTS.find(f => f.id === (fontFamily || 'default'))?.fontFamily) || undefined
+                  }}
+                  aria-label={t('fontFamily') || 'Font Family'}
+                >
+                  {EPUB_FONTS.map(font => {
+                    const label = lang === 'pt' ? font.labelPt : font.labelEn;
+                    return (
+                      <option
+                        key={font.id}
+                        value={font.id}
+                        style={font.fontFamily ? { fontFamily: font.fontFamily } : undefined}
+                        className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                      >
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+                <ChevronDown className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${
+                  isDark ? 'text-neutral-400' : isSepia ? 'text-[#7c6a53]' : 'text-neutral-500'
+                }`} />
               </div>
             </div>
           )}

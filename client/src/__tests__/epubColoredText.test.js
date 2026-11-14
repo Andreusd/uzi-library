@@ -283,9 +283,10 @@ def cancel_order(order_id: str) -> str:
 
   describe('EPUB Typography & Custom Font Stacks', () => {
     it('defines distinct offline-first font options', () => {
-      expect(EPUB_FONTS.length).toBeGreaterThanOrEqual(6);
+      expect(EPUB_FONTS.length).toBeGreaterThanOrEqual(7);
       const ids = EPUB_FONTS.map(f => f.id);
       expect(ids).toContain('default');
+      expect(ids).toContain('original');
       expect(ids).toContain('georgia');
       expect(ids).toContain('palatino');
       expect(ids).toContain('charter');
@@ -299,6 +300,7 @@ def cancel_order(order_id: str) -> str:
       expect(getFontFamilyCss('default', fallback)).toBe(fallback);
       expect(getFontFamilyCss(null, fallback)).toBe(fallback);
       expect(getFontFamilyCss('unknown_id', fallback)).toBe(fallback);
+      expect(getFontFamilyCss('original', fallback)).toBe('');
 
       const georgiaCss = getFontFamilyCss('georgia', fallback);
       expect(georgiaCss).toContain('Georgia');
@@ -321,6 +323,9 @@ def cancel_order(order_id: str) -> str:
       const sepiaCfg = EPUB_THEMES.sepia;
       const cssMono = buildThemeCss('sepia', sepiaCfg, 'monospace');
       expect(cssMono).toContain('font-family: ui-monospace');
+
+      const cssOriginal = buildThemeCss('dark', darkCfg, 'original');
+      expect(cssOriginal).not.toContain('font-family: system-ui');
     });
 
     it('applies custom font family directly to documentElement and body in applyThemeToDoc', () => {
@@ -334,12 +339,14 @@ def cancel_order(order_id: str) -> str:
         head: { appendChild: vi.fn() },
         documentElement: {
           style: {
-            setProperty(prop, val) { docElementStyles[prop] = val; }
+            setProperty(prop, val) { docElementStyles[prop] = val; },
+            removeProperty(prop) { delete docElementStyles[prop]; },
           }
         },
         body: {
           style: {
-            setProperty(prop, val) { bodyStyles[prop] = val; }
+            setProperty(prop, val) { bodyStyles[prop] = val; },
+            removeProperty(prop) { delete bodyStyles[prop]; },
           },
           classList: {
             remove: (cls) => bodyClassList.delete(cls),
@@ -354,6 +361,10 @@ def cancel_order(order_id: str) -> str:
       expect(docElementStyles['font-family']).toContain('Palatino');
       expect(bodyStyles['font-family']).toContain('Palatino');
       expect(mockStyleTag.textContent).toContain('Palatino');
+
+      applyThemeToDoc(mockDoc, 'dark', 'original');
+      expect(docElementStyles['font-family']).toBeUndefined();
+      expect(bodyStyles['font-family']).toBeUndefined();
     });
   });
 });

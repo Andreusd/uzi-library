@@ -45,41 +45,49 @@ export const EPUB_FONTS = [
     category: 'default',
   },
   {
+    id: 'original',
+    labelPt: 'Original do Livro',
+    labelEn: 'Publisher Default',
+    fontFamily: '',
+    sample: 'Aa',
+    category: 'original',
+  },
+  {
+    id: 'sans',
+    labelPt: 'Sans-Serif (Sistema)',
+    labelEn: 'Sans-Serif (System)',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    sample: 'Aa',
+    category: 'sans',
+  },
+  {
     id: 'georgia',
-    labelPt: 'Georgia',
-    labelEn: 'Georgia',
+    labelPt: 'Georgia (Serifada)',
+    labelEn: 'Georgia (Serif)',
     fontFamily: 'Georgia, "Times New Roman", "DejaVu Serif", serif',
     sample: 'Aa',
     category: 'serif',
   },
   {
     id: 'palatino',
-    labelPt: 'Palatino',
-    labelEn: 'Palatino',
+    labelPt: 'Palatino (Serifada)',
+    labelEn: 'Palatino (Serif)',
     fontFamily: '"Palatino Linotype", "Book Antiqua", Palatino, Garamond, "Baskerville", serif',
     sample: 'Aa',
     category: 'serif',
   },
   {
     id: 'charter',
-    labelPt: 'Charter',
-    labelEn: 'Charter',
+    labelPt: 'Charter (Serifada)',
+    labelEn: 'Charter (Serif)',
     fontFamily: '"Charter", "Bitstream Charter", "Sitka Text", Cambria, serif',
     sample: 'Aa',
     category: 'serif',
   },
   {
-    id: 'sans',
-    labelPt: 'Sans-Serif',
-    labelEn: 'Sans-Serif',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    sample: 'Aa',
-    category: 'sans',
-  },
-  {
     id: 'monospace',
-    labelPt: 'Monoespaçada',
-    labelEn: 'Monospace',
+    labelPt: 'Monoespaçada (Código)',
+    labelEn: 'Monospace (Code)',
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     sample: 'Aa',
     category: 'monospace',
@@ -95,6 +103,7 @@ export const EPUB_FONTS = [
 ];
 
 export function getFontFamilyCss(fontId, fallbackThemeFont) {
+  if (fontId === 'original') return '';
   if (!fontId || fontId === 'default') return fallbackThemeFont;
   const match = EPUB_FONTS.find(f => f.id === fontId);
   return (match && match.fontFamily) ? match.fontFamily : fallbackThemeFont;
@@ -364,13 +373,18 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
   const isDark = themeName === 'dark';
   const isSepia = themeName === 'sepia';
   const activeFont = getFontFamilyCss(fontId, cfg.fontFamily);
+  const fontBodyCss = activeFont ? `font-family: ${activeFont} !important;` : '';
+  const fontElementsCss = activeFont ? `
+      p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption, h1, h2, h3, h4, h5, h6 {
+        font-family: ${activeFont} !important;
+      }` : '';
 
   if (isDark) {
     return `
       html, body {
         background-color: ${cfg.bg} !important;
         color: ${cfg.text} !important;
-        font-family: ${activeFont} !important;
+        ${fontBodyCss}
         line-height: 1.8 !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -387,9 +401,7 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
         background-color: transparent !important;
       }
-      p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption, h1, h2, h3, h4, h5, h6 {
-        font-family: ${activeFont} !important;
-      }
+      ${fontElementsCss}
       p:not([style*="color"]), li:not([style*="color"]), blockquote, dd, dt, article, section, label, td:not([style*="color"]), th:not([style*="color"]), caption {
         color: ${cfg.text} !important;
       }
@@ -603,7 +615,7 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
     html, body {
       background-color: ${cfg.bg} !important;
       color: ${cfg.text} !important;
-      font-family: ${activeFont} !important;
+      ${fontBodyCss}
       line-height: 1.8 !important;
       margin: 0 !important;
       padding: 0 !important;
@@ -620,9 +632,7 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
     div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
       background-color: transparent !important;
     }
-    p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption, h1, h2, h3, h4, h5, h6 {
-      font-family: ${activeFont} !important;
-    }
+    ${fontElementsCss}
     h1, h2, h3, h4, h5, h6 {
       color: ${cfg.heading} !important;
       font-weight: 600 !important;
@@ -770,12 +780,20 @@ export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
     if (doc.documentElement) {
       doc.documentElement.style.setProperty('background-color', cfg.bg, 'important');
       doc.documentElement.style.setProperty('color', cfg.text, 'important');
-      doc.documentElement.style.setProperty('font-family', activeFont, 'important');
+      if (activeFont) {
+        doc.documentElement.style.setProperty('font-family', activeFont, 'important');
+      } else {
+        doc.documentElement.style.removeProperty('font-family');
+      }
     }
     if (doc.body) {
       doc.body.style.setProperty('background-color', cfg.bg, 'important');
       doc.body.style.setProperty('color', cfg.text, 'important');
-      doc.body.style.setProperty('font-family', activeFont, 'important');
+      if (activeFont) {
+        doc.body.style.setProperty('font-family', activeFont, 'important');
+      } else {
+        doc.body.style.removeProperty('font-family');
+      }
       doc.body.classList.remove('dark', 'light', 'sepia');
       doc.body.classList.add(themeName);
     }
