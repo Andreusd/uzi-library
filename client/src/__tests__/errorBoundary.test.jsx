@@ -91,4 +91,12 @@ describe('GlobalErrorBoundary & ErrorLogger', () => {
     expect(report).toContain('Sample caught error');
     expect(report).toContain('custom_source');
   });
+
+  it('ignores benign ResizeObserver undelivered notifications warning', () => {
+    const record = logError(new Error('ResizeObserver loop completed with undelivered notifications.'));
+    expect(record).toBeNull();
+
+    const logs = getErrorLogs();
+    expect(logs.length).toBe(0);
+  });
 });

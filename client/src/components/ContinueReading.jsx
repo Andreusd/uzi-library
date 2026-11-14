@@ -68,12 +68,14 @@ export default function ContinueReading({
           if (!observer) {
             observedEl = coverEl;
             observer = new ResizeObserver((entries) => {
-              for (const entry of entries) {
-                const boxHeight = entry.contentRect?.height || entry.target.getBoundingClientRect().height;
-                if (boxHeight > 0) {
-                  setTargetHeight(Math.round(boxHeight));
+              window.requestAnimationFrame(() => {
+                for (const entry of entries) {
+                  const boxHeight = entry.contentRect?.height || entry.target.getBoundingClientRect().height;
+                  if (boxHeight > 0) {
+                    setTargetHeight(Math.round(boxHeight));
+                  }
                 }
-              }
+              });
             });
             observer.observe(coverEl);
           }

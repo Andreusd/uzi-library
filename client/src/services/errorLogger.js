@@ -32,6 +32,15 @@ export function logError(error, context = {}) {
   const errorStack = error?.stack || null;
   const errorName = error?.name || 'Error';
 
+  // Benign browser notification: ResizeObserver loop completed with undelivered notifications
+  // Browsers emit this to window.onerror when ResizeObserver notifications are deferred to the next frame.
+  if (
+    errorMessage.includes('ResizeObserver loop completed with undelivered notifications') ||
+    errorMessage.includes('ResizeObserver loop limit exceeded')
+  ) {
+    return null;
+  }
+
   const record = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     timestamp,
@@ -132,6 +141,16 @@ export function initGlobalErrorHandlers() {
   window.addEventListener('error', (event) => {
     // Avoid double logging if the error was handled by React ErrorBoundary
     if (event.error?.__uziHandled) return;
+
+    // Filter benign browser notifications
+    const msg = event.message || event.error?.message || '';
+    if (
+      msg.includes('ResizeObserver loop completed with undelivered notifications') ||
+      msg.includes('ResizeObserver loop limit exceeded')
+    ) {
+      return;
+    }
+
     logError(event.error || event.message, {
       source: 'uncaught_error',
       extra: {
