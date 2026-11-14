@@ -247,14 +247,6 @@ def get_legacy_view(
 
     books_content = "\n".join(books_cards_html) if books_cards_html else '<div class="empty-msg">No books found in this selection.</div>'
 
-    android_tip_html = ""
-    if is_android:
-        android_tip_html = '''
-        <div class="device-tip">
-            💡 <strong>Android Tip:</strong> Tap <em>"Open in E-Reader"</em> on any book to read with <strong>ReadEra</strong>, Moon+ Reader, or Google Play Books.
-        </div>
-        '''
-
     html_page = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -371,16 +363,6 @@ def get_legacy_view(
             border: 1px solid #4338ca;
             border-radius: 6px;
             background-color: rgba(99, 102, 241, 0.1);
-        }}
-        .device-tip {{
-            background-color: rgba(99, 102, 241, 0.12);
-            border: 1px solid #4338ca;
-            color: #c7d2fe;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 14px;
-            line-height: 1.4;
         }}
         .search-row {{
             display: -webkit-box;
@@ -654,7 +636,6 @@ def get_legacy_view(
     </header>
 
     <div class="container">
-        {android_tip_html}
         <div class="books-grid" id="books-grid">
             {books_content}
         </div>
