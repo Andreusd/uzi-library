@@ -256,46 +256,59 @@ def get_legacy_view(
     <style>
         /* Standalone, 100% iOS 9 / Safari WebKit 601 compatible CSS */
         * {{ -webkit-box-sizing: border-box; box-sizing: border-box; }}
-        html {{
-            background-color: #121214;
-            color: #e1e1e6;
+        html, body {{
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow-x: hidden;
-            -webkit-text-size-adjust: 100%;
-            overscroll-behavior: none;
-            overscroll-behavior-y: none;
-            overscroll-behavior-x: none;
-        }}
-        body {{
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            max-width: 100%;
-            min-height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background-color: #121214;
             color: #e1e1e6;
-            overflow-x: hidden;
-            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-text-size-adjust: 100%;
             overscroll-behavior: none;
             overscroll-behavior-y: none;
             overscroll-behavior-x: none;
         }}
+        .app-shell {{
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }}
         header {{
+            -webkit-box-flex: 0;
+            -webkit-flex: 0 0 auto;
+            flex: 0 0 auto;
             background-color: #1a1a1e;
             border-bottom: 1px solid #2a2a30;
             padding: 12px 16px;
-            position: -webkit-sticky;
-            position: sticky;
-            top: 0;
             z-index: 100;
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
+        }}
+        .main-scroll {{
+            -webkit-box-flex: 1;
+            -webkit-flex: 1 1 auto;
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            height: 100%;
+            overscroll-behavior: none;
+            overscroll-behavior-y: none;
         }}
         .header-top {{
             display: -webkit-box;
@@ -623,52 +636,56 @@ def get_legacy_view(
     </style>
 </head>
 <body>
-    <header>
-        <div class="header-top">
-            <div class="brand-and-selectors">
-                <a href="/legacy?user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="brand">
-                    📚 Uzi Library
-                    <span class="brand-sub">LEGACY</span>
-                </a>
-                <div class="selectors-group">
-                    <form method="GET" action="/legacy" class="selector-form">
-                        <input type="hidden" name="user" value="{html.escape(active_user)}" />
-                        <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
-                        <span class="selector-icon">📖</span>
-                        <select name="library_id" class="selector-select" onchange="this.form.submit()">
-                            {''.join(library_options_html)}
-                        </select>
-                    </form>
-                    <form method="GET" action="/legacy" class="selector-form">
-                        <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
-                        <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
-                        <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
-                        <input type="hidden" name="q" value="{html.escape(q or '')}" />
-                        <span class="selector-icon">👤</span>
-                        <select name="user" class="selector-select" onchange="this.form.submit()">
-                            {''.join(user_options_html)}
-                        </select>
-                    </form>
+    <div class="app-shell">
+        <header>
+            <div class="header-top">
+                <div class="brand-and-selectors">
+                    <a href="/legacy?user={html.escape(active_user)}&library_id={html.escape(active_lib_id)}" class="brand">
+                        📚 Uzi Library
+                        <span class="brand-sub">LEGACY</span>
+                    </a>
+                    <div class="selectors-group">
+                        <form method="GET" action="/legacy" class="selector-form">
+                            <input type="hidden" name="user" value="{html.escape(active_user)}" />
+                            <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
+                            <span class="selector-icon">📖</span>
+                            <select name="library_id" class="selector-select" onchange="this.form.submit()">
+                                {''.join(library_options_html)}
+                            </select>
+                        </form>
+                        <form method="GET" action="/legacy" class="selector-form">
+                            <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
+                            <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
+                            <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
+                            <input type="hidden" name="q" value="{html.escape(q or '')}" />
+                            <span class="selector-icon">👤</span>
+                            <select name="user" class="selector-select" onchange="this.form.submit()">
+                                {''.join(user_options_html)}
+                            </select>
+                        </form>
+                    </div>
+                </div>
+                <a href="/" class="modern-link">Switch to Modern View →</a>
+            </div>
+            <form method="GET" action="/legacy" class="search-row" id="search-form">
+                <input type="hidden" name="user" value="{html.escape(active_user)}" />
+                <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
+                <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
+                <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
+                <input type="text" name="q" id="search-input" class="search-input" placeholder="Search books by title or author..." value="{html.escape(q or '')}" autocomplete="off" />
+                <button type="submit" class="search-btn">Search</button>
+            </form>
+            <div class="shelves-container">
+                {''.join(pills_html)}
+            </div>
+        </header>
+
+        <div class="main-scroll" id="main-scroll">
+            <div class="container">
+                <div class="books-grid" id="books-grid">
+                    {books_content}
                 </div>
             </div>
-            <a href="/" class="modern-link">Switch to Modern View →</a>
-        </div>
-        <form method="GET" action="/legacy" class="search-row" id="search-form">
-            <input type="hidden" name="user" value="{html.escape(active_user)}" />
-            <input type="hidden" name="library_id" value="{html.escape(active_lib_id)}" />
-            <input type="hidden" name="shelf" value="{html.escape(selected_shelf)}" />
-            <input type="hidden" name="sort" value="{html.escape(sort_key)}" />
-            <input type="text" name="q" id="search-input" class="search-input" placeholder="Search books by title or author..." value="{html.escape(q or '')}" autocomplete="off" />
-            <button type="submit" class="search-btn">Search</button>
-        </form>
-        <div class="shelves-container">
-            {''.join(pills_html)}
-        </div>
-    </header>
-
-    <div class="container">
-        <div class="books-grid" id="books-grid">
-            {books_content}
         </div>
     </div>
 
@@ -702,27 +719,40 @@ def get_legacy_view(
 
         // Prevent rubber-band stretch past top/bottom limits on iOS
         (function() {{
-            var startY = 0;
-            document.addEventListener('touchstart', function(e) {{
+            var scrollEl = document.getElementById('main-scroll');
+            if (!scrollEl) return;
+
+            var lastTouchY = 0;
+
+            scrollEl.addEventListener('touchstart', function(e) {{
                 if (e.touches && e.touches.length === 1) {{
-                    startY = e.touches[0].clientY;
+                    lastTouchY = e.touches[0].clientY;
+                    if (scrollEl.scrollTop === 0) {{
+                        scrollEl.scrollTop = 1;
+                    }} else if (scrollEl.scrollTop + scrollEl.offsetHeight >= scrollEl.scrollHeight) {{
+                        scrollEl.scrollTop = scrollEl.scrollHeight - scrollEl.offsetHeight - 1;
+                    }}
                 }}
             }}, false);
 
-            document.addEventListener('touchmove', function(e) {{
+            scrollEl.addEventListener('touchmove', function(e) {{
                 if (e.touches && e.touches.length === 1) {{
                     var currentY = e.touches[0].clientY;
-                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-                    var scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
-                    var clientHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+                    var deltaY = currentY - lastTouchY;
+                    lastTouchY = currentY;
 
-                    // If pulling down while at the top
-                    if (scrollTop <= 0 && currentY > startY) {{
+                    var atTop = scrollEl.scrollTop <= 1;
+                    var atBottom = scrollEl.scrollTop + scrollEl.offsetHeight >= scrollEl.scrollHeight - 1;
+
+                    // Pulling down while at the top
+                    if (atTop && deltaY > 0) {{
                         if (e.preventDefault) e.preventDefault();
+                        return;
                     }}
-                    // If pulling up while at the bottom
-                    else if (scrollTop + clientHeight >= scrollHeight && currentY < startY) {{
+                    // Pulling up while at the bottom
+                    if (atBottom && deltaY < 0) {{
                         if (e.preventDefault) e.preventDefault();
+                        return;
                     }}
                 }}
             }}, false);
