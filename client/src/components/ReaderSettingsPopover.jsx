@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, X, ZoomIn, ZoomOut, Moon, Sun, Palette, Type, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, X, ZoomIn, ZoomOut, Palette, Type, ChevronDown } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { EPUB_FONTS } from '../utils/epubThemeUtils';
 
@@ -238,49 +238,50 @@ export default function ReaderSettingsPopover({
 
           {/* Theme Selector (EPUB) */}
           {applyTheme && (
-            <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between ${
+            <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between gap-3 ${
               isDark ? 'bg-neutral-800/40 border-neutral-700/60' : isSepia ? 'bg-[#efe0c2]/40 border-[#e5d5b5]' : 'bg-neutral-100 border-neutral-200'
             }`}>
-              <span className={`text-xs font-semibold ${headerTitle}`}>
-                {t('theme') || 'Theme'}
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => applyTheme('dark')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition cursor-pointer ${
-                    resolvedTheme === 'dark'
-                      ? 'bg-neutral-800 text-amber-400 border border-amber-500/40 shadow-sm'
-                      : 'text-neutral-400 hover:text-neutral-200'
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Palette className="w-3.5 h-3.5 text-amber-500" />
+                <span className={`text-xs font-semibold ${headerTitle}`}>
+                  {t('theme') || 'Theme'}
+                </span>
+              </div>
+              <div className="relative min-w-0 flex-1 max-w-[170px] sm:max-w-[190px]">
+                <select
+                  value={resolvedTheme}
+                  onChange={(e) => applyTheme(e.target.value)}
+                  className={`w-full py-1.5 pl-2.5 pr-7 text-xs rounded-lg border appearance-none font-medium cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-amber-500 truncate ${
+                    isDark
+                      ? 'bg-neutral-800 border-neutral-700 text-neutral-100 hover:bg-neutral-700'
+                      : isSepia
+                      ? 'bg-[#efe0c2] border-[#d8c5a0] text-[#292014] hover:bg-[#e4d2b0]'
+                      : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-50'
                   }`}
+                  aria-label={t('theme') || 'Theme'}
                 >
-                  <Moon className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{t('darkMode') || 'Dark'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyTheme('sepia')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition cursor-pointer ${
-                    resolvedTheme === 'sepia'
-                      ? 'bg-[#5f4b32] text-[#fbf0d9] border border-amber-600/40 shadow-sm'
-                      : 'text-[#7c6a53] hover:text-[#292014]'
-                  }`}
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{t('sepiaMode') || 'Sepia'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyTheme('light')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 transition cursor-pointer ${
-                    resolvedTheme === 'light'
-                      ? 'bg-neutral-200 text-neutral-900 border border-neutral-300 shadow-sm'
-                      : 'text-neutral-400 hover:text-neutral-600'
-                  }`}
-                >
-                  <Sun className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{t('lightMode') || 'Light'}</span>
-                </button>
+                  <option
+                    value="dark"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('darkMode') || 'Dark'}
+                  </option>
+                  <option
+                    value="sepia"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('sepia') || 'Sepia'}
+                  </option>
+                  <option
+                    value="light"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('lightMode') || 'Light'}
+                  </option>
+                </select>
+                <ChevronDown className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${
+                  isDark ? 'text-neutral-400' : isSepia ? 'text-[#7c6a53]' : 'text-neutral-500'
+                }`} />
               </div>
             </div>
           )}
