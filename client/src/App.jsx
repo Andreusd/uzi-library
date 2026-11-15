@@ -169,10 +169,11 @@ export default function App() {
     modals.contextMenu?.isOpen
   );
 
-  // Mobile gesture to open/close sidebar with edge swipes
+  // Mobile gestures: swipe right to open sidebar, swipe left to close sidebar or open settings
   useSidebarSwipe({
     sidebarOpen,
     setSidebarOpen,
+    onOpenSettings: () => modals.setSettingsOpen(true),
     enabled: !isReaderActive && !isAnyModalOpen,
   });
 

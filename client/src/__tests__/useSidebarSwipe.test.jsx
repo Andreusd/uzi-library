@@ -64,10 +64,12 @@ describe('useSidebarSwipe Hook', () => {
 
   it('closes sidebar when swiping left while sidebar is open', () => {
     const setSidebarOpen = vi.fn();
+    const onOpenSettings = vi.fn();
     renderHook(() =>
       useSidebarSwipe({
         sidebarOpen: true,
         setSidebarOpen,
+        onOpenSettings,
         enabled: true,
         minSwipeDistance: 50,
       })
@@ -83,6 +85,33 @@ describe('useSidebarSwipe Hook', () => {
     });
 
     expect(setSidebarOpen).toHaveBeenCalledWith(false);
+    expect(onOpenSettings).not.toHaveBeenCalled();
+  });
+
+  it('opens library settings when swiping right-to-left while sidebar is closed', () => {
+    const setSidebarOpen = vi.fn();
+    const onOpenSettings = vi.fn();
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        onOpenSettings,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 300, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 220, clientY: 200 }])
+      );
+    });
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(setSidebarOpen).not.toHaveBeenCalled();
   });
 
   it('does not trigger when vertical scrolling dominates', () => {

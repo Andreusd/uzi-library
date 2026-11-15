@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Custom hook to enable opening the sidebar with a swipe from left to right,
- * and closing the sidebar with a swipe from right to left on mobile/touch devices.
+ * Custom hook to enable gesture navigation on mobile/touch devices:
+ * - Swiping left-to-right opens the sidebar menu.
+ * - Swiping right-to-left closes the sidebar menu if open, or opens library settings if closed.
  *
  * @param {Object} options
  * @param {boolean} options.sidebarOpen - Current open state of sidebar
  * @param {Function} options.setSidebarOpen - Function to update sidebar state
+ * @param {Function} [options.onOpenSettings] - Function to open library settings on right-to-left swipe
  * @param {boolean} [options.enabled=true] - Whether gestures are active (e.g. false in Reader, desktop, or modals)
  * @param {number} [options.maxStartRatio=0.8] - Max fraction of screen width where swipe-to-open can begin
  * @param {number} [options.minSwipeDistance=50] - Minimum horizontal travel in pixels to recognize a swipe
@@ -15,6 +17,7 @@ import { useEffect, useRef } from 'react';
 export function useSidebarSwipe({
   sidebarOpen,
   setSidebarOpen,
+  onOpenSettings,
   enabled = true,
   maxStartRatio = 0.8,
   minSwipeDistance = 50,
@@ -52,33 +55,20 @@ export function useSidebarSwipe({
       const startX = touch.clientX;
       const startY = touch.clientY;
 
-      // If sidebar is closed: allow swipe starting anywhere across the left 80% of the screen
-      const allowedStartX = Math.max(window.innerWidth * maxStartRatio, 250);
-      if (!sidebarOpen && startX > allowedStartX) {
-        touchStartRef.current = null;
-        return;
-      }
-
-      // If touch begins inside a horizontal carousel:
-      // If there are still items to the left (scrollLeft > 8), prioritize scrolling the carousel (unless near edge <= 45px).
-      // If the carousel is already at the very beginning (scrollLeft <= 8), allow swiping right to open the sidebar!
-      if (
-        !sidebarOpen &&
-        target &&
-        typeof target.closest === 'function'
-      ) {
-        const carousel = target.closest('.overflow-x-auto');
-        if (carousel && carousel.scrollLeft > 8 && startX > 45) {
-          touchStartRef.current = null;
-          return;
-        }
-      }
+      // Identify if touch is inside a horizontal scroll carousel
+      const carousel =
+        target && typeof target.closest === 'function'
+          ? target.closest('.overflow-x-auto')
+          : null;
 
       touchStartRef.current = {
         startX,
         startY,
         startTime: Date.now(),
         triggered: false,
+        carousel,
+        carouselStartScrollLeft: carousel ? carousel.scrollLeft : 0,
+        carouselMaxScrollLeft: carousel ? carousel.scrollWidth - carousel.clientWidth : 0,
       };
     };
 
@@ -89,19 +79,48 @@ export function useSidebarSwipe({
       const touch = e.touches[0];
       const deltaX = touch.clientX - touchStartRef.current.startX;
       const deltaY = touch.clientY - touchStartRef.current.startY;
+      const startX = touchStartRef.current.startX;
+      const carousel = touchStartRef.current.carousel;
 
-      // 1. Opening: swipe from left to right (deltaX >= minSwipeDistance)
-      if (!sidebarOpen && deltaX >= minSwipeDistance) {
+      // 1. Swiping left-to-right (deltaX >= minSwipeDistance) -> Open Sidebar Menu
+      if (deltaX >= minSwipeDistance) {
         if (deltaX > Math.abs(deltaY) * 1.05) {
-          touchStartRef.current.triggered = true;
-          setSidebarOpen(true);
+          if (!sidebarOpen) {
+            // Check screen ratio bounds
+            const allowedStartX = Math.max(window.innerWidth * maxStartRatio, 250);
+            if (startX > allowedStartX) return;
+
+            // If inside carousel with items to the left, prioritize scrolling carousel unless near left edge
+            if (carousel && touchStartRef.current.carouselStartScrollLeft > 8 && startX > 45) {
+              return;
+            }
+
+            touchStartRef.current.triggered = true;
+            setSidebarOpen(true);
+          }
         }
       }
-      // 2. Closing: swipe from right to left (deltaX <= -minSwipeDistance) when open
-      else if (sidebarOpen && deltaX <= -minSwipeDistance) {
+      // 2. Swiping right-to-left (deltaX <= -minSwipeDistance)
+      else if (deltaX <= -minSwipeDistance) {
         if (Math.abs(deltaX) > Math.abs(deltaY) * 1.05) {
-          touchStartRef.current.triggered = true;
-          setSidebarOpen(false);
+          // A) If sidebar is open: close it
+          if (sidebarOpen) {
+            touchStartRef.current.triggered = true;
+            setSidebarOpen(false);
+          }
+          // B) If sidebar is closed: open library settings
+          else if (onOpenSettings) {
+            // If inside carousel with items to the right, prioritize scrolling carousel unless near right edge
+            const canScrollRight =
+              carousel &&
+              touchStartRef.current.carouselMaxScrollLeft - touchStartRef.current.carouselStartScrollLeft > 8;
+            if (canScrollRight && startX < window.innerWidth - 45) {
+              return;
+            }
+
+            touchStartRef.current.triggered = true;
+            onOpenSettings();
+          }
         }
       }
     };
@@ -113,7 +132,8 @@ export function useSidebarSwipe({
         return;
       }
 
-      const { startX, startY, startTime } = touchStartRef.current;
+      const { startX, startY, startTime, carousel, carouselStartScrollLeft, carouselMaxScrollLeft } =
+        touchStartRef.current;
       touchStartRef.current = null;
 
       const duration = Date.now() - startTime;
@@ -125,12 +145,22 @@ export function useSidebarSwipe({
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
 
-      // Check if horizontal intent clearly dominated vertical
       if (Math.abs(deltaX) >= minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY) * 1.05) {
-        if (!sidebarOpen && deltaX > 0) {
-          setSidebarOpen(true);
-        } else if (sidebarOpen && deltaX < 0) {
-          setSidebarOpen(false);
+        if (deltaX > 0) {
+          if (!sidebarOpen) {
+            const allowedStartX = Math.max(window.innerWidth * maxStartRatio, 250);
+            if (startX > allowedStartX) return;
+            if (carousel && carouselStartScrollLeft > 8 && startX > 45) return;
+            setSidebarOpen(true);
+          }
+        } else if (deltaX < 0) {
+          if (sidebarOpen) {
+            setSidebarOpen(false);
+          } else if (onOpenSettings) {
+            const canScrollRight = carousel && carouselMaxScrollLeft - carouselStartScrollLeft > 8;
+            if (canScrollRight && startX < window.innerWidth - 45) return;
+            onOpenSettings();
+          }
         }
       }
     };
@@ -150,5 +180,5 @@ export function useSidebarSwipe({
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [sidebarOpen, setSidebarOpen, enabled, maxStartRatio, minSwipeDistance, maxSwipeTime]);
+  }, [sidebarOpen, setSidebarOpen, onOpenSettings, enabled, maxStartRatio, minSwipeDistance, maxSwipeTime]);
 }
