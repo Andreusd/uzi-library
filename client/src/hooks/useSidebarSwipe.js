@@ -59,17 +59,19 @@ export function useSidebarSwipe({
         return;
       }
 
-      // If touch begins inside a horizontal carousel, allow the carousel to scroll horizontally
-      // unless touch is near the very edge (<= 45px)
+      // If touch begins inside a horizontal carousel:
+      // If there are still items to the left (scrollLeft > 8), prioritize scrolling the carousel (unless near edge <= 45px).
+      // If the carousel is already at the very beginning (scrollLeft <= 8), allow swiping right to open the sidebar!
       if (
         !sidebarOpen &&
         target &&
-        typeof target.closest === 'function' &&
-        target.closest('.overflow-x-auto') &&
-        startX > 45
+        typeof target.closest === 'function'
       ) {
-        touchStartRef.current = null;
-        return;
+        const carousel = target.closest('.overflow-x-auto');
+        if (carousel && carousel.scrollLeft > 8 && startX > 45) {
+          touchStartRef.current = null;
+          return;
+        }
       }
 
       touchStartRef.current = {

@@ -157,6 +157,72 @@ describe('useSidebarSwipe Hook', () => {
     expect(setSidebarOpen).not.toHaveBeenCalled();
   });
 
+  it('opens sidebar when swiping right on a carousel that is at the beginning (scrollLeft <= 8)', () => {
+    const setSidebarOpen = vi.fn();
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    const carousel = document.createElement('div');
+    carousel.className = 'overflow-x-auto';
+    carousel.scrollLeft = 0; // At beginning, no books to the left
+    document.body.appendChild(carousel);
+
+    const bookItem = document.createElement('div');
+    carousel.appendChild(bookItem);
+
+    const event = createTouchEvent('touchstart', [{ clientX: 120, clientY: 200 }]);
+    Object.defineProperty(event, 'target', { value: bookItem });
+
+    act(() => {
+      window.dispatchEvent(event);
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 190, clientY: 200 }])
+      );
+    });
+
+    expect(setSidebarOpen).toHaveBeenCalledWith(true);
+    document.body.removeChild(carousel);
+  });
+
+  it('allows carousel scrolling and does not open sidebar when carousel has items to the left (scrollLeft > 8)', () => {
+    const setSidebarOpen = vi.fn();
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    const carousel = document.createElement('div');
+    carousel.className = 'overflow-x-auto';
+    carousel.scrollLeft = 100; // Scrolled into carousel, items exist to the left
+    document.body.appendChild(carousel);
+
+    const bookItem = document.createElement('div');
+    carousel.appendChild(bookItem);
+
+    const event = createTouchEvent('touchstart', [{ clientX: 120, clientY: 200 }]);
+    Object.defineProperty(event, 'target', { value: bookItem });
+
+    act(() => {
+      window.dispatchEvent(event);
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 190, clientY: 200 }])
+      );
+    });
+
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+    document.body.removeChild(carousel);
+  });
+
   it('ignores touches originating on input elements', () => {
     const setSidebarOpen = vi.fn();
     renderHook(() =>
