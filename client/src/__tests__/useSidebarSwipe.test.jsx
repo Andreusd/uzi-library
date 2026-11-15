@@ -15,59 +15,51 @@ describe('useSidebarSwipe Hook', () => {
     window.innerWidth = 375; // Mobile viewport
   });
 
-  it('opens sidebar when swiping right starting from left edge', () => {
+  it('opens sidebar when swiping right starting from left side of screen', () => {
     const setSidebarOpen = vi.fn();
     renderHook(() =>
       useSidebarSwipe({
         sidebarOpen: false,
         setSidebarOpen,
         enabled: true,
-        edgeThreshold: 35,
         minSwipeDistance: 50,
       })
     );
 
     act(() => {
       window.dispatchEvent(
-        createTouchEvent('touchstart', [{ clientX: 20, clientY: 200 }])
+        createTouchEvent('touchstart', [{ clientX: 50, clientY: 200 }])
       );
       window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 85, clientY: 205 }])
+        createTouchEvent('touchmove', [{ clientX: 120, clientY: 205 }])
+      );
+    });
+
+    // Should trigger immediately during touchmove as soon as threshold is met
+    expect(setSidebarOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('opens sidebar when swiping across screen (e.g. starting at x=150)', () => {
+    const setSidebarOpen = vi.fn();
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 150, clientY: 200 }])
       );
       window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 85, clientY: 205 }])
+        createTouchEvent('touchmove', [{ clientX: 230, clientY: 205 }])
       );
     });
 
     expect(setSidebarOpen).toHaveBeenCalledWith(true);
-  });
-
-  it('does not open sidebar when swiping starts outside edge threshold', () => {
-    const setSidebarOpen = vi.fn();
-    renderHook(() =>
-      useSidebarSwipe({
-        sidebarOpen: false,
-        setSidebarOpen,
-        enabled: true,
-        edgeThreshold: 35,
-        minSwipeDistance: 50,
-      })
-    );
-
-    act(() => {
-      // Starting at x = 60px (middle of screen, not edge)
-      window.dispatchEvent(
-        createTouchEvent('touchstart', [{ clientX: 60, clientY: 200 }])
-      );
-      window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 160, clientY: 200 }])
-      );
-      window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 160, clientY: 200 }])
-      );
-    });
-
-    expect(setSidebarOpen).not.toHaveBeenCalled();
   });
 
   it('closes sidebar when swiping left while sidebar is open', () => {
@@ -88,36 +80,32 @@ describe('useSidebarSwipe Hook', () => {
       window.dispatchEvent(
         createTouchEvent('touchmove', [{ clientX: 180, clientY: 200 }])
       );
-      window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 180, clientY: 200 }])
-      );
     });
 
     expect(setSidebarOpen).toHaveBeenCalledWith(false);
   });
 
-  it('cancels swipe when vertical scrolling dominates', () => {
+  it('does not trigger when vertical scrolling dominates', () => {
     const setSidebarOpen = vi.fn();
     renderHook(() =>
       useSidebarSwipe({
         sidebarOpen: false,
         setSidebarOpen,
         enabled: true,
-        edgeThreshold: 35,
         minSwipeDistance: 50,
       })
     );
 
     act(() => {
       window.dispatchEvent(
-        createTouchEvent('touchstart', [{ clientX: 20, clientY: 100 }])
+        createTouchEvent('touchstart', [{ clientX: 50, clientY: 100 }])
       );
-      // Large vertical drag
+      // Large vertical drag, small horizontal drag
       window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 75, clientY: 220 }])
+        createTouchEvent('touchmove', [{ clientX: 60, clientY: 250 }])
       );
       window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 75, clientY: 220 }])
+        createTouchEvent('touchend', [], [{ clientX: 60, clientY: 250 }])
       );
     });
 
@@ -136,13 +124,10 @@ describe('useSidebarSwipe Hook', () => {
 
     act(() => {
       window.dispatchEvent(
-        createTouchEvent('touchstart', [{ clientX: 15, clientY: 200 }])
+        createTouchEvent('touchstart', [{ clientX: 50, clientY: 200 }])
       );
       window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 90, clientY: 200 }])
-      );
-      window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 90, clientY: 200 }])
+        createTouchEvent('touchmove', [{ clientX: 150, clientY: 200 }])
       );
     });
 
@@ -162,13 +147,10 @@ describe('useSidebarSwipe Hook', () => {
 
     act(() => {
       window.dispatchEvent(
-        createTouchEvent('touchstart', [{ clientX: 15, clientY: 200 }])
+        createTouchEvent('touchstart', [{ clientX: 50, clientY: 200 }])
       );
       window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 90, clientY: 200 }])
-      );
-      window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 90, clientY: 200 }])
+        createTouchEvent('touchmove', [{ clientX: 150, clientY: 200 }])
       );
     });
 
@@ -188,16 +170,13 @@ describe('useSidebarSwipe Hook', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
 
-    const event = createTouchEvent('touchstart', [{ clientX: 15, clientY: 200 }]);
+    const event = createTouchEvent('touchstart', [{ clientX: 50, clientY: 200 }]);
     Object.defineProperty(event, 'target', { value: input });
 
     act(() => {
       window.dispatchEvent(event);
       window.dispatchEvent(
-        createTouchEvent('touchmove', [{ clientX: 90, clientY: 200 }])
-      );
-      window.dispatchEvent(
-        createTouchEvent('touchend', [], [{ clientX: 90, clientY: 200 }])
+        createTouchEvent('touchmove', [{ clientX: 150, clientY: 200 }])
       );
     });
 

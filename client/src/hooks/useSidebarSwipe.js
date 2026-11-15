@@ -1,24 +1,24 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Custom hook to enable opening the sidebar with a swipe from the left edge to the right,
+ * Custom hook to enable opening the sidebar with a swipe from left to right,
  * and closing the sidebar with a swipe from right to left on mobile/touch devices.
  *
  * @param {Object} options
  * @param {boolean} options.sidebarOpen - Current open state of sidebar
  * @param {Function} options.setSidebarOpen - Function to update sidebar state
  * @param {boolean} [options.enabled=true] - Whether gestures are active (e.g. false in Reader, desktop, or modals)
- * @param {number} [options.edgeThreshold=35] - Maximum starting clientX in pixels to initiate open gesture
+ * @param {number} [options.maxStartRatio=0.8] - Max fraction of screen width where swipe-to-open can begin
  * @param {number} [options.minSwipeDistance=50] - Minimum horizontal travel in pixels to recognize a swipe
- * @param {number} [options.maxSwipeTime=600] - Maximum duration in ms for the swipe gesture
+ * @param {number} [options.maxSwipeTime=1000] - Maximum duration in ms for the swipe gesture
  */
 export function useSidebarSwipe({
   sidebarOpen,
   setSidebarOpen,
   enabled = true,
-  edgeThreshold = 35,
+  maxStartRatio = 0.8,
   minSwipeDistance = 50,
-  maxSwipeTime = 600,
+  maxSwipeTime = 1000,
 }) {
   const touchStartRef = useRef(null);
 
@@ -52,8 +52,22 @@ export function useSidebarSwipe({
       const startX = touch.clientX;
       const startY = touch.clientY;
 
-      // If sidebar is currently closed, only activate when touch begins near the left edge
-      if (!sidebarOpen && startX > edgeThreshold) {
+      // If sidebar is closed: allow swipe starting anywhere across the left 80% of the screen
+      const allowedStartX = Math.max(window.innerWidth * maxStartRatio, 250);
+      if (!sidebarOpen && startX > allowedStartX) {
+        touchStartRef.current = null;
+        return;
+      }
+
+      // If touch begins inside a horizontal carousel, allow the carousel to scroll horizontally
+      // unless touch is near the very edge (<= 45px)
+      if (
+        !sidebarOpen &&
+        target &&
+        typeof target.closest === 'function' &&
+        target.closest('.overflow-x-auto') &&
+        startX > 45
+      ) {
         touchStartRef.current = null;
         return;
       }
@@ -62,29 +76,37 @@ export function useSidebarSwipe({
         startX,
         startY,
         startTime: Date.now(),
-        isPotentialSwipe: true,
+        triggered: false,
       };
     };
 
     const handleTouchMove = (e) => {
-      if (!touchStartRef.current || !touchStartRef.current.isPotentialSwipe) return;
-      if (e.touches.length !== 1) {
-        touchStartRef.current.isPotentialSwipe = false;
-        return;
-      }
+      if (!touchStartRef.current || touchStartRef.current.triggered) return;
+      if (e.touches.length !== 1) return;
 
       const touch = e.touches[0];
       const deltaX = touch.clientX - touchStartRef.current.startX;
       const deltaY = touch.clientY - touchStartRef.current.startY;
 
-      // If vertical movement clearly dominates early on, cancel to allow smooth native vertical scrolling
-      if (Math.abs(deltaY) > 25 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
-        touchStartRef.current.isPotentialSwipe = false;
+      // 1. Opening: swipe from left to right (deltaX >= minSwipeDistance)
+      if (!sidebarOpen && deltaX >= minSwipeDistance) {
+        if (deltaX > Math.abs(deltaY) * 1.05) {
+          touchStartRef.current.triggered = true;
+          setSidebarOpen(true);
+        }
+      }
+      // 2. Closing: swipe from right to left (deltaX <= -minSwipeDistance) when open
+      else if (sidebarOpen && deltaX <= -minSwipeDistance) {
+        if (Math.abs(deltaX) > Math.abs(deltaY) * 1.05) {
+          touchStartRef.current.triggered = true;
+          setSidebarOpen(false);
+        }
       }
     };
 
     const handleTouchEnd = (e) => {
-      if (!touchStartRef.current || !touchStartRef.current.isPotentialSwipe) {
+      if (!touchStartRef.current) return;
+      if (touchStartRef.current.triggered) {
         touchStartRef.current = null;
         return;
       }
@@ -101,18 +123,13 @@ export function useSidebarSwipe({
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
 
-      // Ensure horizontal intent dominates vertical movement
-      if (Math.abs(deltaX) < minSwipeDistance || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) {
-        return;
-      }
-
-      // 1. Opening: swipe from left to right (deltaX > 0) when closed
-      if (!sidebarOpen && deltaX > 0) {
-        setSidebarOpen(true);
-      }
-      // 2. Closing: swipe from right to left (deltaX < 0) when open
-      else if (sidebarOpen && deltaX < 0) {
-        setSidebarOpen(false);
+      // Check if horizontal intent clearly dominated vertical
+      if (Math.abs(deltaX) >= minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY) * 1.05) {
+        if (!sidebarOpen && deltaX > 0) {
+          setSidebarOpen(true);
+        } else if (sidebarOpen && deltaX < 0) {
+          setSidebarOpen(false);
+        }
       }
     };
 
@@ -131,5 +148,5 @@ export function useSidebarSwipe({
       window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [sidebarOpen, setSidebarOpen, enabled, edgeThreshold, minSwipeDistance, maxSwipeTime]);
+  }, [sidebarOpen, setSidebarOpen, enabled, maxStartRatio, minSwipeDistance, maxSwipeTime]);
 }
