@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Search, X, BookOpen,
   PanelLeftClose, PanelLeftOpen,
@@ -58,6 +58,21 @@ export default function AppNavbar({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+
+  useEffect(() => {
+    const handleTriggerSearch = () => {
+      setIsSearchOpen(true);
+      setTimeout(() => {
+        effectiveInputRef.current?.focus();
+        effectiveInputRef.current?.select?.();
+      }, 50);
+    };
+
+    window.addEventListener('uzi_trigger_search', handleTriggerSearch);
+    return () => {
+      window.removeEventListener('uzi_trigger_search', handleTriggerSearch);
+    };
+  }, [effectiveInputRef]);
 
   const sidebarOpen = propSidebarOpen !== undefined ? propSidebarOpen : settings.sidebarOpen;
   const toggleSidebar = propToggleSidebar || settings.toggleSidebar;

@@ -19,6 +19,8 @@ const translations = {
     // Header & Navigation
     searchPlaceholder: "Search books by title... (Press '/' to search)",
     searchPlaceholderShort: "Search books... (/)",
+    pullToSearch: 'Pull down to search',
+    releaseToSearch: 'Release to search',
     collapseSearch: 'Collapse search',
     filterAndSort: 'Filter & Sort',
     sortBy: 'Sort by',
@@ -515,6 +517,8 @@ const translations = {
     // Header & Navigation
     searchPlaceholder: "Pesquisar livros por título... (Pressione '/' para buscar)",
     searchPlaceholderShort: "Buscar livros... (/)",
+    pullToSearch: 'Puxe para buscar',
+    releaseToSearch: 'Solte para buscar',
     collapseSearch: 'Recolher pesquisa',
     filterAndSort: 'Filtrar e Ordenar',
     sortBy: 'Ordenar por',
@@ -1011,6 +1015,8 @@ const translations = {
     // Header & Navigation
     searchPlaceholder: "Buscar libros por título... (Presiona '/' para buscar)",
     searchPlaceholderShort: "Buscar libros... (/)",
+    pullToSearch: 'Desliza para buscar',
+    releaseToSearch: 'Suelta para buscar',
     collapseSearch: 'Contraer búsqueda',
     filterAndSort: 'Filtrar y Ordenar',
     sortBy: 'Ordenar por',
@@ -1507,6 +1513,8 @@ const translations = {
     // Header & Navigation
     searchPlaceholder: "Rechercher des livres par titre... (Appuyez sur '/' pour rechercher)",
     searchPlaceholderShort: "Rechercher... (/)",
+    pullToSearch: 'Tirez pour rechercher',
+    releaseToSearch: 'Relâchez pour rechercher',
     collapseSearch: 'Réduire la recherche',
     filterAndSort: 'Filtrer et Trier',
     sortBy: 'Trier par',

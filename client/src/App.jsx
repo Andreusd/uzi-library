@@ -17,6 +17,8 @@ import { useLibraryRouter } from './hooks/useLibraryRouter';
 import { useLibraryData } from './hooks/useLibraryData';
 import { useLibraryKeyboardNavigation } from './hooks/useLibraryKeyboardNavigation';
 import { useSidebarSwipe } from './hooks/useSidebarSwipe';
+import { usePullToSearch } from './hooks/usePullToSearch';
+import PullToSearchIndicator from './components/PullToSearchIndicator';
 
 /**
  * Root Application Component.
@@ -172,6 +174,17 @@ export default function App() {
     sidebarOpen,
     setSidebarOpen,
     enabled: !isReaderActive && !isAnyModalOpen,
+  });
+
+  const handleTriggerSearch = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('uzi_trigger_search'));
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Pull down from top gesture to trigger search books
+  const { pullDistance, isPulling, isThresholdReached } = usePullToSearch({
+    onTriggerSearch: handleTriggerSearch,
+    enabled: !isReaderActive && !isAnyModalOpen && !sidebarOpen,
   });
 
   // Global Keyboard shortcuts
@@ -372,6 +385,12 @@ export default function App() {
             libraryData={libraryData}
             modals={modals}
             searchInputRef={searchInputRef}
+          />
+
+          <PullToSearchIndicator
+            pullDistance={pullDistance}
+            isPulling={isPulling}
+            isThresholdReached={isThresholdReached}
           />
 
           {/* Books Content */}
