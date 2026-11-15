@@ -251,18 +251,39 @@ def get_legacy_view(
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Uzi Library - Legacy Mode</title>
     <style>
         /* Standalone, 100% iOS 9 / Safari WebKit 601 compatible CSS */
         * {{ -webkit-box-sizing: border-box; box-sizing: border-box; }}
+        html {{
+            background-color: #121214;
+            color: #e1e1e6;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+            overscroll-behavior: none;
+            overscroll-behavior-y: none;
+            overscroll-behavior-x: none;
+        }}
         body {{
             margin: 0;
             padding: 0;
+            width: 100%;
+            max-width: 100%;
+            min-height: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #121214;
             color: #e1e1e6;
+            overflow-x: hidden;
+            position: relative;
             -webkit-text-size-adjust: 100%;
+            overscroll-behavior: none;
+            overscroll-behavior-y: none;
+            overscroll-behavior-x: none;
         }}
         header {{
             background-color: #1a1a1e;
@@ -272,6 +293,9 @@ def get_legacy_view(
             position: sticky;
             top: 0;
             z-index: 100;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }}
         .header-top {{
             display: -webkit-box;
@@ -283,6 +307,9 @@ def get_legacy_view(
             -webkit-box-align: center;
             -webkit-align-items: center;
             align-items: center;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            gap: 8px;
             margin-bottom: 10px;
         }}
         .brand {{
@@ -399,6 +426,8 @@ def get_legacy_view(
             white-space: nowrap;
             padding-bottom: 6px;
             margin-top: 4px;
+            max-width: 100%;
+            overscroll-behavior-x: contain;
         }}
         .shelf-pill {{
             display: inline-block;
@@ -421,6 +450,8 @@ def get_legacy_view(
             max-width: 1200px;
             margin: 0 auto;
             padding: 16px;
+            width: 100%;
+            overflow-x: hidden;
         }}
         .books-grid {{
             display: -webkit-box;
@@ -667,6 +698,34 @@ def get_legacy_view(
             }} else if (searchInput.attachEvent) {{
                 searchInput.attachEvent('onkeyup', filterCards);
             }}
+        }})();
+
+        // Prevent rubber-band stretch past top/bottom limits on iOS
+        (function() {{
+            var startY = 0;
+            document.addEventListener('touchstart', function(e) {{
+                if (e.touches && e.touches.length === 1) {{
+                    startY = e.touches[0].clientY;
+                }}
+            }}, false);
+
+            document.addEventListener('touchmove', function(e) {{
+                if (e.touches && e.touches.length === 1) {{
+                    var currentY = e.touches[0].clientY;
+                    var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                    var scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+                    var clientHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+                    // If pulling down while at the top
+                    if (scrollTop <= 0 && currentY > startY) {{
+                        if (e.preventDefault) e.preventDefault();
+                    }}
+                    // If pulling up while at the bottom
+                    else if (scrollTop + clientHeight >= scrollHeight && currentY < startY) {{
+                        if (e.preventDefault) e.preventDefault();
+                    }}
+                }}
+            }}, false);
         }})();
     </script>
 </body>
