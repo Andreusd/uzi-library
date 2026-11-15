@@ -25,6 +25,8 @@ export default function MobileFilterPopover({
     };
 
     const handleClickOutside = (e) => {
+      // On touch devices, allow backdrop click or swipe gestures to handle closing without killing touchstart
+      if (e.pointerType === 'touch') return;
       if (popoverRef.current && !popoverRef.current.contains(e.target)) {
         onClose();
       }
@@ -70,7 +72,6 @@ export default function MobileFilterPopover({
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
-        onTouchStart={onClose}
       />
       <div
         ref={popoverRef}

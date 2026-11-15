@@ -169,22 +169,47 @@ export default function App() {
     modals.contextMenu?.isOpen
   );
 
-  // Mobile gestures: swipe right to open sidebar, swipe left to close sidebar or open settings
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const isSearchActive = Boolean(isSearchOpen || libraryData.searchQuery || mobileFilterOpen);
+
+  const handleToggleFilterAndSort = useCallback(() => {
+    setMobileFilterOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        searchInputRef.current?.blur();
+      }
+      return next;
+    });
+  }, [searchInputRef]);
+
+  const handleBackToSearch = useCallback(() => {
+    setMobileFilterOpen(false);
+    setIsSearchOpen(true);
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select?.();
+    }, 50);
+  }, [searchInputRef]);
+
+  // Mobile gestures: swipe right to open sidebar, swipe left to close sidebar, toggle filter & sort, or open settings
   useSidebarSwipe({
     sidebarOpen,
     setSidebarOpen,
     onOpenSettings: () => modals.setSettingsOpen(true),
+    isSearchActive,
+    mobileFilterOpen,
+    onToggleFilterAndSort: handleToggleFilterAndSort,
+    onBackToSearch: handleBackToSearch,
     enabled: !isReaderActive && !isAnyModalOpen,
   });
-
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const isSearchActive = Boolean(isSearchOpen || libraryData.searchQuery);
 
   const handlePullAction = useCallback(() => {
     if (isSearchActive) {
       window.dispatchEvent(new CustomEvent('uzi_dismiss_search'));
       libraryData.setSearchQuery?.('');
       setIsSearchOpen(false);
+      setMobileFilterOpen(false);
       searchInputRef.current?.blur();
     } else {
       window.dispatchEvent(new CustomEvent('uzi_trigger_search'));
@@ -194,7 +219,7 @@ export default function App() {
         searchInputRef.current?.select?.();
       }, 50);
     }
-  }, [isSearchActive, libraryData]);
+  }, [isSearchActive, libraryData, searchInputRef]);
 
   // Pull down from top gesture to trigger or dismiss search books
   const { pullDistance, isPulling, isThresholdReached } = usePullToSearch({
@@ -402,6 +427,8 @@ export default function App() {
             searchInputRef={searchInputRef}
             isSearchOpen={isSearchOpen}
             setIsSearchOpen={setIsSearchOpen}
+            mobileFilterOpen={mobileFilterOpen}
+            setMobileFilterOpen={setMobileFilterOpen}
           />
 
           <PullToSearchIndicator

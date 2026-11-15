@@ -49,6 +49,8 @@ export default function AppNavbar({
   isOffline: propIsOffline,
   isSearchOpen: propIsSearchOpen,
   setIsSearchOpen: propSetIsSearchOpen,
+  mobileFilterOpen: propMobileFilterOpen,
+  setMobileFilterOpen: propSetMobileFilterOpen,
 }) {
   const { t } = useI18n();
   const settings = useSettings();
@@ -61,7 +63,10 @@ export default function AppNavbar({
   const isSearchOpen = propIsSearchOpen !== undefined ? propIsSearchOpen : internalSearchOpen;
   const setIsSearchOpen = propSetIsSearchOpen || setInternalSearchOpen;
 
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [internalMobileFilterOpen, setInternalMobileFilterOpen] = useState(false);
+  const mobileFilterOpen = propMobileFilterOpen !== undefined ? propMobileFilterOpen : internalMobileFilterOpen;
+  const setMobileFilterOpen = propSetMobileFilterOpen || setInternalMobileFilterOpen;
+
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   const selectedShelf = propSelectedShelf !== undefined ? propSelectedShelf : libraryData?.selectedShelf;

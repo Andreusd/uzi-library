@@ -278,4 +278,63 @@ describe('useSidebarSwipe Hook', () => {
     expect(setSidebarOpen).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });
+
+  it('triggers onToggleFilterAndSort when swiping right-to-left while isSearchActive is true', () => {
+    const onToggleFilterAndSort = vi.fn();
+    const onOpenSettings = vi.fn();
+    const setSidebarOpen = vi.fn();
+
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        onOpenSettings,
+        isSearchActive: true,
+        onToggleFilterAndSort,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 300, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 220, clientY: 200 }])
+      );
+    });
+
+    expect(onToggleFilterAndSort).toHaveBeenCalledTimes(1);
+    expect(onOpenSettings).not.toHaveBeenCalled();
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+  });
+
+  it('triggers onBackToSearch when swiping left-to-right while mobileFilterOpen is true', () => {
+    const onBackToSearch = vi.fn();
+    const setSidebarOpen = vi.fn();
+
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        mobileFilterOpen: true,
+        onBackToSearch,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 100, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 180, clientY: 200 }])
+      );
+    });
+
+    expect(onBackToSearch).toHaveBeenCalledTimes(1);
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+  });
 });
