@@ -161,6 +161,43 @@ describe('usePullToSearch Hook', () => {
     expect(onTriggerSearch).not.toHaveBeenCalled();
   });
 
+  it('toggles/dismisses when repeating pull gesture while search is active', () => {
+    let isSearchActive = false;
+    const handlePullAction = vi.fn(() => {
+      isSearchActive = !isSearchActive;
+    });
+
+    const { result, rerender } = renderHook(() =>
+      usePullToSearch({
+        onTriggerSearch: handlePullAction,
+        enabled: true,
+        threshold: 60,
+      })
+    );
+
+    // 1st pull: triggers search
+    act(() => {
+      window.dispatchEvent(createTouchEvent('touchstart', [{ clientX: 200, clientY: 50 }]));
+      window.dispatchEvent(createTouchEvent('touchmove', [{ clientX: 200, clientY: 220 }]));
+      window.dispatchEvent(createTouchEvent('touchend', [], [{ clientX: 200, clientY: 220 }]));
+    });
+
+    expect(handlePullAction).toHaveBeenCalledTimes(1);
+    expect(isSearchActive).toBe(true);
+
+    rerender();
+
+    // 2nd pull: dismisses search
+    act(() => {
+      window.dispatchEvent(createTouchEvent('touchstart', [{ clientX: 200, clientY: 50 }]));
+      window.dispatchEvent(createTouchEvent('touchmove', [{ clientX: 200, clientY: 220 }]));
+      window.dispatchEvent(createTouchEvent('touchend', [], [{ clientX: 200, clientY: 220 }]));
+    });
+
+    expect(handlePullAction).toHaveBeenCalledTimes(2);
+    expect(isSearchActive).toBe(false);
+  });
+
   it('ignores touches originating on input elements', () => {
     const onTriggerSearch = vi.fn();
     renderHook(() =>

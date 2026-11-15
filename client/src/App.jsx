@@ -176,14 +176,28 @@ export default function App() {
     enabled: !isReaderActive && !isAnyModalOpen,
   });
 
-  const handleTriggerSearch = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('uzi_trigger_search'));
-    searchInputRef.current?.focus();
-  }, []);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const isSearchActive = Boolean(isSearchOpen || libraryData.searchQuery);
 
-  // Pull down from top gesture to trigger search books
+  const handlePullAction = useCallback(() => {
+    if (isSearchActive) {
+      window.dispatchEvent(new CustomEvent('uzi_dismiss_search'));
+      libraryData.setSearchQuery?.('');
+      setIsSearchOpen(false);
+      searchInputRef.current?.blur();
+    } else {
+      window.dispatchEvent(new CustomEvent('uzi_trigger_search'));
+      setIsSearchOpen(true);
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select?.();
+      }, 50);
+    }
+  }, [isSearchActive, libraryData]);
+
+  // Pull down from top gesture to trigger or dismiss search books
   const { pullDistance, isPulling, isThresholdReached } = usePullToSearch({
-    onTriggerSearch: handleTriggerSearch,
+    onTriggerSearch: handlePullAction,
     enabled: !isReaderActive && !isAnyModalOpen && !sidebarOpen,
   });
 
@@ -385,12 +399,15 @@ export default function App() {
             libraryData={libraryData}
             modals={modals}
             searchInputRef={searchInputRef}
+            isSearchOpen={isSearchOpen}
+            setIsSearchOpen={setIsSearchOpen}
           />
 
           <PullToSearchIndicator
             pullDistance={pullDistance}
             isPulling={isPulling}
             isThresholdReached={isThresholdReached}
+            isSearchActive={isSearchActive}
           />
 
           {/* Books Content */}

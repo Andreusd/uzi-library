@@ -47,6 +47,8 @@ export default function AppNavbar({
   mode: propMode,
   setMode: propSetMode,
   isOffline: propIsOffline,
+  isSearchOpen: propIsSearchOpen,
+  setIsSearchOpen: propSetIsSearchOpen,
 }) {
   const { t } = useI18n();
   const settings = useSettings();
@@ -55,9 +57,21 @@ export default function AppNavbar({
   const internalInputRef = useRef(null);
   const effectiveInputRef = searchInputRef || internalInputRef;
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [internalSearchOpen, setInternalSearchOpen] = useState(false);
+  const isSearchOpen = propIsSearchOpen !== undefined ? propIsSearchOpen : internalSearchOpen;
+  const setIsSearchOpen = propSetIsSearchOpen || setInternalSearchOpen;
+
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+
+  const selectedShelf = propSelectedShelf !== undefined ? propSelectedShelf : libraryData?.selectedShelf;
+  const activeLibraryId = propActiveLibraryId !== undefined ? propActiveLibraryId : libraryData?.activeLibraryId;
+  const activeLibraryObj = propActiveLibraryObj !== undefined ? propActiveLibraryObj : libraryData?.activeLibraryObj;
+  const isTagFilter = propIsTagFilter !== undefined ? propIsTagFilter : libraryData?.isTagFilter;
+  const currentTagObj = propCurrentTagObj !== undefined ? propCurrentTagObj : libraryData?.currentTagObj;
+  const currentShelfObj = propCurrentShelfObj !== undefined ? propCurrentShelfObj : libraryData?.currentShelfObj;
+  const searchQuery = propSearchQuery !== undefined ? propSearchQuery : (libraryData?.searchQuery || '');
+  const setSearchQuery = propSetSearchQuery || libraryData?.setSearchQuery;
 
   useEffect(() => {
     const handleTriggerSearch = () => {
@@ -68,11 +82,19 @@ export default function AppNavbar({
       }, 50);
     };
 
+    const handleDismissSearch = () => {
+      if (searchQuery && setSearchQuery) setSearchQuery('');
+      setIsSearchOpen(false);
+      effectiveInputRef.current?.blur();
+    };
+
     window.addEventListener('uzi_trigger_search', handleTriggerSearch);
+    window.addEventListener('uzi_dismiss_search', handleDismissSearch);
     return () => {
       window.removeEventListener('uzi_trigger_search', handleTriggerSearch);
+      window.removeEventListener('uzi_dismiss_search', handleDismissSearch);
     };
-  }, [effectiveInputRef]);
+  }, [effectiveInputRef, searchQuery, setSearchQuery, setIsSearchOpen]);
 
   const sidebarOpen = propSidebarOpen !== undefined ? propSidebarOpen : settings.sidebarOpen;
   const toggleSidebar = propToggleSidebar || settings.toggleSidebar;
@@ -84,14 +106,6 @@ export default function AppNavbar({
   const isFullscreen = propIsFullscreen !== undefined ? propIsFullscreen : fullscreen.isFullscreen;
   const toggleFullscreen = propToggleFullscreen || fullscreen.toggleFullscreen;
 
-  const selectedShelf = propSelectedShelf !== undefined ? propSelectedShelf : libraryData?.selectedShelf;
-  const activeLibraryId = propActiveLibraryId !== undefined ? propActiveLibraryId : libraryData?.activeLibraryId;
-  const activeLibraryObj = propActiveLibraryObj !== undefined ? propActiveLibraryObj : libraryData?.activeLibraryObj;
-  const isTagFilter = propIsTagFilter !== undefined ? propIsTagFilter : libraryData?.isTagFilter;
-  const currentTagObj = propCurrentTagObj !== undefined ? propCurrentTagObj : libraryData?.currentTagObj;
-  const currentShelfObj = propCurrentShelfObj !== undefined ? propCurrentShelfObj : libraryData?.currentShelfObj;
-  const searchQuery = propSearchQuery !== undefined ? propSearchQuery : (libraryData?.searchQuery || '');
-  const setSearchQuery = propSetSearchQuery || libraryData?.setSearchQuery;
   const sortBy = propSortBy !== undefined ? propSortBy : (libraryData?.sortBy || 'title_asc');
   const setSortBy = propSetSortBy || libraryData?.setSortBy;
   const formatFilter = propFormatFilter !== undefined ? propFormatFilter : (libraryData?.formatFilter || 'all');
