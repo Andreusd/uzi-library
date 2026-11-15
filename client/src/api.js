@@ -19,9 +19,19 @@ export function setCurrentUser(username) {
     const clean = (username || '').trim();
     if (clean) {
       localStorage.setItem(USER_STORAGE_KEY, clean);
+      try {
+        if (typeof document !== 'undefined') {
+          document.cookie = `uzi_user=${encodeURIComponent(clean)}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+      } catch {}
     } else {
       localStorage.removeItem(USER_STORAGE_KEY);
       localStorage.removeItem('book_library_user');
+      try {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'uzi_user=; path=/; max-age=0; SameSite=Lax';
+        }
+      } catch {}
     }
     // Dispatch event to notify any active components
     if (typeof window !== 'undefined') {

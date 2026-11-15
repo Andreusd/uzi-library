@@ -30,6 +30,8 @@ export function useLibraryKeyboardNavigation({
   setIsTagsOpen,
   isLibraryDropdownOpen = false,
   setIsLibraryDropdownOpen,
+  isUserDropdownOpen = false,
+  setIsUserDropdownOpen,
   activeLibraryId = '',
   onSelectShelf,
 }) {
@@ -177,17 +179,20 @@ export function useLibraryKeyboardNavigation({
     return els.map((el) => {
       const id = el.getAttribute('data-item-id');
       const isCollapsible =
-        id === 'menu-folders' || id === 'menu-tags' || id === 'menu-library-select';
+        id === 'menu-folders' || id === 'menu-tags' || id === 'menu-library-select' || id === 'menu-user-select';
       const isCollapsed =
         (id === 'menu-folders' && !isFoldersOpen) ||
         (id === 'menu-tags' && !isTagsOpen) ||
-        (id === 'menu-library-select' && !isLibraryDropdownOpen);
+        (id === 'menu-library-select' && !isLibraryDropdownOpen) ||
+        (id === 'menu-user-select' && !isUserDropdownOpen);
       const parentId = id.startsWith('menu-folder-')
         ? 'menu-folders'
         : id.startsWith('menu-tag-')
         ? 'menu-tags'
         : id.startsWith('menu-lib-')
         ? 'menu-library-select'
+        : (id.startsWith('menu-user-') && id !== 'menu-user-select')
+        ? 'menu-user-select'
         : null;
 
       let shelfId = null;
@@ -209,7 +214,7 @@ export function useLibraryKeyboardNavigation({
         parentId,
       };
     });
-  }, [isFoldersOpen, isTagsOpen, isLibraryDropdownOpen]);
+  }, [isFoldersOpen, isTagsOpen, isLibraryDropdownOpen, isUserDropdownOpen]);
 
   // Helper to transition focus back to books/cards
   const switchToBooks = useCallback(() => {
@@ -340,7 +345,13 @@ export function useLibraryKeyboardNavigation({
           e.preventDefault();
           target.blur();
           setFocusArea('menu');
-          setHighlightedMenuItemId('menu-library-select');
+          const items = getVisibleMenuItems();
+          const filterIdx = items.findIndex((m) => m.id === 'menu-filter-shelves');
+          if (filterIdx > 0) {
+            setHighlightedMenuItemId(items[filterIdx - 1].id);
+          } else {
+            setHighlightedMenuItemId('menu-library-select');
+          }
           return;
         }
         if (e.key === 'Enter') {
@@ -436,6 +447,14 @@ export function useLibraryKeyboardNavigation({
             return;
           }
 
+          // User selector dropdown collapse
+          if (currentItem.id === 'menu-user-select') {
+            if (isUserDropdownOpen && setIsUserDropdownOpen) {
+              setIsUserDropdownOpen(false);
+            }
+            return;
+          }
+
           // "pressing left on a collapsible item eg folder or tags collapses that item"
           if (currentItem.id === 'menu-folders') {
             if (isFoldersOpen && setIsFoldersOpen) {
@@ -451,10 +470,13 @@ export function useLibraryKeyboardNavigation({
             return;
           }
 
-          // If on a child folder/tag or library child, jump up to parent header
+          // If on a child folder/tag or library child or user child, jump up to parent header
           if (currentItem.parentId) {
             if (currentItem.parentId === 'menu-library-select' && setIsLibraryDropdownOpen) {
               setIsLibraryDropdownOpen(false);
+            }
+            if (currentItem.parentId === 'menu-user-select' && setIsUserDropdownOpen) {
+              setIsUserDropdownOpen(false);
             }
             const parentItem = menuItems.find((m) => m.id === currentItem.parentId);
             if (parentItem) {
@@ -472,9 +494,19 @@ export function useLibraryKeyboardNavigation({
           // Library dropdown expand
           if (currentItem.id === 'menu-library-select' && !isLibraryDropdownOpen) {
             if (setIsLibraryDropdownOpen) {
+              if (setIsUserDropdownOpen) setIsUserDropdownOpen(false);
               setIsLibraryDropdownOpen(true);
               const targetLibId = activeLibraryId ? `menu-lib-${activeLibraryId}` : 'menu-lib-all';
               setHighlightedMenuItemId(targetLibId);
+            }
+            return;
+          }
+
+          // User dropdown expand
+          if (currentItem.id === 'menu-user-select' && !isUserDropdownOpen) {
+            if (setIsUserDropdownOpen) {
+              if (setIsLibraryDropdownOpen) setIsLibraryDropdownOpen(false);
+              setIsUserDropdownOpen(true);
             }
             return;
           }
@@ -498,6 +530,9 @@ export function useLibraryKeyboardNavigation({
           if (isLibraryDropdownOpen && setIsLibraryDropdownOpen) {
             setIsLibraryDropdownOpen(false);
           }
+          if (isUserDropdownOpen && setIsUserDropdownOpen) {
+            setIsUserDropdownOpen(false);
+          }
 
           // If already de-collapsed or not collapsible, move back to books!
           switchToBooks();
@@ -509,12 +544,24 @@ export function useLibraryKeyboardNavigation({
 
           if (currentItem.id === 'menu-library-select') {
             if (setIsLibraryDropdownOpen) {
+              if (setIsUserDropdownOpen) setIsUserDropdownOpen(false);
               const nextOpen = !isLibraryDropdownOpen;
               setIsLibraryDropdownOpen(nextOpen);
               if (nextOpen) {
                 const targetLibId = activeLibraryId ? `menu-lib-${activeLibraryId}` : 'menu-lib-all';
                 setHighlightedMenuItemId(targetLibId);
               }
+            } else {
+              currentItem.el.click();
+            }
+            return;
+          }
+
+          if (currentItem.id === 'menu-user-select') {
+            if (setIsUserDropdownOpen) {
+              if (setIsLibraryDropdownOpen) setIsLibraryDropdownOpen(false);
+              const nextOpen = !isUserDropdownOpen;
+              setIsUserDropdownOpen(nextOpen);
             } else {
               currentItem.el.click();
             }
@@ -536,6 +583,15 @@ export function useLibraryKeyboardNavigation({
             return;
           }
 
+          if (currentItem.id.startsWith('menu-user-') && currentItem.id !== 'menu-user-select') {
+            currentItem.el.click();
+            if (setIsUserDropdownOpen) {
+              setIsUserDropdownOpen(false);
+            }
+            setHighlightedMenuItemId('menu-user-select');
+            return;
+          }
+
           // "only change the page if I press enter on the menu"
           if (onSelectShelf) {
             onSelectShelf(currentItem.shelfId);
@@ -551,6 +607,11 @@ export function useLibraryKeyboardNavigation({
           if (isLibraryDropdownOpen && setIsLibraryDropdownOpen) {
             setIsLibraryDropdownOpen(false);
             setHighlightedMenuItemId('menu-library-select');
+            return;
+          }
+          if (isUserDropdownOpen && setIsUserDropdownOpen) {
+            setIsUserDropdownOpen(false);
+            setHighlightedMenuItemId('menu-user-select');
             return;
           }
           switchToBooks();

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Library, Search, Folder, Heart, Bookmark, Home,
   ChevronDown, Check, Plus, Tag, User, BookOpen, BookCheck,
@@ -29,6 +29,8 @@ export default function Sidebar({
   tags = [],
   onOpenTagManager,
   currentUser = '',
+  onUserChange,
+  users: propUsers,
   highlightedMenuItemId = null,
   isFoldersOpen: propIsFoldersOpen,
   setIsFoldersOpen: propSetIsFoldersOpen,
@@ -36,6 +38,8 @@ export default function Sidebar({
   setIsTagsOpen: propSetIsTagsOpen,
   isLibraryDropdownOpen: propIsLibraryDropdownOpen,
   setIsLibraryDropdownOpen: propSetIsLibraryDropdownOpen,
+  isUserDropdownOpen: propIsUserDropdownOpen,
+  setIsUserDropdownOpen: propSetIsUserDropdownOpen,
 }) {
   const [shelfFilter, setShelfFilter] = useState('');
   const [internalLibraryDropdownOpen, setInternalLibraryDropdownOpen] = useState(false);
@@ -43,6 +47,58 @@ export default function Sidebar({
     ? propIsLibraryDropdownOpen
     : internalLibraryDropdownOpen;
   const setLibraryDropdownOpen = propSetIsLibraryDropdownOpen || setInternalLibraryDropdownOpen;
+
+  const [internalUserDropdownOpen, setInternalUserDropdownOpen] = useState(false);
+  const userDropdownOpen = propIsUserDropdownOpen !== undefined
+    ? propIsUserDropdownOpen
+    : internalUserDropdownOpen;
+  const setUserDropdownOpen = propSetIsUserDropdownOpen || setInternalUserDropdownOpen;
+
+  const [internalUsers, setInternalUsers] = useState([]);
+  const users = (propUsers && propUsers.length > 0) ? propUsers : internalUsers;
+
+  useEffect(() => {
+    if (propUsers && propUsers.length > 0) return;
+    let isMounted = true;
+    const fetchUsers = () => {
+      fetch('/api/users')
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted && data && Array.isArray(data.users)) {
+            setInternalUsers(data.users);
+            try {
+              localStorage.setItem('uzi_cached_users', JSON.stringify(data.users));
+            } catch {}
+          }
+        })
+        .catch(() => {
+          try {
+            const cached = localStorage.getItem('uzi_cached_users');
+            if (isMounted && cached) {
+              setInternalUsers(JSON.parse(cached));
+            }
+          } catch {}
+        });
+    };
+    fetchUsers();
+    window.addEventListener('uzi_library_user_changed', fetchUsers);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('uzi_library_user_changed', fetchUsers);
+    };
+  }, [propUsers]);
+
+  const usersList = useMemo(() => {
+    const list = Array.isArray(users) ? [...users] : [];
+    if (currentUser && !list.some((u) => {
+      const uname = typeof u === 'string' ? u : (u.username || u.display_name || '');
+      return uname.toLowerCase() === currentUser.toLowerCase();
+    })) {
+      list.unshift({ username: currentUser });
+    }
+    return list;
+  }, [users, currentUser]);
+
   const shelfFilterInputRef = useRef(null);
 
   const [internalFoldersOpen, setInternalFoldersOpen] = useState(() => {
@@ -143,8 +199,9 @@ export default function Sidebar({
             </button>
           </div>
 
-          {/* Library Switcher Selector */}
-          <div className="p-3 border-b border-neutral-800/80 bg-neutral-900/20">
+          {/* Library & User Switcher Selector */}
+          <div className="p-3 border-b border-neutral-800/80 bg-neutral-900/20 space-y-2">
+            {/* Active Library Selector */}
             <div className="relative">
               <button
                 type="button"
@@ -152,7 +209,10 @@ export default function Sidebar({
                 data-item-id="menu-library-select"
                 data-highlighted={highlightedMenuItemId === 'menu-library-select' ? 'true' : undefined}
                 tabIndex={0}
-                onClick={() => setLibraryDropdownOpen(!libraryDropdownOpen)}
+                onClick={() => {
+                  if (userDropdownOpen) setUserDropdownOpen(false);
+                  setLibraryDropdownOpen(!libraryDropdownOpen);
+                }}
                 className={`w-full flex items-center justify-between p-2 rounded-xl border text-left transition cursor-pointer group ${
                   highlightedMenuItemId === 'menu-library-select'
                     ? 'ring-2 ring-amber-400 border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
@@ -261,6 +321,92 @@ export default function Sidebar({
                         <Plus className="w-3.5 h-3.5" />
                         <span>{t('manageLibraries')}</span>
                       </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* User Switcher Selector */}
+            <div className="relative">
+              <button
+                type="button"
+                data-sidebar-item="true"
+                data-item-id="menu-user-select"
+                data-testid="menu-user-select-btn"
+                data-highlighted={highlightedMenuItemId === 'menu-user-select' ? 'true' : undefined}
+                tabIndex={0}
+                onClick={() => {
+                  if (libraryDropdownOpen) setLibraryDropdownOpen(false);
+                  setUserDropdownOpen(!userDropdownOpen);
+                }}
+                className={`w-full flex items-center justify-between p-2 rounded-xl border text-left transition cursor-pointer group ${
+                  highlightedMenuItemId === 'menu-user-select'
+                    ? 'ring-2 ring-amber-400 border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
+                    : 'bg-neutral-950/70 hover:bg-neutral-800/80 border-neutral-800'
+                }`}
+                title={currentUser ? `${t('activeUser')}: ${currentUser}` : t('selectUser')}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[9px] text-neutral-400 font-semibold uppercase tracking-wider leading-none mb-0.5">{t('activeUser')}</p>
+                    <p className="text-xs font-bold text-neutral-100 truncate group-hover:text-amber-300 transition">
+                      {currentUser || t('selectUser')}
+                    </p>
+                  </div>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 shrink-0 ml-1.5 ${userDropdownOpen ? 'rotate-180 text-amber-400' : ''}`} />
+              </button>
+
+              {/* User Dropdown Menu */}
+              {userDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setUserDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-neutral-900 border border-neutral-750 rounded-xl shadow-2xl py-1.5 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-2.5 pt-1 pb-1 text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
+                      {t('users')} ({usersList.length})
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-0.5">
+                      {usersList.map((u) => {
+                        const uname = typeof u === 'string' ? u : (u.username || u.display_name || '');
+                        const isSelected = uname.toLowerCase() === (currentUser || '').toLowerCase();
+                        const isHighlighted = highlightedMenuItemId === `menu-user-${uname}`;
+                        return (
+                          <button
+                            key={uname}
+                            type="button"
+                            data-sidebar-item="true"
+                            data-item-id={`menu-user-${uname}`}
+                            data-highlighted={isHighlighted ? 'true' : undefined}
+                            tabIndex={0}
+                            onClick={() => {
+                              setUserDropdownOpen(false);
+                              if (onUserChange && !isSelected) {
+                                onUserChange(uname);
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-xs transition text-left cursor-pointer ${
+                              isHighlighted
+                                ? 'ring-2 ring-amber-400 border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
+                                : isSelected
+                                ? 'bg-amber-500/15 text-amber-300 font-semibold'
+                                : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <User className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-amber-400' : 'text-neutral-500'}`} />
+                              <span className="truncate">{uname}</span>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1.5" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </>

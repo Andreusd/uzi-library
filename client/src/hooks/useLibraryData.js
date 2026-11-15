@@ -47,6 +47,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const favoriteIdsRef = useRef(favoriteIds);
   favoriteIdsRef.current = favoriteIds;
   const [tags, setTags] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [offlineBooksCount, setOfflineBooksCount] = useState(0);
 
@@ -387,9 +388,48 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       });
   }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, isOffline]);
 
+  const loadUsers = useCallback(() => {
+    fetch('/api/users')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.users)) {
+          setUsers(data.users);
+          try {
+            localStorage.setItem('uzi_cached_users', JSON.stringify(data.users));
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const cached = localStorage.getItem('uzi_cached_users');
+          if (cached) {
+            setUsers(JSON.parse(cached));
+          }
+        } catch {}
+      });
+  }, []);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
   // Handle User Change (persists to storage and reloads user-specific data)
   const handleUserChange = useCallback((newUsername) => {
     setCurrentUser(newUsername);
+    if (newUsername) {
+      fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: newUsername }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.users)) {
+            setUsers(data.users);
+          }
+        })
+        .catch(() => {});
+    }
     if (activeLibraryId) {
       loadContinueReading(activeLibraryId);
       loadFavorites(activeLibraryId);
@@ -786,6 +826,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     readBooks,
     favoriteIds,
     tags,
+    users,
     offlineBooksCount,
     loading,
     isOffline,
@@ -810,6 +851,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
 
     // Actions
     checkReachability,
+    loadUsers,
     loadLibraries,
     loadShelves,
     loadBooks,

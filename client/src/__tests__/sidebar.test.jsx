@@ -107,7 +107,27 @@ describe('Sidebar component', () => {
 
   it('renders current active user badge', () => {
     renderSidebar({ currentUser: 'Alex' });
-    expect(screen.getByText('Alex')).toBeInTheDocument();
+    const userElements = screen.getAllByText('Alex');
+    expect(userElements.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('opens user switcher dropdown and triggers user change', () => {
+    const onUserChange = vi.fn();
+    const users = [
+      { username: 'Alex' },
+      { username: 'Maria' },
+    ];
+    renderSidebar({ currentUser: 'Alex', users, onUserChange });
+
+    // Open user dropdown
+    const userBtn = screen.getByTestId('menu-user-select-btn');
+    fireEvent.click(userBtn);
+
+    // Click Maria in dropdown
+    const mariaBtn = screen.getByText('Maria');
+    fireEvent.click(mariaBtn);
+
+    expect(onUserChange).toHaveBeenCalledWith('Maria');
   });
 
   it('collapses and hides sidebar when isOpen is false', () => {

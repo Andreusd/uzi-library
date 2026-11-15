@@ -54,6 +54,7 @@ export default function App() {
     readBooks,
     favoriteIds,
     tags,
+    users,
     offlineBooksCount,
     loading,
     debouncedQuery,
@@ -123,6 +124,7 @@ export default function App() {
   }, []);
 
   const [isLibraryDropdownOpen, setIsLibraryDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
   const keyboardNav = useLibraryKeyboardNavigation({
     isReaderActive,
@@ -142,6 +144,8 @@ export default function App() {
     setIsTagsOpen: handleSetTagsOpen,
     isLibraryDropdownOpen,
     setIsLibraryDropdownOpen,
+    isUserDropdownOpen,
+    setIsUserDropdownOpen,
     activeLibraryId,
     onSelectShelf: (id) => {
       navigateToShelf(id);
@@ -330,6 +334,8 @@ export default function App() {
           tags={tags}
           onOpenTagManager={() => modals.openTagModal(null)}
           currentUser={currentUser}
+          onUserChange={handleUserChange}
+          users={users}
           highlightedMenuItemId={keyboardNav.highlightedMenuItemId}
           isFoldersOpen={isFoldersOpen}
           setIsFoldersOpen={handleSetFoldersOpen}
@@ -337,6 +343,8 @@ export default function App() {
           setIsTagsOpen={handleSetTagsOpen}
           isLibraryDropdownOpen={isLibraryDropdownOpen}
           setIsLibraryDropdownOpen={setIsLibraryDropdownOpen}
+          isUserDropdownOpen={isUserDropdownOpen}
+          setIsUserDropdownOpen={setIsUserDropdownOpen}
         />
 
         {/* Main Content Area */}
