@@ -16,6 +16,7 @@ import { useBookModals } from './hooks/useBookModals';
 import { useLibraryRouter } from './hooks/useLibraryRouter';
 import { useLibraryData } from './hooks/useLibraryData';
 import { useLibraryKeyboardNavigation } from './hooks/useLibraryKeyboardNavigation';
+import { useSidebarSwipe } from './hooks/useSidebarSwipe';
 
 /**
  * Root Application Component.
@@ -153,6 +154,24 @@ export default function App() {
         setSidebarOpen(false);
       }
     },
+  });
+
+  const isAnyModalOpen = Boolean(
+    modals.settingsOpen ||
+    modals.themeMenuOpen ||
+    modals.detailsModal?.isOpen ||
+    modals.tagModal?.isOpen ||
+    modals.iconModal?.isOpen ||
+    modals.renameModal?.isOpen ||
+    modals.shelfContextMenu?.isOpen ||
+    modals.contextMenu?.isOpen
+  );
+
+  // Mobile gesture to open/close sidebar with edge swipes
+  useSidebarSwipe({
+    sidebarOpen,
+    setSidebarOpen,
+    enabled: !isReaderActive && !isAnyModalOpen,
   });
 
   // Global Keyboard shortcuts
