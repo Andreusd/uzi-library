@@ -209,5 +209,49 @@ describe('Offline Mode Subsystem', () => {
       expect(result.current.books[0].title).toBe('Clean Architecture');
       expect(result.current.books[1].title).toBe('Design Patterns');
     });
+
+    it('filters offline books by active library', async () => {
+      const sampleMultiLibBooks = [
+        { id: 'off-lib1', library_id: 'lib-1', title: 'Lib 1 Book', format: 'pdf', is_offline: true },
+        { id: 'off-lib2', library_id: 'lib-2', title: 'Lib 2 Book', format: 'epub', is_offline: true },
+      ];
+
+      vi.spyOn(offlineStorage, 'getOfflineBooksList').mockResolvedValue(sampleMultiLibBooks);
+      globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+      const { useLibraryData } = await import('../hooks/useLibraryData');
+      const router = {
+        route: { libraryId: 'lib-1', shelfId: 'downloaded' },
+        navigateToShelf: vi.fn(),
+        navigateToBook: vi.fn(),
+        navigateToLibraries: vi.fn(),
+      };
+
+      let result;
+      await act(async () => {
+        const rendered = renderHook(
+          () => useLibraryData({ setCurrentUser: vi.fn(), modals: {}, router }),
+          { wrapper }
+        );
+        result = rendered.result;
+      });
+
+      // Load downloaded books for lib-1
+      await act(async () => {
+        result.current.loadBooks('lib-1', 'downloaded');
+      });
+
+      // Must only contain lib-1 book, not lib-2 book
+      expect(result.current.books).toHaveLength(1);
+      expect(result.current.books[0].title).toBe('Lib 1 Book');
+
+      // Now load downloaded books for lib-2
+      await act(async () => {
+        result.current.loadBooks('lib-2', 'downloaded');
+      });
+
+      expect(result.current.books).toHaveLength(1);
+      expect(result.current.books[0].title).toBe('Lib 2 Book');
+    });
   });
 });

@@ -130,6 +130,7 @@ export async function saveBookOffline(book, onProgress = null) {
   // 3. Assemble record
   const record = {
     id: book.id,
+    library_id: book.library_id || book.libraryId || '',
     title: book.title || 'Untitled Book',
     author: book.author || '',
     format: book.format || (isEpub ? 'epub' : 'pdf'),
@@ -229,6 +230,7 @@ export async function getOfflineBooksList() {
         // Project lightweight metadata objects without heavy fileBlob
         const list = records.map((b) => ({
           id: b.id,
+          library_id: b.library_id || b.libraryId || '',
           title: b.title,
           author: b.author,
           format: b.format,
@@ -379,4 +381,50 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     syncPendingProgress().catch(() => {});
   });
+}
+
+/**
+ * Computes deterministic book ID (SHA-1 prefix) matching the backend formula.
+ */
+export async function computeBookId(shelf, filename, libraryId = 'default') {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    return null;
+  }
+  try {
+    const raw = (!libraryId || libraryId === 'default')
+      ? `${shelf || ''}:::${filename || ''}`
+      : `${libraryId}:::${shelf || ''}:::${filename || ''}`;
+    const buffer = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(raw));
+    const hashArray = Array.from(new Uint8Array(buffer));
+    const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hex.slice(0, 16);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Updates an existing book record in IndexedDB (e.g. to backfill library_id).
+ */
+export async function updateOfflineBookRecord(bookId, updates) {
+  if (!bookId || !updates) return false;
+  try {
+    const db = await initDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_BOOKS, 'readwrite');
+      const store = tx.objectStore(STORE_BOOKS);
+      const req = store.get(bookId);
+      req.onsuccess = () => {
+        const record = req.result;
+        if (record) {
+          Object.assign(record, updates);
+          store.put(record);
+        }
+        resolve(true);
+      };
+      req.onerror = () => resolve(false);
+    });
+  } catch {
+    return false;
+  }
 }

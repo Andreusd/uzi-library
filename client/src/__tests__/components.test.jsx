@@ -258,6 +258,28 @@ describe('AppNavbar component', () => {
     fireEvent.click(settingsBtns[settingsBtns.length - 1]);
     expect(setSettingsOpen).toHaveBeenCalledWith(true);
   });
+
+  it('renders properly formatted breadcrumb for read-books and downloaded shelves', () => {
+    const { unmount, container } = renderNavbar({
+      libraryData: {
+        selectedShelf: 'read-books',
+      },
+    });
+
+    // Check Completed / Read books title and icon
+    expect(screen.getByText(/completed|concluídos/i)).toBeInTheDocument();
+    expect(container.querySelector('.lucide-book-check')).toBeInTheDocument();
+    unmount();
+
+    // Check Downloaded / Offline books title and icon
+    const { container: container2 } = renderNavbar({
+      libraryData: {
+        selectedShelf: 'downloaded',
+      },
+    });
+    expect(screen.getByText(/available offline|livros baixados/i)).toBeInTheDocument();
+    expect(container2.querySelector('.lucide-cloud-download')).toBeInTheDocument();
+  });
 });
 
 describe('Format filtering across home sections', () => {

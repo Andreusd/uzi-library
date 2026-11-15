@@ -3,7 +3,7 @@ import {
   Search, X, BookOpen,
   PanelLeftClose, PanelLeftOpen,
   Settings, Heart, Bookmark, Maximize2, Minimize2, Library, Folder, Tag, Palette,
-  SlidersHorizontal, MoreVertical, WifiOff
+  SlidersHorizontal, MoreVertical, WifiOff, BookCheck, CloudDownload
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import ThemeMenu from './ThemeMenu';
@@ -141,6 +141,16 @@ export default function AppNavbar({
                     <>
                       <Heart className="w-4 h-4 text-rose-500 fill-rose-500 shrink-0" />
                       <span>{t('favorites')}</span>
+                    </>
+                  ) : (selectedShelf === 'read-books' || selectedShelf === 'read') ? (
+                    <>
+                      <BookCheck className="w-4 h-4 text-teal-400 shrink-0" />
+                      <span>{t('readBooks')}</span>
+                    </>
+                  ) : selectedShelf === 'downloaded' ? (
+                    <>
+                      <CloudDownload className="w-4 h-4 text-sky-400 shrink-0" />
+                      <span>{t('offlineBooks')}</span>
                     </>
                   ) : selectedShelf === 'folders' ? (
                     <>
