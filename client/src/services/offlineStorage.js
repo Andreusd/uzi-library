@@ -384,22 +384,47 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Computes deterministic book ID (SHA-1 prefix) matching the backend formula.
+ * One-time alignment: if any books in IndexedDB are missing library_id,
+ * fetches the backend mapping and updates the records.
  */
-export async function computeBookId(shelf, filename, libraryId = 'default') {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    return null;
-  }
+export async function migrateOfflineBooksLibraries() {
+  if (typeof window === 'undefined') return;
   try {
-    const raw = (!libraryId || libraryId === 'default')
-      ? `${shelf || ''}:::${filename || ''}`
-      : `${libraryId}:::${shelf || ''}:::${filename || ''}`;
-    const buffer = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(raw));
-    const hashArray = Array.from(new Uint8Array(buffer));
-    const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hex.slice(0, 16);
-  } catch {
-    return null;
+    const list = await getOfflineBooksList();
+    const missing = list.filter((b) => !b.library_id);
+    if (missing.length === 0) return;
+
+    const resp = await fetch('/api/books/libraries-map');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const map = data.map || {};
+
+    const db = await initDB();
+    const tx = db.transaction(STORE_BOOKS, 'readwrite');
+    const store = tx.objectStore(STORE_BOOKS);
+
+    for (const b of missing) {
+      const libId = map[b.id];
+      if (libId) {
+        const req = store.get(b.id);
+        req.onsuccess = () => {
+          const rec = req.result;
+          if (rec) {
+            rec.library_id = libId;
+            store.put(rec);
+          }
+        };
+      }
+    }
+
+    await new Promise((resolve) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+
+    notifyOfflineUpdated({ action: 'migrated' });
+  } catch (err) {
+    console.warn('Offline books migration skipped or failed:', err);
   }
 }
 

@@ -383,6 +383,13 @@ def update_book_status(
     else:
         raise HTTPException(status_code=400, detail="Invalid status. Must be 'not_started' or 'completed'")
 
+@router.get("/api/books/libraries-map")
+def get_books_libraries_map(scanner: LibraryScanner = Depends(get_scanner)):
+    """Returns a dictionary mapping every book_id to its library_id."""
+    with scanner.db.get_connection() as conn:
+        rows = conn.execute("SELECT id, library_id FROM books").fetchall()
+        return {"map": {r["id"]: r["library_id"] for r in rows}}
+
 @router.get("/api/book/{book_id}")
 def get_book(
     book_id: str,

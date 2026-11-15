@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { booksApi, foldersApi, librariesApi, tagsApi } from '../api';
 import { useI18n } from '../i18n';
-import { getOfflineBooksList, syncPendingProgress, computeBookId, updateOfflineBookRecord } from '../services/offlineStorage';
+import { getOfflineBooksList, syncPendingProgress, migrateOfflineBooksLibraries } from '../services/offlineStorage';
 import { useNetworkStatus } from './useNetworkStatus';
 
 const LIBRARIES_CACHE_KEY = 'uzi_cached_libraries';
@@ -133,7 +133,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       getOfflineBooksList()
         .then(list => {
           const filteredList = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           const shelfMap = new Map();
           filteredList.forEach(b => {
@@ -171,7 +171,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       getOfflineBooksList()
         .then(list => {
           let reading = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           reading = reading.filter(b => {
             const p = b.progress;
@@ -200,7 +200,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         try {
           const list = await getOfflineBooksList();
           let reading = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           reading = reading.filter(b => {
             const p = b.progress;
@@ -225,7 +225,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       getOfflineBooksList()
         .then(list => {
           let favs = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           favs = favs.filter(b => b.is_favorite || favoriteIdsRef.current.has(b.id));
           if (formatToUse && formatToUse !== 'all') {
@@ -248,7 +248,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         try {
           const list = await getOfflineBooksList();
           let favs = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           favs = favs.filter(b => b.is_favorite || favoriteIdsRef.current.has(b.id));
           if (formatToUse && formatToUse !== 'all') {
@@ -267,7 +267,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       getOfflineBooksList()
         .then(list => {
           let read = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           read = read.filter(b => b.progress && (b.progress.status === 'completed' || (b.progress.percent || 0) >= 100));
           if (formatToUse && formatToUse !== 'all') {
@@ -289,7 +289,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         try {
           const list = await getOfflineBooksList();
           let read = targetLib
-            ? list.filter(b => (b.library_id ? b.library_id === targetLib : true))
+            ? list.filter(b => b.library_id === targetLib)
             : list;
           read = read.filter(b => b.progress && (b.progress.status === 'completed' || (b.progress.percent || 0) >= 100));
           if (formatToUse && formatToUse !== 'all') {
@@ -329,29 +329,10 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     // Handle offline mode OR offline downloaded books shelf
     if (isOffline || shelfToUse === 'downloaded') {
       getOfflineBooksList()
-        .then(async (list) => {
-          // Resolve missing library_id for legacy records
-          if (libraries && libraries.length > 0) {
-            for (const b of list) {
-              if (!b.library_id) {
-                for (const lib of libraries) {
-                  const testId = await computeBookId(b.shelf, b.filename, lib.id);
-                  if (testId === b.id) {
-                    b.library_id = lib.id;
-                    updateOfflineBookRecord(b.id, { library_id: lib.id }).catch(() => {});
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          let filtered = [...list];
-
-          // Filter by active library if specified
-          if (targetLib) {
-            filtered = filtered.filter(b => (b.library_id ? b.library_id === targetLib : true));
-          }
+        .then((list) => {
+          let filtered = targetLib
+            ? list.filter(b => b.library_id === targetLib)
+            : [...list];
 
           if (formatToUse && formatToUse !== 'all') {
             filtered = filtered.filter(b => b.format === formatToUse);
@@ -411,7 +392,9 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         // Fallback to offline cached books if server is unreachable
         try {
           const offlineList = await getOfflineBooksList();
-          let filtered = [...offlineList];
+          let filtered = targetLib
+            ? offlineList.filter(b => b.library_id === targetLib)
+            : [...offlineList];
           if (formatToUse && formatToUse !== 'all') {
             filtered = filtered.filter(b => b.format === formatToUse);
           }
@@ -429,7 +412,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         }
         setLoading(false);
       });
-  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, isOffline, libraries]);
+  }, [activeLibraryId, selectedShelf, debouncedQuery, sortBy, formatFilter, isOffline]);
 
   const loadUsers = useCallback(() => {
     fetch('/api/users')
@@ -681,28 +664,15 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   // Offline books tracking & online progress sync
   useEffect(() => {
     let active = true;
+
+    // Trigger one-time migration to ensure all offline records have library_id
+    migrateOfflineBooksLibraries().catch(() => {});
+
     const refreshOffline = async () => {
       try {
         const list = await getOfflineBooksList();
-
-        // Resolve missing library_id for legacy records
-        if (libraries && libraries.length > 0) {
-          for (const b of list) {
-            if (!b.library_id) {
-              for (const lib of libraries) {
-                const testId = await computeBookId(b.shelf, b.filename, lib.id);
-                if (testId === b.id) {
-                  b.library_id = lib.id;
-                  updateOfflineBookRecord(b.id, { library_id: lib.id }).catch(() => {});
-                  break;
-                }
-              }
-            }
-          }
-        }
-
         const filteredList = activeLibraryId
-          ? list.filter((b) => (b.library_id ? b.library_id === activeLibraryId : true))
+          ? list.filter((b) => b.library_id === activeLibraryId)
           : list;
         if (active) setOfflineBooksCount(filteredList.length);
       } catch {}
@@ -718,6 +688,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     };
 
     const handleOnline = () => {
+      migrateOfflineBooksLibraries().catch(() => {});
       syncPendingProgress().catch(() => {});
     };
 
@@ -729,7 +700,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       window.removeEventListener('uzi-offline-updated', handleOfflineChanged);
       window.removeEventListener('online', handleOnline);
     };
-  }, [selectedShelf, activeLibraryId, libraries, loadBooks]);
+  }, [selectedShelf, activeLibraryId, loadBooks]);
 
   // Handle book progress update from Reader or status change
   const handleProgressUpdate = useCallback((bookId, newProgress) => {

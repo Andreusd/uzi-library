@@ -168,8 +168,8 @@ describe('Offline Mode Subsystem', () => {
   describe('Offline Books Projection in useLibraryData', () => {
     it('loads books from getOfflineBooksList when isOffline is true', async () => {
       const sampleOfflineBooks = [
-        { id: 'off-1', title: 'Clean Architecture', author: 'Robert C. Martin', format: 'pdf', is_offline: true },
-        { id: 'off-2', title: 'Design Patterns', author: 'Gang of Four', format: 'epub', is_offline: true },
+        { id: 'off-1', library_id: 'lib-1', title: 'Clean Architecture', author: 'Robert C. Martin', format: 'pdf', is_offline: true },
+        { id: 'off-2', library_id: 'lib-1', title: 'Design Patterns', author: 'Gang of Four', format: 'epub', is_offline: true },
       ];
 
       vi.spyOn(offlineStorage, 'getOfflineBooksList').mockResolvedValue(sampleOfflineBooks);
