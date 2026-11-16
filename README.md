@@ -1,10 +1,16 @@
 # 📚 Uzi Library
 
-A modern, fast, responsive, and lightweight application to organize, browse, and read your personal collection of PDF books.
+A modern, fast, responsive, and lightweight application to organize, browse, and read your personal collection of EPUB and PDF books.
 
 [![Latest Release](https://img.shields.io/github/v/release/Andreusd/uzi-library?color=blue&label=Release)](https://github.com/Andreusd/uzi-library/releases/latest)
 [![Windows App](https://img.shields.io/badge/Windows-Standalone_.exe-0078D6?logo=windows)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.exe)
 [![Android App](https://img.shields.io/badge/Android-Installable_.apk-3DDC84?logo=android)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.apk)
+
+<p align="center">
+  <img src="docs/screenshots/mobile-home.jpg" width="300" alt="Uzi Library Mobile Home" />
+  &emsp;&emsp;
+  <img src="docs/screenshots/mobile-sidebar.jpg" width="300" alt="Uzi Library Navigation & Activity" />
+</p>
 
 ---
 
@@ -103,6 +109,10 @@ export BOOK_LIBRARY_PATH="/path/to/your/books"
   * Tracks current page and reading percentage.
   * Books advance to the *Continue Reading* shelf only after reading beyond page 1 (covers don't mark books as started).
   * Right-click any book to *Mark as Not Started* (instantly removes from Continue Reading) or *Mark as Completed*.
+* **Daily Reading Activity, Goals & Streaks**:
+  * Dynamic character-based dwell time tracking per page.
+  * Customizable daily reading goal with progress circle and streak flame counter.
+  * Monthly activity calendar showing reading history and daily breakdowns.
 * **Bilingual UI (EN / PT)**: Switch between English and Portuguese with a single click in the header.
 * **Responsive Toggleable Sidebar**: Smooth sidebar collapse with `Ctrl + B` and backdrop overlay on mobile.
 * **Instant Global Search & Sorting**: Press `/` to search titles in real time, or sort by name, file size, or recent reading.
