@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Library, Search, Folder, Heart, Bookmark, Home,
   ChevronDown, Check, Plus, Tag, User, BookOpen, BookCheck,
-  CloudDownload
+  CloudDownload, Flame
 } from 'lucide-react';
 import ShelfIcon from './ShelfIcon';
 import AppLogo from './AppLogo';
@@ -574,6 +574,30 @@ export default function Sidebar({
                 </span>
               </button>
             )}
+
+            {/* Reading Activity & Streaks */}
+            <button
+              data-sidebar-item="true"
+              data-item-id="menu-activity"
+              data-highlighted={highlightedMenuItemId === 'menu-activity' ? 'true' : undefined}
+              tabIndex={0}
+              onClick={() => {
+                onSelectShelf('activity');
+              }}
+              className={`
+                w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all
+                ${highlightedMenuItemId === 'menu-activity'
+                  ? 'ring-2 ring-amber-400 border-amber-400 bg-amber-500/20 text-amber-300 shadow-md'
+                  : selectedShelf === 'activity'
+                  ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                  : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'}
+              `}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Flame className={`w-4 h-4 shrink-0 ${selectedShelf === 'activity' ? 'fill-amber-400 text-amber-400' : 'text-amber-400'}`} />
+                <span className="truncate">{t('readingActivity') || 'Atividade'}</span>
+              </div>
+            </button>
 
             {/* Downloaded / Offline Books Option (if any or selected) */}
             {(downloadedCount > 0 || selectedShelf === 'downloaded') && (

@@ -19,6 +19,7 @@ import { useFullscreen } from '../hooks/useFullscreen';
 import { useTrackpadSwipe } from '../hooks/useTrackpadSwipe';
 import { useReaderHeaderPin } from '../hooks/useReaderHeaderPin';
 import { usePdfKeyboardGestures } from '../hooks/usePdfKeyboardGestures';
+import { useReadingTracker } from '../hooks/useReadingTracker';
 import { SimpleLinkService } from '../utils/SimpleLinkService';
 import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
 import { getOfflineBookArrayBuffer } from '../services/offlineStorage';
@@ -393,6 +394,16 @@ export default function PdfViewer({
   // Annotations hook
   const annotations = usePdfAnnotations({
     bookId: book?.id,
+  });
+
+  // Reading Activity Tracker (pages read per day with 15s dwell time)
+  useReadingTracker({
+    bookId: book?.id,
+    currentPage: nav.currentPage,
+    totalPages: nav.totalPages,
+    isDualPage: nav.isDualPage,
+    spread: nav.spread,
+    enabled: !!pdfDoc,
   });
 
   // AI Copilot hook

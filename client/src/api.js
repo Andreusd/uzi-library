@@ -557,4 +557,28 @@ export async function deleteAiConversation(conversationId) {
   }
 }
 
+/**
+ * Reading Activity & Goals API
+ */
+export const activityApi = {
+  recordActivity: (payload) =>
+    apiJson('/api/activity/record', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getOverview: (days = 365, today) => {
+    const params = new URLSearchParams({ days: String(days) });
+    if (today) params.append('today', today);
+    return apiJson(`/api/activity?${params.toString()}`);
+  },
+  getDayDetails: (date) =>
+    apiJson(`/api/activity/day?date=${encodeURIComponent(date)}`),
+  getDailyGoal: () => apiJson('/api/activity/goal'),
+  setDailyGoal: (daily_pages_goal) =>
+    apiJson('/api/activity/goal', {
+      method: 'PUT',
+      body: JSON.stringify({ daily_pages_goal }),
+    }),
+};
+
 

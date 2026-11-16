@@ -125,4 +125,13 @@ class CreateAIConversationPayload(BaseModel):
 class UpdateAIConversationPayload(BaseModel):
     title: str
 
+class RecordActivityPayload(BaseModel):
+    book_id: str
+    date: Optional[str] = None
+    pages: List[int] = []
+    reading_time_seconds: int = 0
+
+class SetGoalPayload(BaseModel):
+    daily_pages_goal: int
+
 

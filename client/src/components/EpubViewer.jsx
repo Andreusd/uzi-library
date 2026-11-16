@@ -18,6 +18,7 @@ import { useEpubTts } from '../hooks/useEpubTts';
 import { useEpubAnnotations } from '../hooks/useEpubAnnotations';
 import { useAiCopilot } from '../hooks/useAiCopilot';
 import { useEpubNavigation } from '../hooks/useEpubNavigation';
+import { useReadingTracker } from '../hooks/useReadingTracker';
 import { getOfflineBookArrayBuffer, saveOfflineProgress } from '../services/offlineStorage';
 import {
   findChapterLabel,
@@ -243,6 +244,14 @@ export default function EpubViewer({
 
   // Subsystem Hook 5: AI Copilot
   const copilot = useAiCopilot();
+
+  // Reading Activity Tracker
+  useReadingTracker({
+    bookId: book?.id,
+    currentPage: pageInfo.page,
+    totalPages: pageInfo.total,
+    enabled: !!renditionReady,
+  });
 
   // Handle dynamic text selection for AI Copilot (VS Code transient preview tab style)
   const handleTransientText = useCallback((text) => {

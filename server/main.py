@@ -50,6 +50,7 @@ from .routers.books import router as books_router
 from .routers.tags import router as tags_router
 from .routers.lookup import router as lookup_router
 from .routers.ai import router as ai_router
+from .routers.activity import router as activity_router
 from .routers.legacy import router as legacy_router
 
 # Base paths
@@ -107,6 +108,7 @@ app.include_router(books_router)
 app.include_router(tags_router)
 app.include_router(lookup_router)
 app.include_router(ai_router)
+app.include_router(activity_router)
 app.include_router(legacy_router)
 
 # If client production build exists, mount static assets and index.html fallback

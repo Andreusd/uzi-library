@@ -9,6 +9,7 @@ import AppNavbar from './components/AppNavbar';
 import ShelfHeader from './components/ShelfHeader';
 import LibraryHome from './components/LibraryHome';
 import LibraryContent from './components/LibraryContent';
+import ReadingActivityView from './components/ReadingActivityView';
 import { BookActionsProvider } from './contexts/BookActionsContext.jsx';
 import { useI18n } from './i18n';
 import { useSettings } from './hooks/useSettings';
@@ -492,34 +493,40 @@ export default function App() {
               modals={modals}
             />
 
-            <ShelfHeader
-              selectedShelf={selectedShelf}
-              debouncedQuery={debouncedQuery}
-              formatFilter={formatFilter}
-              shelves={shelves}
-              tags={tags}
-              books={books}
-              totalBooks={totalBooks}
-              isTagFilter={isTagFilter}
-              currentTagObj={currentTagObj}
-              currentShelfObj={currentShelfObj}
-              onOpenTagManager={() => modals.openTagModal(null)}
-            />
+            {selectedShelf === 'activity' ? (
+              <ReadingActivityView onSelectBook={openReader} />
+            ) : (
+              <>
+                <ShelfHeader
+                  selectedShelf={selectedShelf}
+                  debouncedQuery={debouncedQuery}
+                  formatFilter={formatFilter}
+                  shelves={shelves}
+                  tags={tags}
+                  books={books}
+                  totalBooks={totalBooks}
+                  isTagFilter={isTagFilter}
+                  currentTagObj={currentTagObj}
+                  currentShelfObj={currentShelfObj}
+                  onOpenTagManager={() => modals.openTagModal(null)}
+                />
 
-            <LibraryContent
-              selectedShelf={selectedShelf}
-              debouncedQuery={debouncedQuery}
-              formatFilter={formatFilter}
-              setFormatFilter={setFormatFilter}
-              shelves={shelves}
-              tags={tags}
-              books={books}
-              totalBooks={totalBooks}
-              loading={loading}
-              navigateToShelf={navigateToShelf}
-              modals={modals}
-              setSearchQuery={libraryData.setSearchQuery}
-            />
+                <LibraryContent
+                  selectedShelf={selectedShelf}
+                  debouncedQuery={debouncedQuery}
+                  formatFilter={formatFilter}
+                  setFormatFilter={setFormatFilter}
+                  shelves={shelves}
+                  tags={tags}
+                  books={books}
+                  totalBooks={totalBooks}
+                  loading={loading}
+                  navigateToShelf={navigateToShelf}
+                  modals={modals}
+                  setSearchQuery={libraryData.setSearchQuery}
+                />
+              </>
+            )}
           </main>
         </div>
 

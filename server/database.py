@@ -6,7 +6,7 @@ import json
 import threading
 import uuid
 import contextlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".cache"))
@@ -217,8 +217,27 @@ class Database:
                 FOREIGN KEY(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS daily_reading_activity (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_slug TEXT NOT NULL,
+                date TEXT NOT NULL,
+                book_id TEXT NOT NULL,
+                pages_read INTEGER NOT NULL DEFAULT 0,
+                reading_time_seconds INTEGER NOT NULL DEFAULT 0,
+                pages_json TEXT DEFAULT '[]',
+                updated_at TEXT NOT NULL,
+                UNIQUE(user_slug, date, book_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_goals (
+                user_slug TEXT PRIMARY KEY,
+                daily_pages_goal INTEGER NOT NULL DEFAULT 10,
+                updated_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_books_folder ON books (library_id, folder_id);
             CREATE INDEX IF NOT EXISTS idx_progress_updated ON reading_progress (user_slug, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_activity_user_date ON daily_reading_activity (user_slug, date);
             CREATE INDEX IF NOT EXISTS idx_favorites_created ON favorites (user_slug, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_tags_user_lib ON tags (user_slug, library_id, name);
             CREATE INDEX IF NOT EXISTS idx_book_tags_user_book ON book_tags (user_slug, book_id);
@@ -1031,6 +1050,216 @@ class Database:
             "location": location or "",
             "created_at": now
         }
+
+    # =========================================================================
+    # DAILY READING ACTIVITY & STREAKS
+    # =========================================================================
+
+    def record_reading_activity(
+        self,
+        user_slug: str,
+        date_str: str,
+        book_id: str,
+        pages: List[int],
+        reading_time_seconds: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Records pages read on a specific calendar date (YYYY-MM-DD).
+        Merges new pages into existing pages for that book and date to avoid duplicates.
+        """
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with self._lock, self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT pages_json, reading_time_seconds FROM daily_reading_activity WHERE user_slug = ? AND date = ? AND book_id = ?",
+                (user_slug, date_str, book_id)
+            ).fetchone()
+
+            if row:
+                try:
+                    existing_pages = set(json.loads(row["pages_json"]))
+                except Exception:
+                    existing_pages = set()
+                existing_seconds = row["reading_time_seconds"] or 0
+                merged_pages = sorted(list(existing_pages.union(set(pages))))
+                total_seconds = existing_seconds + max(0, reading_time_seconds)
+                conn.execute(
+                    """UPDATE daily_reading_activity
+                       SET pages_read = ?, reading_time_seconds = ?, pages_json = ?, updated_at = ?
+                       WHERE user_slug = ? AND date = ? AND book_id = ?""",
+                    (len(merged_pages), total_seconds, json.dumps(merged_pages), now_iso, user_slug, date_str, book_id)
+                )
+            else:
+                merged_pages = sorted(list(set(pages)))
+                total_seconds = max(0, reading_time_seconds)
+                conn.execute(
+                    """INSERT INTO daily_reading_activity
+                       (user_slug, date, book_id, pages_read, reading_time_seconds, pages_json, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (user_slug, date_str, book_id, len(merged_pages), total_seconds, json.dumps(merged_pages), now_iso)
+                )
+
+            return {
+                "user_slug": user_slug,
+                "date": date_str,
+                "book_id": book_id,
+                "pages_read": len(merged_pages),
+                "reading_time_seconds": total_seconds,
+                "pages": merged_pages,
+            }
+
+    def get_daily_goal(self, user_slug: str) -> int:
+        with self._lock, self.get_connection() as conn:
+            row = conn.execute("SELECT daily_pages_goal FROM user_goals WHERE user_slug = ?", (user_slug,)).fetchone()
+            if row and row["daily_pages_goal"]:
+                return max(1, int(row["daily_pages_goal"]))
+            return 10
+
+    def set_daily_goal(self, user_slug: str, goal: int) -> int:
+        clean_goal = max(1, min(1000, int(goal)))
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with self._lock, self.get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO user_goals (user_slug, daily_pages_goal, updated_at) VALUES (?, ?, ?)",
+                (user_slug, clean_goal, now_iso)
+            )
+        return clean_goal
+
+    def get_reading_activity_history(self, user_slug: str, days: int = 365) -> List[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT 
+                    date,
+                    SUM(pages_read) as total_pages,
+                    SUM(reading_time_seconds) as total_seconds,
+                    COUNT(DISTINCT book_id) as books_count
+                FROM daily_reading_activity
+                WHERE user_slug = ? AND date >= date('now', '-' || ? || ' days')
+                GROUP BY date
+                ORDER BY date ASC
+                """,
+                (user_slug, days)
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_activity_details_for_date(self, user_slug: str, date_str: str) -> List[Dict[str, Any]]:
+        with self._lock, self.get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT 
+                    a.book_id,
+                    a.pages_read,
+                    a.reading_time_seconds,
+                    a.pages_json,
+                    COALESCE(b.title, a.book_id) as title,
+                    COALESCE(b.author, '') as author,
+                    COALESCE(b.format, '') as format,
+                    COALESCE(b.library_id, '') as library_id
+                FROM daily_reading_activity a
+                LEFT JOIN books b ON b.id = a.book_id
+                WHERE a.user_slug = ? AND a.date = ?
+                ORDER BY a.pages_read DESC
+                """,
+                (user_slug, date_str)
+            ).fetchall()
+            details = []
+            for r in rows:
+                item = dict(r)
+                try:
+                    item["pages"] = json.loads(item["pages_json"])
+                except Exception:
+                    item["pages"] = []
+                details.append(item)
+            return details
+
+    def get_reading_stats(self, user_slug: str, today_str: Optional[str] = None) -> Dict[str, Any]:
+        from datetime import datetime, timezone, date, timedelta, timezone
+        if not today_str:
+            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        with self._lock, self.get_connection() as conn:
+            tot_row = conn.execute(
+                "SELECT SUM(pages_read) as total_pages, SUM(reading_time_seconds) as total_seconds, COUNT(DISTINCT date) as total_days FROM daily_reading_activity WHERE user_slug = ?",
+                (user_slug,)
+            ).fetchone()
+            total_pages = (tot_row["total_pages"] if tot_row else 0) or 0
+            total_seconds = (tot_row["total_seconds"] if tot_row else 0) or 0
+            total_days = (tot_row["total_days"] if tot_row else 0) or 0
+
+            today_row = conn.execute(
+                "SELECT SUM(pages_read) as pages_today FROM daily_reading_activity WHERE user_slug = ? AND date = ?",
+                (user_slug, today_str)
+            ).fetchone()
+            pages_today = (today_row["pages_today"] if today_row else 0) or 0
+
+            goal = self.get_daily_goal(user_slug)
+
+            date_rows = conn.execute(
+                "SELECT date, SUM(pages_read) as pages FROM daily_reading_activity WHERE user_slug = ? GROUP BY date HAVING pages > 0 ORDER BY date DESC",
+                (user_slug,)
+            ).fetchall()
+            active_dates = set(r["date"] for r in date_rows)
+
+            current_streak = 0
+            try:
+                today_date = date.fromisoformat(today_str)
+            except Exception:
+                today_date = datetime.now(timezone.utc).date()
+
+            check_date = today_date
+            if today_str in active_dates:
+                while check_date.isoformat() in active_dates:
+                    current_streak += 1
+                    check_date -= timedelta(days=1)
+            else:
+                yesterday = today_date - timedelta(days=1)
+                check_date = yesterday
+                while check_date.isoformat() in active_dates:
+                    current_streak += 1
+                    check_date -= timedelta(days=1)
+
+            sorted_dates = sorted([date.fromisoformat(d) for d in active_dates if d])
+            best_streak = 0
+            temp_streak = 0
+            prev_d = None
+            for d in sorted_dates:
+                if prev_d is None or (d - prev_d).days == 1:
+                    temp_streak += 1
+                else:
+                    temp_streak = 1
+                if temp_streak > best_streak:
+                    best_streak = temp_streak
+                prev_d = d
+
+            comp_rows = conn.execute(
+                """
+                SELECT 
+                    rp.book_id,
+                    rp.updated_at as completed_at,
+                    COALESCE(b.title, rp.book_id) as title,
+                    COALESCE(b.author, '') as author,
+                    COALESCE(b.format, '') as format,
+                    COALESCE(b.library_id, '') as library_id
+                FROM reading_progress rp
+                LEFT JOIN books b ON b.id = rp.book_id
+                WHERE rp.user_slug = ? AND (rp.status = 'completed' OR rp.percent >= 100)
+                ORDER BY rp.updated_at DESC
+                """,
+                (user_slug,)
+            ).fetchall()
+            completed_books = [dict(r) for r in comp_rows]
+
+            return {
+                "current_streak": current_streak,
+                "best_streak": best_streak,
+                "total_pages": total_pages,
+                "total_seconds": total_seconds,
+                "total_days": total_days,
+                "pages_today": pages_today,
+                "daily_goal": goal,
+                "goal_met_today": pages_today >= goal,
+                "completed_books": completed_books,
+            }
 
 _db_instances: Dict[str, Database] = {}
 _db_lock = threading.Lock()
