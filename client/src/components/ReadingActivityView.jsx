@@ -564,14 +564,17 @@ export default function ReadingActivityView({ onSelectBook }) {
 
                 {/* Pages Read Badge */}
                 {day.pages > 0 ? (
-                  <div className="mt-1">
+                  <div className="mt-1 flex items-center">
                     <span className={`
-                      inline-block text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate max-w-full
+                      inline-flex items-center text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded leading-none
                       ${goalMet
                         ? 'bg-orange-500/20 text-orange-300 font-bold'
                         : 'bg-neutral-800 text-amber-300'}
                     `}>
-                      {day.pages} pág
+                      <span>{day.pages}</span>
+                      <span className="text-[9px] sm:text-[10px] font-normal ml-0.5 opacity-80">
+                        {t('pagesShort') || 'p'}
+                      </span>
                     </span>
                   </div>
                 ) : (
