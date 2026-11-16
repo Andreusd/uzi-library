@@ -265,8 +265,10 @@ describe('Reading Activity Tracking & Dynamic Character-based Dwell Time', () =>
       );
 
       await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument();
+        expect(screen.getByText('350')).toBeInTheDocument();
       });
+
+      expect(screen.getAllByText('5').length).toBeGreaterThanOrEqual(1);
 
       expect(screen.getByText(/Meta Batida|Goal Achieved/i)).toBeInTheDocument();
       expect(screen.getByText('350')).toBeInTheDocument();

@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Trophy,
   ChevronRight,
+  ChevronLeft,
   Edit2,
   Check,
   X,
@@ -31,55 +32,68 @@ function formatTime(totalSeconds) {
 }
 
 /**
- * Generate 52 weeks (364/371 days) matrix ending on current week.
+ * Generate calendar grid cells for a given year and month (0-11).
+ * Pads with days from the previous and next months to form a full 7-column grid.
  */
-function generateHeatmapCalendar(historyMap = new Map(), todayIso = new Date().toISOString().slice(0, 10)) {
-  const today = new Date(todayIso + 'T00:00:00');
-  
-  // Align end to Saturday of the current week (or Sunday)
-  const currentDayOfWeek = today.getDay(); // 0 is Sunday, 6 is Saturday
-  const endOffset = 6 - currentDayOfWeek;
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() + endOffset);
+function generateMonthGrid(year, month, historyMap = new Map(), todayIso = new Date().toISOString().slice(0, 10)) {
+  const firstDay = new Date(year, month, 1);
+  const startingDayOfWeek = firstDay.getDay(); // 0 is Sunday
+  const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  // 52 weeks = 52 * 7 = 364 days
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - (52 * 7 - 1));
+  const days = [];
 
-  const weeks = [];
-  let currentWeek = [];
-  const cur = new Date(startDate);
-
-  while (cur <= endDate) {
-    const iso = cur.toISOString().slice(0, 10);
-    const dayData = historyMap.get(iso) || { total_pages: 0, total_seconds: 0, books_count: 0 };
-    const isFuture = cur > today;
-
-    currentWeek.push({
+  // Padding days from previous month
+  for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+    const dayNum = daysInPrevMonth - i;
+    const dateObj = new Date(year, month - 1, dayNum);
+    const iso = dateObj.toISOString().slice(0, 10);
+    const data = historyMap.get(iso) || { total_pages: 0, total_seconds: 0, books_count: 0 };
+    days.push({
       date: iso,
-      dayOfWeek: cur.getDay(),
-      dayOfMonth: cur.getDate(),
-      month: cur.getMonth(),
-      pages: dayData.total_pages || 0,
-      seconds: dayData.total_seconds || 0,
-      booksCount: dayData.books_count || 0,
+      dayNumber: dayNum,
+      isCurrentMonth: false,
+      pages: data.total_pages || 0,
+      seconds: data.total_seconds || 0,
       isToday: iso === todayIso,
-      isFuture,
+      isFuture: iso > todayIso,
     });
-
-    if (currentWeek.length === 7) {
-      weeks.push(currentWeek);
-      currentWeek = [];
-    }
-
-    cur.setDate(cur.getDate() + 1);
   }
 
-  if (currentWeek.length > 0) {
-    weeks.push(currentWeek);
+  // Days in current month
+  for (let dayNum = 1; dayNum <= daysInCurrentMonth; dayNum++) {
+    const dateObj = new Date(year, month, dayNum);
+    const iso = dateObj.toISOString().slice(0, 10);
+    const data = historyMap.get(iso) || { total_pages: 0, total_seconds: 0, books_count: 0 };
+    days.push({
+      date: iso,
+      dayNumber: dayNum,
+      isCurrentMonth: true,
+      pages: data.total_pages || 0,
+      seconds: data.total_seconds || 0,
+      isToday: iso === todayIso,
+      isFuture: iso > todayIso,
+    });
   }
 
-  return weeks;
+  // Padding days from next month to complete the row
+  const remaining = (7 - (days.length % 7)) % 7;
+  for (let dayNum = 1; dayNum <= remaining; dayNum++) {
+    const dateObj = new Date(year, month + 1, dayNum);
+    const iso = dateObj.toISOString().slice(0, 10);
+    const data = historyMap.get(iso) || { total_pages: 0, total_seconds: 0, books_count: 0 };
+    days.push({
+      date: iso,
+      dayNumber: dayNum,
+      isCurrentMonth: false,
+      pages: data.total_pages || 0,
+      seconds: data.total_seconds || 0,
+      isToday: iso === todayIso,
+      isFuture: iso > todayIso,
+    });
+  }
+
+  return days;
 }
 
 export default function ReadingActivityView({ onSelectBook }) {
@@ -91,6 +105,12 @@ export default function ReadingActivityView({ onSelectBook }) {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [dayDetails, setDayDetails] = useState([]);
   const [dayLoading, setDayLoading] = useState(false);
+
+  // Active Month View State
+  const [viewDate, setViewDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   // Goal Editing State
   const [isEditingGoal, setIsEditingGoal] = useState(false);
@@ -164,6 +184,21 @@ export default function ReadingActivityView({ onSelectBook }) {
     }
   };
 
+  // Month navigation handlers
+  const handlePrevMonth = () => {
+    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleGoToToday = () => {
+    const now = new Date();
+    setViewDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDate(todayStr);
+  };
+
   // Map history array by date string for O(1) lookup
   const historyMap = useMemo(() => {
     const map = new Map();
@@ -174,43 +209,55 @@ export default function ReadingActivityView({ onSelectBook }) {
   }, [history]);
 
   const dailyGoal = stats?.daily_goal || 10;
-  const weeks = useMemo(() => generateHeatmapCalendar(historyMap, todayStr), [historyMap, todayStr]);
 
-  // Calculate cell color based on pages read and daily goal
-  const getCellColor = (day) => {
-    if (day.isFuture) return 'bg-transparent border-transparent cursor-default pointer-events-none opacity-20';
-    if (day.pages === 0) {
-      return 'bg-neutral-900/90 border border-neutral-800/60 hover:border-neutral-700';
-    }
-    if (day.pages >= dailyGoal) {
-      return 'bg-amber-500 border border-amber-400 shadow-sm shadow-amber-500/30 text-neutral-950 font-bold hover:brightness-110';
-    }
-    if (day.pages >= Math.ceil(dailyGoal / 2)) {
-      return 'bg-amber-600/70 border border-amber-500/60 hover:brightness-110';
-    }
-    return 'bg-amber-900/50 border border-amber-800/40 hover:brightness-110';
-  };
+  // Month title formatted to locale
+  const monthTitle = useMemo(() => {
+    const str = viewDate.toLocaleDateString(locale || 'default', { month: 'long', year: 'numeric' });
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }, [viewDate, locale]);
 
-  // Month labels across columns
-  const monthLabels = useMemo(() => {
-    const labels = [];
-    let lastMonth = -1;
-    weeks.forEach((week, wIndex) => {
-      const firstValidDay = week.find(d => !d.isFuture);
-      if (firstValidDay && firstValidDay.month !== lastMonth) {
-        lastMonth = firstValidDay.month;
-        const dObj = new Date(firstValidDay.date + 'T00:00:00');
-        const monthName = dObj.toLocaleDateString(locale || 'default', { month: 'short' });
-        labels.push({ colIndex: wIndex, label: monthName });
+  const isCurrentMonthView = useMemo(() => {
+    const now = new Date();
+    return viewDate.getFullYear() === now.getFullYear() && viewDate.getMonth() === now.getMonth();
+  }, [viewDate]);
+
+  // 7-day week names (Sun..Sat)
+  const weekDays = useMemo(() => {
+    const baseSunday = new Date(2026, 10, 15); // Known Sunday
+    const list = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(baseSunday);
+      d.setDate(baseSunday.getDate() + i);
+      const name = d.toLocaleDateString(locale || 'default', { weekday: 'short' });
+      list.push(name.charAt(0).toUpperCase() + name.slice(1));
+    }
+    return list;
+  }, [locale]);
+
+  // Days grid for the viewed month
+  const monthDays = useMemo(() => {
+    return generateMonthGrid(viewDate.getFullYear(), viewDate.getMonth(), historyMap, todayStr);
+  }, [viewDate, historyMap, todayStr]);
+
+  // Statistics for the active month
+  const monthStats = useMemo(() => {
+    let pages = 0;
+    let seconds = 0;
+    let activeDays = 0;
+    monthDays.forEach((d) => {
+      if (d.isCurrentMonth && d.pages > 0) {
+        pages += d.pages;
+        seconds += d.seconds;
+        activeDays += 1;
       }
     });
-    return labels;
-  }, [weeks, locale]);
+    return { pages, seconds, activeDays };
+  }, [monthDays]);
 
   if (loading && !stats) {
     return (
       <div className="py-12 flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
         <span className="text-xs text-neutral-400 font-medium">{t('loading')}...</span>
       </div>
     );
@@ -226,7 +273,7 @@ export default function ReadingActivityView({ onSelectBook }) {
   const completedBooks = stats?.completed_books || [];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6 space-y-8 animate-fadeIn">
+    <div className="w-full max-w-5xl mx-auto px-4 py-6 space-y-8 animate-fadeIn">
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-neutral-800">
         <div>
@@ -362,7 +409,7 @@ export default function ReadingActivityView({ onSelectBook }) {
           <div className="mt-4 w-full bg-neutral-800/80 rounded-full h-2.5 overflow-hidden border border-neutral-700/50">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                pagesToday >= dailyGoal ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-amber-500'
+                pagesToday >= dailyGoal ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-orange-500'
               }`}
               style={{ width: `${goalProgressPct}%` }}
             />
@@ -399,84 +446,158 @@ export default function ReadingActivityView({ onSelectBook }) {
         </div>
       </div>
 
-      {/* Continuous Activity Heatmap (Grade de 52 Semanas) */}
-      <div className="rounded-2xl bg-neutral-900/80 border border-neutral-800 p-5 sm:p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-amber-400" />
-            <h2 className="text-base sm:text-lg font-bold text-neutral-100">
-              {t('activityHeatmap') || 'Grade de Atividade Contínua (Último Ano)'}
-            </h2>
+      {/* Monthly Activity Calendar Grid */}
+      <div className="rounded-2xl bg-neutral-900/80 border border-neutral-800 p-4 sm:p-6 shadow-xl space-y-4">
+        {/* Calendar Header with Navigation */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <Calendar className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-neutral-100">
+                {t('monthlyActivity') || 'Atividade Mensal'}
+              </h2>
+              <div className="flex items-center gap-2 text-xs text-neutral-400 mt-0.5">
+                <span>{monthStats.pages} {t('pages') || 'páginas'}</span>
+                <span>•</span>
+                <span>{monthStats.activeDays} {t('totalReadingDays') || 'dias lendo'}</span>
+                {monthStats.seconds > 0 && (
+                  <>
+                    <span>•</span>
+                    <span>{formatTime(monthStats.seconds)}</span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <span className="text-xs text-neutral-400 font-medium">
-            {history.length} {t('daysWithActivity') || 'dias com leitura registrada'}
-          </span>
+
+          {/* Month Switcher Controls */}
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
+            {!isCurrentMonthView && (
+              <button
+                type="button"
+                onClick={handleGoToToday}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white transition cursor-pointer"
+              >
+                {t('today') || 'Hoje'}
+              </button>
+            )}
+
+            <div className="flex items-center gap-1 bg-neutral-950/80 p-1 rounded-xl border border-neutral-800">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer"
+                title={t('prevMonth') || 'Mês anterior'}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <span className="text-xs sm:text-sm font-bold text-neutral-200 px-3 min-w-[120px] text-center">
+                {monthTitle}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1.5 rounded-lg hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer"
+                title={t('nextMonth') || 'Próximo mês'}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Heatmap Grid Container with Horizontal Scroll on Small Screens */}
-        <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-neutral-800">
-          <div className="min-w-[760px]">
-            {/* Months Row */}
-            <div className="flex text-[11px] font-semibold text-neutral-400 pl-8 mb-2 h-4 relative">
-              {monthLabels.map((m, idx) => (
-                <div
-                  key={idx}
-                  className="absolute"
-                  style={{ left: `${32 + m.colIndex * 14}px` }}
-                >
-                  {m.label}
+        {/* 7-Column Days of Week Header */}
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-[11px] sm:text-xs font-semibold text-neutral-400 pt-1">
+          {weekDays.map((wd, idx) => (
+            <div key={idx} className="py-1">
+              {wd}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar Days Grid */}
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+          {monthDays.map((day) => {
+            const isSelected = selectedDate === day.date;
+            const goalMet = day.pages >= dailyGoal;
+
+            return (
+              <button
+                key={day.date}
+                type="button"
+                disabled={day.isFuture}
+                onClick={() => setSelectedDate(day.date)}
+                className={`
+                  relative flex flex-col justify-between p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer text-left
+                  min-h-[52px] sm:min-h-[66px]
+                  ${isSelected
+                    ? 'ring-2 ring-orange-400 border-orange-400 bg-neutral-900 shadow-xl scale-[1.02] z-10'
+                    : goalMet
+                    ? 'bg-orange-500/15 border border-orange-500/35 hover:border-orange-400 hover:bg-orange-500/20'
+                    : day.pages > 0
+                    ? 'bg-amber-950/25 border border-amber-800/35 hover:border-amber-700 hover:bg-amber-900/30'
+                    : day.isCurrentMonth
+                    ? 'bg-neutral-950/60 border border-neutral-800/60 hover:border-neutral-700 hover:bg-neutral-900'
+                    : 'bg-neutral-950/20 border border-neutral-900/40 opacity-30'}
+                  ${day.isFuture ? 'opacity-20 pointer-events-none cursor-default' : ''}
+                `}
+              >
+                {/* Day Number & Flame Icon Header */}
+                <div className="flex items-center justify-between w-full">
+                  <span className={`
+                    text-xs sm:text-sm font-bold
+                    ${day.isToday
+                      ? 'w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-full bg-orange-500 text-neutral-950 font-black'
+                      : day.isCurrentMonth ? 'text-neutral-200' : 'text-neutral-600'}
+                  `}>
+                    {day.dayNumber}
+                  </span>
+
+                  {goalMet && (
+                    <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400 shrink-0" />
+                  )}
                 </div>
-              ))}
-            </div>
 
-            {/* Grid Matrix: 7 rows x 52 columns */}
-            <div className="flex gap-1.5 items-start">
-              {/* Day-of-week labels */}
-              <div className="flex flex-col justify-between h-[106px] text-[10px] font-medium text-neutral-500 w-6 shrink-0 pt-0.5">
-                <span>Dom</span>
-                <span>Ter</span>
-                <span>Qui</span>
-                <span>Sáb</span>
-              </div>
-
-              {/* Columns of weeks */}
-              <div className="flex gap-1 flex-1">
-                {weeks.map((week, wIdx) => (
-                  <div key={wIdx} className="flex flex-col gap-1">
-                    {week.map((day) => {
-                      const isSelected = selectedDate === day.date;
-                      return (
-                        <button
-                          key={day.date}
-                          type="button"
-                          onClick={() => !day.isFuture && setSelectedDate(day.date)}
-                          title={`${day.date}: ${day.pages} pág(s) ${day.seconds > 0 ? `(${formatTime(day.seconds)})` : ''}`}
-                          className={`
-                            w-3 h-3 rounded-[3px] transition-all cursor-pointer relative
-                            ${getCellColor(day)}
-                            ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-neutral-950 scale-125 z-10' : ''}
-                          `}
-                        />
-                      );
-                    })}
+                {/* Pages Read Badge */}
+                {day.pages > 0 ? (
+                  <div className="mt-1">
+                    <span className={`
+                      inline-block text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate max-w-full
+                      ${goalMet
+                        ? 'bg-orange-500/20 text-orange-300 font-bold'
+                        : 'bg-neutral-800 text-amber-300'}
+                    `}>
+                      {day.pages} pág
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                ) : (
+                  <div className="h-3" />
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-            {/* Heatmap Legend */}
-            <div className="mt-4 pt-3 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400">
-              <span className="text-[11px] text-neutral-400">
-                {t('clickDayToInspect') || 'Clique em qualquer quadrado para ver os detalhes daquele dia'}
+        {/* Legend */}
+        <div className="pt-3 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-400 flex-wrap gap-2">
+          <span className="text-[11px] text-neutral-400">
+            {t('clickDayToInspect') || 'Clique em qualquer dia para ver os detalhes da leitura'}
+          </span>
+          <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded bg-amber-950/40 border border-amber-800/40" />
+              <span>{t('readingDay') || 'Com leitura'}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded bg-orange-500/25 border border-orange-500/40" />
+              <span className="flex items-center gap-1">
+                <Flame className="w-3 h-3 fill-orange-400 text-orange-400" />
+                {t('goalMet') || 'Meta batida'}
               </span>
-              <div className="flex items-center gap-1.5 text-[11px]">
-                <span>{t('less') || 'Menos'}</span>
-                <span className="w-3 h-3 rounded-[3px] bg-neutral-900 border border-neutral-800" />
-                <span className="w-3 h-3 rounded-[3px] bg-amber-900/50 border border-amber-800/40" />
-                <span className="w-3 h-3 rounded-[3px] bg-amber-600/70 border border-amber-500/60" />
-                <span className="w-3 h-3 rounded-[3px] bg-amber-500 border border-amber-400" />
-                <span>{t('more') || 'Mais'}</span>
-              </div>
             </div>
           </div>
         </div>
@@ -486,8 +607,8 @@ export default function ReadingActivityView({ onSelectBook }) {
       <div className="rounded-2xl bg-neutral-900/80 border border-neutral-800 p-5 sm:p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Calendar className="w-5 h-5 text-amber-400" />
+            <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <Calendar className="w-5 h-5 text-orange-400" />
             </div>
             <div>
               <h3 className="text-base font-bold text-neutral-100">
@@ -502,7 +623,7 @@ export default function ReadingActivityView({ onSelectBook }) {
 
         {dayLoading ? (
           <div className="py-8 flex justify-center">
-            <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : dayDetails.length === 0 ? (
           <div className="py-8 text-center text-xs text-neutral-400 flex flex-col items-center justify-center gap-1">
@@ -515,16 +636,16 @@ export default function ReadingActivityView({ onSelectBook }) {
               <div
                 key={b.book_id}
                 onClick={() => onSelectBook && onSelectBook({ id: b.book_id, title: b.title })}
-                className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 hover:border-amber-500/40 hover:bg-neutral-800/40 transition flex items-center justify-between group cursor-pointer"
+                className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 hover:border-orange-500/40 hover:bg-neutral-800/40 transition flex items-center justify-between group cursor-pointer"
               >
                 <div className="min-w-0 pr-3">
                   <div className="flex items-center gap-1.5 mb-1">
                     {b.format && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">
                         {b.format}
                       </span>
                     )}
-                    <h4 className="text-xs sm:text-sm font-semibold text-neutral-200 truncate group-hover:text-amber-300 transition-colors">
+                    <h4 className="text-xs sm:text-sm font-semibold text-neutral-200 truncate group-hover:text-orange-300 transition-colors">
                       {b.title}
                     </h4>
                   </div>
@@ -539,7 +660,7 @@ export default function ReadingActivityView({ onSelectBook }) {
                   </div>
                 </div>
 
-                <div className="p-1.5 rounded-lg bg-neutral-900 text-neutral-400 group-hover:text-amber-400 group-hover:bg-amber-500/10 transition shrink-0">
+                <div className="p-1.5 rounded-lg bg-neutral-900 text-neutral-400 group-hover:text-orange-400 group-hover:bg-orange-500/10 transition shrink-0">
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
