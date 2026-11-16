@@ -231,10 +231,10 @@ export default function ReadingActivityView({ onSelectBook }) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-neutral-800">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-100 tracking-tight flex items-center gap-3">
-            <span className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Flame className="w-7 h-7 fill-amber-500 text-amber-500 animate-pulse" />
+            <span className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+              <Flame className="w-7 h-7 fill-orange-500 text-orange-500 animate-pulse" />
             </span>
-            <span>{t('readingActivity') || 'Atividade de Leitura'}</span>
+            <span>{t('activity') || 'Atividade'}</span>
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1.5">
             {t('keepReadingPrompt') || 'Leia por ao menos 15s em cada página para registrar seu progresso diário!'}
@@ -259,8 +259,8 @@ export default function ReadingActivityView({ onSelectBook }) {
         {/* Card 1: Streak */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900/90 to-neutral-950 p-6 border border-neutral-800/80 shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
-              <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
+            <span className="text-xs font-bold uppercase tracking-wider text-orange-400/90 flex items-center gap-1.5">
+              <Flame className="w-4 h-4 fill-orange-400 text-orange-400" />
               {t('currentStreak') || 'Ofensiva Atual'}
             </span>
             <span className="text-[11px] font-medium text-neutral-400 px-2 py-0.5 rounded-full bg-neutral-800/80">
@@ -286,7 +286,7 @@ export default function ReadingActivityView({ onSelectBook }) {
                 {t('streakActiveToday') || 'Ofensiva mantida hoje!'}
               </span>
             ) : (
-              <span className="text-amber-400/90">
+              <span className="text-orange-400/90">
                 {t('streakPendingToday') || 'Leia hoje para manter sua ofensiva!'}
               </span>
             )}
