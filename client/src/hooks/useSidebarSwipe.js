@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 
 /**
  * Custom hook to enable gesture navigation on mobile/touch devices:
- * - Swiping left-to-right opens the sidebar menu (or goes back to search when filter/sort is open).
- * - Swiping right-to-left closes the sidebar menu if open, toggles filter & sort when searching, or opens settings.
+ * - Swiping left-to-right opens the sidebar menu (or goes back to filter/sort or search when menus are open).
+ * - Swiping right-to-left closes the sidebar menu if open, toggles filter & sort when searching, opens themes from filter & sort, or opens settings.
  *
  * @param {Object} options
  * @param {boolean} options.sidebarOpen - Current open state of sidebar
@@ -11,8 +11,11 @@ import { useEffect, useRef } from 'react';
  * @param {Function} [options.onOpenSettings] - Function to open library settings on right-to-left swipe
  * @param {boolean} [options.isSearchActive=false] - Whether search is currently active
  * @param {boolean} [options.mobileFilterOpen=false] - Whether filter & sort popover is open
+ * @param {boolean} [options.themeMenuOpen=false] - Whether theme menu popover is open
  * @param {Function} [options.onToggleFilterAndSort] - Function to toggle filter & sort
  * @param {Function} [options.onBackToSearch] - Function to go back from filter & sort to search
+ * @param {Function} [options.onOpenTheme] - Function to open themes from filter & sort
+ * @param {Function} [options.onBackToFilter] - Function to go back from themes to filter & sort
  * @param {boolean} [options.enabled=true] - Whether gestures are active (e.g. false in Reader, desktop, or modals)
  * @param {number} [options.maxStartRatio=0.8] - Max fraction of screen width where swipe-to-open can begin
  * @param {number} [options.minSwipeDistance=50] - Minimum horizontal travel in pixels to recognize a swipe
@@ -24,8 +27,11 @@ export function useSidebarSwipe({
   onOpenSettings,
   isSearchActive = false,
   mobileFilterOpen = false,
+  themeMenuOpen = false,
   onToggleFilterAndSort,
   onBackToSearch,
+  onOpenTheme,
+  onBackToFilter,
   enabled = true,
   maxStartRatio = 0.8,
   minSwipeDistance = 50,
@@ -93,14 +99,21 @@ export function useSidebarSwipe({
       // 1. Swiping left-to-right (deltaX >= minSwipeDistance)
       if (deltaX >= minSwipeDistance) {
         if (deltaX > Math.abs(deltaY) * 1.05) {
-          // A) If Filter & Sort is open: left-to-right goes back to searching
+          // A) If Theme Menu is open: left-to-right goes back to Filter & Sort
+          if (themeMenuOpen && onBackToFilter) {
+            touchStartRef.current.triggered = true;
+            onBackToFilter();
+            return;
+          }
+
+          // B) If Filter & Sort is open: left-to-right goes back to searching
           if (mobileFilterOpen && onBackToSearch) {
             touchStartRef.current.triggered = true;
             onBackToSearch();
             return;
           }
 
-          // B) If sidebar is closed: open sidebar
+          // C) If sidebar is closed: open sidebar
           if (!sidebarOpen) {
             const allowedStartX = Math.max(window.innerWidth * maxStartRatio, 250);
             if (startX > allowedStartX) return;
@@ -123,12 +136,22 @@ export function useSidebarSwipe({
             touchStartRef.current.triggered = true;
             setSidebarOpen(false);
           }
-          // B) If searching is active (and sidebar is closed): toggle filter and sort!
+          // B) If Theme Menu is open: swiping right-to-left opens settings
+          else if (themeMenuOpen) {
+            touchStartRef.current.triggered = true;
+            if (onOpenSettings) onOpenSettings();
+          }
+          // C) If Filter & Sort is open: swiping right-to-left opens Themes!
+          else if (mobileFilterOpen && onOpenTheme) {
+            touchStartRef.current.triggered = true;
+            onOpenTheme();
+          }
+          // D) If searching is active (and sidebar is closed): toggle filter and sort!
           else if (isSearchActive && onToggleFilterAndSort) {
             touchStartRef.current.triggered = true;
             onToggleFilterAndSort();
           }
-          // C) If sidebar is closed and not searching: open library settings
+          // E) If sidebar is closed and not searching: open library settings
           else if (onOpenSettings) {
             const canScrollRight =
               carousel &&
@@ -166,6 +189,10 @@ export function useSidebarSwipe({
 
       if (Math.abs(deltaX) >= minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY) * 1.05) {
         if (deltaX > 0) {
+          if (themeMenuOpen && onBackToFilter) {
+            onBackToFilter();
+            return;
+          }
           if (mobileFilterOpen && onBackToSearch) {
             onBackToSearch();
             return;
@@ -179,6 +206,10 @@ export function useSidebarSwipe({
         } else if (deltaX < 0) {
           if (sidebarOpen) {
             setSidebarOpen(false);
+          } else if (themeMenuOpen) {
+            if (onOpenSettings) onOpenSettings();
+          } else if (mobileFilterOpen && onOpenTheme) {
+            onOpenTheme();
           } else if (isSearchActive && onToggleFilterAndSort) {
             onToggleFilterAndSort();
           } else if (onOpenSettings) {
@@ -211,8 +242,11 @@ export function useSidebarSwipe({
     onOpenSettings,
     isSearchActive,
     mobileFilterOpen,
+    themeMenuOpen,
     onToggleFilterAndSort,
     onBackToSearch,
+    onOpenTheme,
+    onBackToFilter,
     enabled,
     maxStartRatio,
     minSwipeDistance,

@@ -337,4 +337,97 @@ describe('useSidebarSwipe Hook', () => {
     expect(onBackToSearch).toHaveBeenCalledTimes(1);
     expect(setSidebarOpen).not.toHaveBeenCalled();
   });
+
+  it('triggers onOpenTheme when swiping right-to-left while mobileFilterOpen is true', () => {
+    const onOpenTheme = vi.fn();
+    const onToggleFilterAndSort = vi.fn();
+    const onOpenSettings = vi.fn();
+    const setSidebarOpen = vi.fn();
+
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        mobileFilterOpen: true,
+        onOpenTheme,
+        onToggleFilterAndSort,
+        onOpenSettings,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 300, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 220, clientY: 200 }])
+      );
+    });
+
+    expect(onOpenTheme).toHaveBeenCalledTimes(1);
+    expect(onToggleFilterAndSort).not.toHaveBeenCalled();
+    expect(onOpenSettings).not.toHaveBeenCalled();
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+  });
+
+  it('triggers onBackToFilter when swiping left-to-right while themeMenuOpen is true', () => {
+    const onBackToFilter = vi.fn();
+    const onBackToSearch = vi.fn();
+    const setSidebarOpen = vi.fn();
+
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        themeMenuOpen: true,
+        onBackToFilter,
+        onBackToSearch,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 100, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 180, clientY: 200 }])
+      );
+    });
+
+    expect(onBackToFilter).toHaveBeenCalledTimes(1);
+    expect(onBackToSearch).not.toHaveBeenCalled();
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+  });
+
+  it('triggers onOpenSettings when swiping right-to-left while themeMenuOpen is true', () => {
+    const onOpenSettings = vi.fn();
+    const setSidebarOpen = vi.fn();
+
+    renderHook(() =>
+      useSidebarSwipe({
+        sidebarOpen: false,
+        setSidebarOpen,
+        themeMenuOpen: true,
+        onOpenSettings,
+        enabled: true,
+        minSwipeDistance: 50,
+      })
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        createTouchEvent('touchstart', [{ clientX: 300, clientY: 200 }])
+      );
+      window.dispatchEvent(
+        createTouchEvent('touchmove', [{ clientX: 220, clientY: 200 }])
+      );
+    });
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    expect(setSidebarOpen).not.toHaveBeenCalled();
+  });
 });

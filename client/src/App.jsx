@@ -160,7 +160,6 @@ export default function App() {
 
   const isAnyModalOpen = Boolean(
     modals.settingsOpen ||
-    modals.themeMenuOpen ||
     modals.detailsModal?.isOpen ||
     modals.tagModal?.isOpen ||
     modals.iconModal?.isOpen ||
@@ -171,7 +170,7 @@ export default function App() {
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-  const isSearchActive = Boolean(isSearchOpen || libraryData.searchQuery || mobileFilterOpen);
+  const isSearchActive = Boolean(isSearchOpen || libraryData.searchQuery || mobileFilterOpen || modals.themeMenuOpen);
 
   const handleToggleFilterAndSort = useCallback(() => {
     setMobileFilterOpen((prev) => {
@@ -192,15 +191,34 @@ export default function App() {
     }, 50);
   }, [searchInputRef]);
 
-  // Mobile gestures: swipe right to open sidebar, swipe left to close sidebar, toggle filter & sort, or open settings
+  const handleOpenTheme = useCallback(() => {
+    setMobileFilterOpen(false);
+    modals.setThemeMenuOpen(true);
+  }, [modals]);
+
+  const handleBackToFilter = useCallback(() => {
+    modals.setThemeMenuOpen(false);
+    setMobileFilterOpen(true);
+  }, [modals]);
+
+  const handleOpenSettings = useCallback(() => {
+    modals.setThemeMenuOpen(false);
+    setMobileFilterOpen(false);
+    modals.setSettingsOpen(true);
+  }, [modals]);
+
+  // Mobile gestures: swipe right to open sidebar, swipe left to close sidebar, toggle filter & sort, open themes, or open settings
   useSidebarSwipe({
     sidebarOpen,
     setSidebarOpen,
-    onOpenSettings: () => modals.setSettingsOpen(true),
+    onOpenSettings: handleOpenSettings,
     isSearchActive,
     mobileFilterOpen,
+    themeMenuOpen: modals.themeMenuOpen,
     onToggleFilterAndSort: handleToggleFilterAndSort,
     onBackToSearch: handleBackToSearch,
+    onOpenTheme: handleOpenTheme,
+    onBackToFilter: handleBackToFilter,
     enabled: !isReaderActive && !isAnyModalOpen,
   });
 
@@ -210,6 +228,7 @@ export default function App() {
       libraryData.setSearchQuery?.('');
       setIsSearchOpen(false);
       setMobileFilterOpen(false);
+      modals.setThemeMenuOpen(false);
       searchInputRef.current?.blur();
     } else {
       window.dispatchEvent(new CustomEvent('uzi_trigger_search'));
@@ -219,12 +238,12 @@ export default function App() {
         searchInputRef.current?.select?.();
       }, 50);
     }
-  }, [isSearchActive, libraryData, searchInputRef]);
+  }, [isSearchActive, libraryData, modals, searchInputRef]);
 
   // Pull down from top gesture to trigger or dismiss search books
   const { pullDistance, isPulling, isThresholdReached } = usePullToSearch({
     onTriggerSearch: handlePullAction,
-    enabled: !isReaderActive && !isAnyModalOpen && !sidebarOpen,
+    enabled: !isReaderActive && !isAnyModalOpen && !sidebarOpen && !modals.themeMenuOpen,
   });
 
   // Global Keyboard shortcuts

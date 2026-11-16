@@ -122,6 +122,8 @@ export default function ThemeMenu({
     };
 
     const handleClickOutside = (e) => {
+      // On touch devices, allow backdrop click or swipe gestures to handle closing without killing touchstart
+      if (e.pointerType === 'touch') return;
       if (popoverRef.current && !popoverRef.current.contains(e.target)) {
         onClose();
       }
@@ -156,11 +158,10 @@ export default function ThemeMenu({
       <div
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity"
         onClick={onClose}
-        onTouchStart={onClose}
       />
       <div
         ref={popoverRef}
-        className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-neutral-750 shadow-2xl shadow-black/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none"
+        className="fixed sm:absolute max-sm:right-3 max-sm:top-14 sm:right-0 sm:top-full mt-2 w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-neutral-900/95 backdrop-blur-xl border border-neutral-750 shadow-2xl shadow-black/90 p-3 z-50 animate-in fade-in zoom-in-95 duration-150 select-none"
       >
       {/* Popover Header */}
       <div className="flex items-center justify-between pb-2 border-b border-neutral-800/80">
