@@ -274,8 +274,8 @@ export default function ReadingActivityView({ onSelectBook }) {
             </span>
             <span className="text-sm font-semibold text-neutral-400">
               {currentStreak === 1
-                ? (t('streakDays_one') || 'dia consecutivo')
-                : (t('streakDays', { count: currentStreak }) || 'dias consecutivos')}
+                ? (t('consecutiveDays_one') || 'dia consecutivo')
+                : (t('consecutiveDays') || 'dias consecutivos')}
             </span>
           </div>
 
