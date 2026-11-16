@@ -430,7 +430,55 @@ export function useEpubNavigation({
     handleNativeWheelRef.current = handleNativeWheel;
   }, [handleNativeWheel]);
 
-  // Touch swipe
+  // Close confirmation state for slide up-to-down gesture
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const closeConfirmOpenRef = useRef(false);
+  const closeConfirmTimerRef = useRef(null);
+
+  const dismissCloseConfirm = useCallback(() => {
+    if (closeConfirmTimerRef.current) {
+      clearTimeout(closeConfirmTimerRef.current);
+      closeConfirmTimerRef.current = null;
+    }
+    closeConfirmOpenRef.current = false;
+    setCloseConfirmOpen(false);
+  }, []);
+
+  const handleSlideDown = useCallback(() => {
+    if (closeConfirmOpenRef.current) {
+      // Second slide: close the book!
+      dismissCloseConfirm();
+      if (handleClose) {
+        handleClose();
+      }
+    } else {
+      // First slide: activate confirmation prompt for 3 seconds
+      closeConfirmOpenRef.current = true;
+      setCloseConfirmOpen(true);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try {
+          navigator.vibrate(35);
+        } catch {}
+      }
+      if (closeConfirmTimerRef.current) {
+        clearTimeout(closeConfirmTimerRef.current);
+      }
+      closeConfirmTimerRef.current = setTimeout(() => {
+        closeConfirmOpenRef.current = false;
+        setCloseConfirmOpen(false);
+        closeConfirmTimerRef.current = null;
+      }, 3000);
+    }
+  }, [dismissCloseConfirm, handleClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeConfirmTimerRef.current) {
+        clearTimeout(closeConfirmTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleTouchStart = useCallback((e) => {
     if (e.touches && e.touches.length === 1) {
       touchStartXRef.current = e.touches[0].clientX;
@@ -456,10 +504,8 @@ export function useEpubNavigation({
     touchStartXRef.current = 0;
     touchStartYRef.current = 0;
 
-    // Never intercept touches that originated on the header, buttons, drawers, or interactive elements
+    // Never intercept touches that originated on buttons, drawers, or dialogs
     if (
-      startY <= 60 ||
-      e.target?.closest?.('header') ||
       e.target?.closest?.('button') ||
       e.target?.closest?.('aside') ||
       e.target?.closest?.('nav') ||
@@ -469,28 +515,57 @@ export function useEpubNavigation({
     }
 
     const anyOpen = isAnyDrawerOpen();
+    if (anyOpen) {
+      if (readerSettingsOpenRef.current) {
+        setReaderSettingsOpen(false);
+      }
+      return;
+    }
 
+    // Check if text is currently selected
+    const hasSelection = () => {
+      try {
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) return true;
+        const iframe = viewerRef?.current?.querySelector('iframe');
+        const iframeSel = iframe?.contentWindow?.getSelection();
+        if (iframeSel && !iframeSel.isCollapsed && iframeSel.toString().trim().length > 0) return true;
+      } catch {}
+      return false;
+    };
+
+    if (selectionMenu?.isOpen || hasSelection()) {
+      return;
+    }
+
+    // 1. Sliding UP TO DOWN: diffY >= 50, predominantly vertical, duration < 800ms
+    if (diffY >= 50 && diffY > Math.abs(diffX) * 1.2 && duration < 800) {
+      handleSlideDown();
+      return;
+    }
+
+    // If starting on visible header and not sliding down, don't trigger horizontal flip or tap
+    if (startY <= 60 && isHeaderVisibleRef.current) {
+      return;
+    }
+
+    // 2. Horizontal swipe: page navigation
     if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.3 && duration < 600) {
+      dismissCloseConfirm();
       if (diffX < 0) {
         flipNext();
       } else {
         flipPrev();
       }
       // When flipping pages on mobile, hide the header if unpinned
-      if (!headerPinned && !anyOpen) {
+      if (!headerPinned) {
         setIsHeaderVisible(false);
         isHeaderVisibleRef.current = false;
         clearHideTimer();
       }
     } else if (Math.abs(diffX) < 15 && Math.abs(diffY) < 15 && duration < 350) {
-      // Single tap on page
-      if (anyOpen) {
-        if (readerSettingsOpenRef.current) {
-          setReaderSettingsOpen(false);
-        }
-        return;
-      }
-
+      // 3. Single tap on page
+      dismissCloseConfirm();
       if (isHeaderVisibleRef.current) {
         if (!headerPinned) {
           setIsHeaderVisible(false);
@@ -501,7 +576,19 @@ export function useEpubNavigation({
         showHeader();
       }
     }
-  }, [flipNext, flipPrev, headerPinned, isAnyDrawerOpen, showHeader, clearHideTimer, setReaderSettingsOpen]);
+  }, [
+    flipNext,
+    flipPrev,
+    headerPinned,
+    isAnyDrawerOpen,
+    showHeader,
+    clearHideTimer,
+    setReaderSettingsOpen,
+    selectionMenu?.isOpen,
+    handleSlideDown,
+    dismissCloseConfirm,
+    viewerRef,
+  ]);
 
   useEffect(() => {
     handleTouchEndRef.current = handleTouchEnd;
@@ -895,6 +982,9 @@ export function useEpubNavigation({
     onTouchEndHeader,
     attachListenersToIframe,
     attachListenersToIframeRef,
+    // Close confirmation on slide down
+    closeConfirmOpen,
+    dismissCloseConfirm,
     // Settings
     readerSettingsOpen,
     setReaderSettingsOpen,

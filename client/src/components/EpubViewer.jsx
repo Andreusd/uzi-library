@@ -10,6 +10,7 @@ import PdfOutline from './PdfOutline';
 import EpubToolbar from './EpubToolbar';
 import EpubReaderStage from './EpubReaderStage';
 import ReaderBackPill from './ReaderBackPill';
+import ReaderCloseConfirmation from './ReaderCloseConfirmation';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useEpubTheme } from '../hooks/useEpubTheme';
 import { useEpubSearch } from '../hooks/useEpubSearch';
@@ -1349,6 +1350,14 @@ export default function EpubViewer({
         onNavigateBack={handleNavigateBack}
         onDismiss={handleDismissBack}
         theme={themeSystem.theme}
+      />
+
+      {/* Slide down again to close book confirmation prompt */}
+      <ReaderCloseConfirmation
+        isOpen={navSystem.closeConfirmOpen}
+        onDismiss={navSystem.dismissCloseConfirm}
+        theme={themeSystem.theme}
+        isHeaderShowing={navSystem.isHeaderShowing}
       />
     </div>
   );
