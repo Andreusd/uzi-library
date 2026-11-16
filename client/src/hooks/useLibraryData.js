@@ -839,6 +839,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       document.title = `${t('offlineBooks')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'read-books' || selectedShelf === 'read') {
       document.title = `${t('readBooks')} - ${activeLibraryObj?.name || t('appTitle')}`;
+    } else if (selectedShelf === 'activity') {
+      document.title = `${t('activity')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'folders') {
       document.title = `${t('folders')} - ${activeLibraryObj?.name || t('appTitle')}`;
     } else if (selectedShelf === 'tags') {

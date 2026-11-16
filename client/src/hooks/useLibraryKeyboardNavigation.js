@@ -275,6 +275,8 @@ export function useLibraryKeyboardNavigation({
         initialItem = menuItems.find((m) => m.id === 'menu-favorites');
       } else if (selectedShelf === 'read-books' || selectedShelf === 'read') {
         initialItem = menuItems.find((m) => m.id === 'menu-read-books');
+      } else if (selectedShelf === 'activity') {
+        initialItem = menuItems.find((m) => m.id === 'menu-activity');
       } else if (selectedShelf === 'folders') {
         initialItem = menuItems.find((m) => m.id === 'menu-folders');
       } else if (selectedShelf === 'tags') {

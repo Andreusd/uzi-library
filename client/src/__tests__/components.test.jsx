@@ -272,13 +272,23 @@ describe('AppNavbar component', () => {
     unmount();
 
     // Check Downloaded / Offline books title and icon
-    const { container: container2 } = renderNavbar({
+    const { container: container2, unmount: unmount2 } = renderNavbar({
       libraryData: {
         selectedShelf: 'downloaded',
       },
     });
     expect(screen.getByText(/available offline|livros baixados/i)).toBeInTheDocument();
     expect(container2.querySelector('.lucide-cloud-download')).toBeInTheDocument();
+    unmount2();
+
+    // Check Activity title and icon
+    const { container: container3 } = renderNavbar({
+      libraryData: {
+        selectedShelf: 'activity',
+      },
+    });
+    expect(screen.getByText(/activity|atividade/i)).toBeInTheDocument();
+    expect(container3.querySelector('.lucide-flame')).toBeInTheDocument();
   });
 });
 
