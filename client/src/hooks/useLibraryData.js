@@ -539,13 +539,16 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   // Open reader and update browser route
   const openReader = useCallback((targetBook, originRect = null) => {
     if (!targetBook) return;
-    setActiveBook({ ...targetBook, _originRect: originRect });
-    const targetLib = activeLibraryId || targetBook.library_id || 'default';
-    if (!activeLibraryId && targetBook.library_id) {
-      setActiveLibraryId(targetBook.library_id);
+    const bookId = targetBook.id || targetBook.book_id;
+    const foundInLibrary = books.find(b => b.id === bookId);
+    const enriched = foundInLibrary ? { ...foundInLibrary, ...targetBook } : { ...targetBook, id: bookId };
+    setActiveBook({ ...enriched, _originRect: originRect });
+    const targetLib = activeLibraryId || enriched.library_id || 'default';
+    if (!activeLibraryId && enriched.library_id) {
+      setActiveLibraryId(enriched.library_id);
     }
-    navigateToBook(targetBook.id, targetLib);
-  }, [activeLibraryId, navigateToBook]);
+    navigateToBook(enriched.id, targetLib);
+  }, [activeLibraryId, books, navigateToBook]);
 
   // Close reader and return to current shelf route
   const closeReader = useCallback(() => {
@@ -564,11 +567,11 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     }
 
     if (route.bookId) {
-      if (!activeBook || activeBook.id !== route.bookId) {
+      if (!activeBook || activeBook.id !== route.bookId || !activeBook.format) {
         booksApi.getBook(route.bookId)
           .then(book => {
             if (book && book.id) {
-              setActiveBook(book);
+              setActiveBook(prev => ({ ...(prev || {}), ...book }));
               const targetLib = route.libraryId || book.library_id || 'default';
               if (!activeLibraryId) {
                 setActiveLibraryId(targetLib);
@@ -591,8 +594,10 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
                 return;
               }
             } catch {}
-            setActiveBook(null);
-            routerNavigateToShelf(selectedShelf, route.libraryId || activeLibraryId);
+            if (!activeBook || !activeBook.id) {
+              setActiveBook(null);
+              routerNavigateToShelf(selectedShelf, route.libraryId || activeLibraryId);
+            }
           })
           .finally(() => {
             setRouteLoading(false);

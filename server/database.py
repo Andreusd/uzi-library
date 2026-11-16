@@ -1148,13 +1148,16 @@ class Database:
                 """
                 SELECT 
                     a.book_id,
+                    a.book_id as id,
                     a.pages_read,
                     a.reading_time_seconds,
                     a.pages_json,
                     COALESCE(b.title, a.book_id) as title,
                     COALESCE(b.author, '') as author,
                     COALESCE(b.format, '') as format,
-                    COALESCE(b.library_id, '') as library_id
+                    COALESCE(b.library_id, '') as library_id,
+                    COALESCE(b.path, '') as path,
+                    COALESCE(b.filename, '') as filename
                 FROM daily_reading_activity a
                 LEFT JOIN books b ON b.id = a.book_id
                 WHERE a.user_slug = ? AND a.date = ?
@@ -1165,6 +1168,7 @@ class Database:
             details = []
             for r in rows:
                 item = dict(r)
+                item["cover_url"] = f"/api/cover/{item['book_id']}"
                 try:
                     item["pages"] = json.loads(item["pages_json"])
                 except Exception:
@@ -1234,12 +1238,15 @@ class Database:
             comp_rows = conn.execute(
                 """
                 SELECT 
+                    rp.book_id as id,
                     rp.book_id,
                     rp.updated_at as completed_at,
                     COALESCE(b.title, rp.book_id) as title,
                     COALESCE(b.author, '') as author,
                     COALESCE(b.format, '') as format,
-                    COALESCE(b.library_id, '') as library_id
+                    COALESCE(b.library_id, '') as library_id,
+                    COALESCE(b.path, '') as path,
+                    COALESCE(b.filename, '') as filename
                 FROM reading_progress rp
                 LEFT JOIN books b ON b.id = rp.book_id
                 WHERE rp.user_slug = ? AND (rp.status = 'completed' OR rp.percent >= 100)
@@ -1247,7 +1254,11 @@ class Database:
                 """,
                 (user_slug,)
             ).fetchall()
-            completed_books = [dict(r) for r in comp_rows]
+            completed_books = []
+            for r in comp_rows:
+                cb_dict = dict(r)
+                cb_dict["cover_url"] = f"/api/cover/{cb_dict['id']}"
+                completed_books.append(cb_dict)
 
             return {
                 "current_streak": current_streak,

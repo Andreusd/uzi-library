@@ -14,7 +14,7 @@ import {
   X,
   BookCheck
 } from 'lucide-react';
-import { activityApi } from '../api';
+import { activityApi, booksApi } from '../api';
 import { useI18n } from '../i18n';
 
 /**
@@ -96,7 +96,7 @@ function generateMonthGrid(year, month, historyMap = new Map(), todayIso = new D
   return days;
 }
 
-export default function ReadingActivityView({ onSelectBook }) {
+export default function ReadingActivityView({ onSelectBook, books = [] }) {
   const { t, locale } = useI18n();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
@@ -116,6 +116,43 @@ export default function ReadingActivityView({ onSelectBook }) {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(10);
   const [savingGoal, setSavingGoal] = useState(false);
+
+  const handleSelectBook = useCallback(async (b) => {
+    if (!onSelectBook || !b) return;
+    const bookId = b.id || b.book_id;
+    if (!bookId) return;
+
+    // 1. Try finding in loaded books list
+    const found = books?.find((item) => item.id === bookId);
+    if (found) {
+      onSelectBook(found);
+      return;
+    }
+
+    // 2. Try fetching full book details from API
+    try {
+      const full = await booksApi.getBook(bookId);
+      if (full && (full.id || full.path || full.format)) {
+        onSelectBook(full);
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch book from API:', err);
+    }
+
+    // 3. Fallback to existing metadata
+    onSelectBook({
+      id: bookId,
+      book_id: bookId,
+      title: b.title,
+      author: b.author,
+      format: b.format,
+      path: b.path,
+      filename: b.filename,
+      library_id: b.library_id,
+      cover_url: b.cover_url || `/api/cover/${bookId}`,
+    });
+  }, [books, onSelectBook]);
 
   // Fetch overview data
   const loadOverview = useCallback(async () => {
@@ -638,7 +675,7 @@ export default function ReadingActivityView({ onSelectBook }) {
             {dayDetails.map((b) => (
               <div
                 key={b.book_id}
-                onClick={() => onSelectBook && onSelectBook({ id: b.book_id, title: b.title })}
+                onClick={() => handleSelectBook(b)}
                 className="p-3.5 rounded-xl bg-neutral-950/60 border border-neutral-800 hover:border-orange-500/40 hover:bg-neutral-800/40 transition flex items-center justify-between group cursor-pointer"
               >
                 <div className="min-w-0 pr-3">
@@ -686,7 +723,7 @@ export default function ReadingActivityView({ onSelectBook }) {
             {completedBooks.map((cb) => (
               <div
                 key={cb.id}
-                onClick={() => onSelectBook && onSelectBook(cb)}
+                onClick={() => handleSelectBook(cb)}
                 className="p-3 rounded-xl bg-neutral-950/60 border border-neutral-800 hover:border-teal-500/40 hover:bg-neutral-800/40 transition flex items-center gap-3 group cursor-pointer"
               >
                 <div className="w-10 h-14 bg-neutral-800 rounded-md overflow-hidden shrink-0 flex items-center justify-center border border-neutral-700">

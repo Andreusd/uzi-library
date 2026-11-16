@@ -494,7 +494,7 @@ export default function App() {
             />
 
             {selectedShelf === 'activity' ? (
-              <ReadingActivityView onSelectBook={openReader} />
+              <ReadingActivityView onSelectBook={openReader} books={books} />
             ) : (
               <>
                 <ShelfHeader

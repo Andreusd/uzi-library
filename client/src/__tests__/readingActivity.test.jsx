@@ -7,7 +7,7 @@ import {
   calculateRequiredDwellSeconds,
 } from '../hooks/useReadingTracker';
 import ReadingActivityView from '../components/ReadingActivityView';
-import { activityApi } from '../api';
+import { activityApi, booksApi } from '../api';
 import { I18nProvider } from '../i18n';
 
 // Helper component to test useReadingTracker
@@ -324,6 +324,100 @@ describe('Reading Activity Tracking & Dynamic Character-based Dwell Time', () =>
 
       await waitFor(() => {
         expect(setGoalSpy).toHaveBeenCalledWith(20);
+      });
+    });
+
+    it('resolves full book object from books prop when clicking a book card in day activity', async () => {
+      const onSelectBook = vi.fn();
+      const mockBooks = [
+        { id: 'b-1', title: 'Dune', format: 'epub', path: '/books/dune.epub', library_id: 'lib-1' }
+      ];
+
+      vi.spyOn(activityApi, 'getOverview').mockResolvedValue({
+        status: 'ok',
+        stats: {
+          current_streak: 2,
+          best_streak: 5,
+          total_pages: 50,
+          total_seconds: 1000,
+          total_days: 3,
+          pages_today: 10,
+          daily_goal: 10,
+          goal_met_today: true,
+          completed_books: []
+        },
+        history: []
+      });
+
+      vi.spyOn(activityApi, 'getDayDetails').mockResolvedValue({
+        status: 'ok',
+        date: new Date().toISOString().slice(0, 10),
+        books: [
+          { book_id: 'b-1', title: 'Dune', pages_read: 10, reading_time_seconds: 300, format: 'epub' }
+        ]
+      });
+
+      render(
+        <I18nProvider>
+          <ReadingActivityView onSelectBook={onSelectBook} books={mockBooks} />
+        </I18nProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Dune')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Dune'));
+
+      await waitFor(() => {
+        expect(onSelectBook).toHaveBeenCalledWith(mockBooks[0]);
+      });
+    });
+
+    it('fetches full book details via booksApi.getBook if book is not in books prop', async () => {
+      const onSelectBook = vi.fn();
+      const fetchedBook = { id: 'b-2', title: 'Foundation', format: 'epub', path: '/books/foundation.epub' };
+      const getBookSpy = vi.spyOn(booksApi, 'getBook').mockResolvedValue(fetchedBook);
+
+      vi.spyOn(activityApi, 'getOverview').mockResolvedValue({
+        status: 'ok',
+        stats: {
+          current_streak: 1,
+          best_streak: 1,
+          total_pages: 5,
+          total_seconds: 120,
+          total_days: 1,
+          pages_today: 5,
+          daily_goal: 10,
+          goal_met_today: false,
+          completed_books: []
+        },
+        history: []
+      });
+
+      vi.spyOn(activityApi, 'getDayDetails').mockResolvedValue({
+        status: 'ok',
+        date: new Date().toISOString().slice(0, 10),
+        books: [
+          { book_id: 'b-2', title: 'Foundation', pages_read: 5, reading_time_seconds: 120, format: 'epub' }
+        ]
+      });
+
+      render(
+        <I18nProvider>
+          <ReadingActivityView onSelectBook={onSelectBook} books={[]} />
+        </I18nProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Foundation'));
+
+      await waitFor(() => {
+        expect(getBookSpy).toHaveBeenCalledWith('b-2');
+        expect(onSelectBook).toHaveBeenCalledWith(fetchedBook);
       });
     });
   });
