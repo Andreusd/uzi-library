@@ -1,11 +1,12 @@
 import ePub from 'epubjs';
 import Section from 'epubjs/lib/section';
+import Spine from 'epubjs/lib/spine';
 
 /**
  * Applies defensive polyfills to epubjs to prevent browser-specific exceptions
  * (such as Firefox throwing TypeError: can't access property "writing-mode", this.window.getComputedStyle(...) is null
  * when iframes are hidden, detached, or mid-transition, or unhandled rejection Cannot read properties of undefined (reading 'content')
- * when sections are destroyed while async requests are in-flight).
+ * when sections or spines are destroyed while async requests are in-flight).
  */
 export function applyEpubPolyfills() {
   if (ePub && ePub.Contents && ePub.Contents.prototype) {
@@ -63,8 +64,13 @@ export function applyEpubPolyfills() {
     }
   }
 
-  // 4. Section: Prevent Uncaught TypeError: Cannot read properties of undefined (reading 'content')
-  // when Section.destroy() is invoked while async Section.load() network request is still in-flight
+  const dummyHooks = {
+    serialize: { trigger: () => Promise.resolve(), register: () => {}, deregister: () => {}, clear: () => {} },
+    content: { trigger: () => Promise.resolve(), register: () => {}, deregister: () => {}, clear: () => {} },
+  };
+
+  // 4. Section & Spine: Prevent Uncaught TypeError: Cannot read properties of undefined (reading 'content')
+  // when Section.destroy() or Spine.destroy() is invoked while async Section.load() network request is still in-flight
   const SectionClass = Section || (ePub && ePub.Section);
   if (SectionClass && SectionClass.prototype) {
     const sProto = SectionClass.prototype;
@@ -73,12 +79,22 @@ export function applyEpubPolyfills() {
       sProto.destroy = function () {
         origDestroy.call(this);
         // Replace undefined hooks with no-op dummy hooks so in-flight async loads don't crash
-        this.hooks = {
-          serialize: { trigger: () => Promise.resolve(), register: () => {}, deregister: () => {}, clear: () => {} },
-          content: { trigger: () => Promise.resolve(), register: () => {}, deregister: () => {}, clear: () => {} },
-        };
+        this.hooks = dummyHooks;
       };
       sProto._destroyPatched = true;
+    }
+  }
+
+  const SpineClass = Spine || (ePub && ePub.Spine);
+  if (SpineClass && SpineClass.prototype) {
+    const spProto = SpineClass.prototype;
+    if (typeof spProto.destroy === 'function' && !spProto._destroyPatched) {
+      const origDestroy = spProto.destroy;
+      spProto.destroy = function () {
+        origDestroy.call(this);
+        this.hooks = dummyHooks;
+      };
+      spProto._destroyPatched = true;
     }
   }
 }

@@ -181,6 +181,12 @@ export function initGlobalErrorHandlers() {
 
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
+    const msg = reason?.message || (typeof reason === 'string' ? reason : '');
+    // Ignore benign cancelled/aborted async loads in epubjs when sections/spines are destroyed during rapid navigation
+    if (msg.includes("reading 'content'") || msg.includes('reading "content"')) {
+      event.preventDefault?.();
+      return;
+    }
     logError(reason || 'Unhandled Promise Rejection', {
       source: 'unhandled_rejection',
     });

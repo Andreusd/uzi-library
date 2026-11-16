@@ -118,7 +118,11 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
         setCachedLibraries(libs);
       })
       .catch(err => {
-        console.error('Failed to load libraries:', err);
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.warn('Network offline, using cached libraries');
+        } else {
+          console.warn('Unable to reach server for libraries, using cached version:', err?.message || err);
+        }
         const cached = getCachedLibraries();
         if (cached && cached.length > 0) {
           setLibraries(cached);
