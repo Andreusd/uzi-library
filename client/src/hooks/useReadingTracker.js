@@ -2,8 +2,33 @@ import { useEffect, useRef, useCallback } from 'react';
 import { activityApi } from '../api';
 
 const OFFLINE_QUEUE_KEY = 'uzi_offline_activity_queue';
-const MIN_DWELL_SECONDS = 15;
-const MAX_DWELL_SECONDS = 300;
+
+export const DEFAULT_CHARS_PER_SECOND = 30;
+export const DEFAULT_MIN_FLOOR_SECONDS = 3;
+export const DEFAULT_EMPTY_PAGE_FLOOR_SECONDS = 5;
+export const DEFAULT_MAX_CAP_SECONDS = 45;
+export const MAX_AFK_DWELL_SECONDS = 300;
+
+/**
+ * Calculates dynamic required dwell time (in seconds) based on page character count:
+ * - 30 chars/second (standard fast reading speed ~300 words/min).
+ * - Minimum floor: 3 seconds (dedications, titles, short epigraphs).
+ * - Empty / image page floor: 5 seconds (comics, illustrations, title covers).
+ * - Maximum required cap: 45 seconds (dense pages 1350+ chars don't force > 45s wait).
+ */
+export function calculateRequiredDwellSeconds(
+  charCount,
+  charsPerSecond = DEFAULT_CHARS_PER_SECOND,
+  minFloor = DEFAULT_MIN_FLOOR_SECONDS,
+  maxCap = DEFAULT_MAX_CAP_SECONDS,
+  emptyFloor = DEFAULT_EMPTY_PAGE_FLOOR_SECONDS
+) {
+  if (charCount == null || charCount <= 0) {
+    return emptyFloor;
+  }
+  const calculated = Math.round(charCount / charsPerSecond);
+  return Math.min(maxCap, Math.max(minFloor, calculated));
+}
 
 /**
  * Flush any queued offline activity records to the backend.
@@ -36,10 +61,10 @@ export async function flushOfflineActivityQueue() {
 }
 
 /**
- * Hook to track reading dwell time per page and record reading activity.
+ * Hook to track reading dwell time per page and record reading activity dynamically.
  * 
  * Rules:
- * 1. User must stay at least 15s on a page for it to be counted as read.
+ * 1. User must stay at least dynamic required time on a page (based on character count: 30 chars/s, floor 3s, cap 45s).
  * 2. Capped at 5 minutes (300s) anti-AFK.
  * 3. Pauses dwell timing when tab is in background (visibilitychange).
  * 4. Queues locally when offline and syncs when back online.
@@ -51,6 +76,11 @@ export function useReadingTracker({
   isDualPage = false,
   spread = null,
   enabled = true,
+  getText = null,
+  charsPerSecond = DEFAULT_CHARS_PER_SECOND,
+  minFloorSeconds = DEFAULT_MIN_FLOOR_SECONDS,
+  maxCapSeconds = DEFAULT_MAX_CAP_SECONDS,
+  emptyPageFloorSeconds = DEFAULT_EMPTY_PAGE_FLOOR_SECONDS,
 }) {
   const currentTrackerStateRef = useRef({
     page: currentPage,
@@ -59,9 +89,11 @@ export function useReadingTracker({
     accumulatedMs: 0,
     isActive: typeof document !== 'undefined' ? document.visibilityState === 'visible' : true,
     lastVisibleTimestamp: Date.now(),
+    charCount: null,
+    requiredDwellSeconds: emptyPageFloorSeconds,
   });
 
-  // Keep track of pages already recorded today for this book to avoid spamming
+  // Keep track of pages already recorded today for this book to avoid duplicates
   const recordedPagesTodayRef = useRef(new Set());
 
   // Helper to commit dwell time for the currently viewed page(s)
@@ -77,10 +109,11 @@ export function useReadingTracker({
       totalDwellMs += (now - state.lastVisibleTimestamp);
     }
 
-    const dwellSeconds = Math.min(MAX_DWELL_SECONDS, Math.round(totalDwellMs / 1000));
+    const dwellSeconds = Math.min(MAX_AFK_DWELL_SECONDS, Math.round(totalDwellMs / 1000));
+    const requiredSeconds = state.requiredDwellSeconds ?? emptyPageFloorSeconds;
 
-    // Must reach minimum dwell threshold (e.g., 15 seconds)
-    if (dwellSeconds >= MIN_DWELL_SECONDS) {
+    // Must reach dynamic required dwell threshold
+    if (dwellSeconds >= requiredSeconds) {
       const pagesToRecord = state.spreadPages.length > 0 ? state.spreadPages : [state.page];
       const validPages = pagesToRecord.filter((p) => typeof p === 'number' && p > 0);
 
@@ -108,7 +141,7 @@ export function useReadingTracker({
         });
       }
     }
-  }, [bookId, enabled]);
+  }, [bookId, enabled, emptyPageFloorSeconds]);
 
   // Handle visibility changes (anti-AFK and background pause)
   useEffect(() => {
@@ -120,7 +153,7 @@ export function useReadingTracker({
 
       if (document.visibilityState === 'hidden') {
         if (state.isActive) {
-          state.accumulatedMs += Math.min(MAX_DWELL_SECONDS * 1000, now - state.lastVisibleTimestamp);
+          state.accumulatedMs += Math.min(MAX_AFK_DWELL_SECONDS * 1000, now - state.lastVisibleTimestamp);
           state.isActive = false;
         }
       } else {
@@ -170,12 +203,65 @@ export function useReadingTracker({
         accumulatedMs: 0,
         isActive: document.visibilityState === 'visible',
         lastVisibleTimestamp: Date.now(),
+        charCount: null,
+        requiredDwellSeconds: emptyPageFloorSeconds,
       };
     } else {
-      // Same page number, but maybe spread changed
       currentTrackerStateRef.current.spreadPages = pages;
     }
-  }, [currentPage, isDualPage, spread, enabled, commitDwellTime]);
+
+    // Compute dynamic character count and dwell time for the active page
+    let isCancelled = false;
+    const applyText = (text) => {
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+      const charCount = clean.length;
+      const req = calculateRequiredDwellSeconds(
+        charCount,
+        charsPerSecond,
+        minFloorSeconds,
+        maxCapSeconds,
+        emptyPageFloorSeconds
+      );
+      currentTrackerStateRef.current.charCount = charCount;
+      currentTrackerStateRef.current.requiredDwellSeconds = req;
+    };
+
+    if (typeof getText === 'function') {
+      try {
+        const res = getText(currentPage, pages);
+        if (res && typeof res.then === 'function') {
+          res
+            .then((text) => {
+              if (isCancelled) return;
+              applyText(text);
+            })
+            .catch(() => {
+              if (isCancelled) return;
+              currentTrackerStateRef.current.requiredDwellSeconds = emptyPageFloorSeconds;
+            });
+        } else {
+          applyText(res);
+        }
+      } catch {
+        currentTrackerStateRef.current.requiredDwellSeconds = emptyPageFloorSeconds;
+      }
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    currentPage,
+    isDualPage,
+    spread,
+    enabled,
+    commitDwellTime,
+    getText,
+    charsPerSecond,
+    minFloorSeconds,
+    maxCapSeconds,
+    emptyPageFloorSeconds
+  ]);
 
   // Commit on unmount / beforeunload
   useEffect(() => {

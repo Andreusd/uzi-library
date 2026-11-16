@@ -524,7 +524,7 @@ const translations = {
     pagesReadTotal: 'pages recorded',
     noActivityOnDay: 'No reading recorded on this day.',
     completedBooks: 'Completed Books',
-    keepReadingPrompt: 'Read for at least 15s on each page to track your daily progress!',
+    keepReadingPrompt: 'Read at your own pace — pages are recorded automatically based on text length!',
   },
   pt: {
     // Sidebar
@@ -1049,7 +1049,7 @@ const translations = {
     pagesReadTotal: 'páginas registradas',
     noActivityOnDay: 'Nenhuma página registrada neste dia.',
     completedBooks: 'Livros Concluídos',
-    keepReadingPrompt: 'Leia por ao menos 15s em cada página para registrar seu progresso diário!',
+    keepReadingPrompt: 'Leia no seu próprio ritmo — o progresso é registrado automaticamente pelo conteúdo de cada página!',
   },
   es: {
     // Sidebar
@@ -1574,7 +1574,7 @@ const translations = {
     pagesReadTotal: 'páginas registradas',
     noActivityOnDay: 'Ninguna página registrada en este día.',
     completedBooks: 'Libros Concluidos',
-    keepReadingPrompt: '¡Lee durante al menos 15s en cada página para registrar tu progreso diario!',
+    keepReadingPrompt: '¡Lee a tu propio ritmo — el progreso se registra automáticamente según el contenido de cada página!',
   },
   fr: {
     // Sidebar
@@ -2099,7 +2099,7 @@ const translations = {
     pagesReadTotal: 'pages enregistrées',
     noActivityOnDay: 'Aucune page enregistrée ce jour.',
     completedBooks: 'Livres terminés',
-    keepReadingPrompt: 'Lisez au moins 15s par page pour enregistrer votre progression quotidienne !',
+    keepReadingPrompt: 'Lisez à votre propre rythme — les pages sont enregistrées automatiquement selon la longueur du texte !',
   }
 };
 

@@ -237,7 +237,7 @@ export default function ReadingActivityView({ onSelectBook }) {
             <span>{t('activity') || 'Atividade'}</span>
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1.5">
-            {t('keepReadingPrompt') || 'Leia por ao menos 15s em cada página para registrar seu progresso diário!'}
+            {t('keepReadingPrompt') || 'Leia no seu próprio ritmo — o progresso é registrado automaticamente pelo conteúdo de cada página!'}
           </p>
         </div>
 

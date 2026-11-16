@@ -1,75 +1,167 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { useReadingTracker, flushOfflineActivityQueue } from '../hooks/useReadingTracker';
+import {
+  useReadingTracker,
+  flushOfflineActivityQueue,
+  calculateRequiredDwellSeconds,
+} from '../hooks/useReadingTracker';
 import ReadingActivityView from '../components/ReadingActivityView';
 import { activityApi } from '../api';
 import { I18nProvider } from '../i18n';
 
 // Helper component to test useReadingTracker
-function TrackerTestComponent({ bookId, currentPage, totalPages, enabled = true, isDualPage = false, spread = null }) {
-  useReadingTracker({ bookId, currentPage, totalPages, enabled, isDualPage, spread });
+function TrackerTestComponent({
+  bookId,
+  currentPage,
+  totalPages,
+  enabled = true,
+  isDualPage = false,
+  spread = null,
+  getText = null,
+}) {
+  useReadingTracker({ bookId, currentPage, totalPages, enabled, isDualPage, spread, getText });
   return <div data-testid="tracker-active">Page {currentPage}</div>;
 }
 
-describe('Reading Activity Tracking & Visualization', () => {
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-    localStorage.clear();
+describe('Reading Activity Tracking & Dynamic Character-based Dwell Time', () => {
+  describe('calculateRequiredDwellSeconds formula', () => {
+    it('returns empty page floor (5s) for empty or null text', () => {
+      expect(calculateRequiredDwellSeconds(0)).toBe(5);
+      expect(calculateRequiredDwellSeconds(null)).toBe(5);
+      expect(calculateRequiredDwellSeconds(-10)).toBe(5);
+    });
+
+    it('clamps to minimum floor (3s) for very short text', () => {
+      // 50 chars / 30 = ~1.6s -> clamped to 3s
+      expect(calculateRequiredDwellSeconds(50)).toBe(3);
+    });
+
+    it('calculates proportional time at 30 chars/second', () => {
+      // 300 chars / 30 = 10s
+      expect(calculateRequiredDwellSeconds(300)).toBe(10);
+      // 600 chars / 30 = 20s
+      expect(calculateRequiredDwellSeconds(600)).toBe(20);
+      // 1200 chars / 30 = 40s
+      expect(calculateRequiredDwellSeconds(1200)).toBe(40);
+    });
+
+    it('caps maximum required dwell time at 45 seconds for dense pages', () => {
+      // 2400 chars / 30 = 80s -> capped at 45s
+      expect(calculateRequiredDwellSeconds(2400)).toBe(45);
+      expect(calculateRequiredDwellSeconds(5000)).toBe(45);
+    });
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-    localStorage.clear();
-  });
+  describe('useReadingTracker hook with dynamic character count', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+      localStorage.clear();
+    });
 
-  describe('useReadingTracker hook', () => {
-    it('does not record activity if dwell time is under 15 seconds', async () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      localStorage.clear();
+    });
+
+    it('records activity for a short page (60 chars) after only 3 seconds', async () => {
       const recordSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
+      const getText = vi.fn().mockReturnValue('A'.repeat(60)); // 60 chars -> 3s required
 
       const { rerender } = render(
-        <TrackerTestComponent bookId="book-1" currentPage={1} totalPages={100} />
+        <TrackerTestComponent bookId="book-short" currentPage={1} totalPages={100} getText={getText} />
       );
 
-      // Fast forward 10 seconds (less than 15s threshold)
+      // Advance by 3 seconds
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+
+      rerender(
+        <TrackerTestComponent bookId="book-short" currentPage={2} totalPages={100} getText={getText} />
+      );
+
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+      const payload = recordSpy.mock.calls[0][0];
+      expect(payload.book_id).toBe('book-short');
+      expect(payload.pages).toEqual([1]);
+      expect(payload.reading_time_seconds).toBeGreaterThanOrEqual(3);
+    });
+
+    it('does not record a dense page (600 chars) if user advances after only 10s (needs 20s)', async () => {
+      const recordSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
+      const getText = vi.fn().mockReturnValue('A'.repeat(600)); // 600 chars -> 20s required
+
+      const { rerender } = render(
+        <TrackerTestComponent bookId="book-dense" currentPage={1} totalPages={100} getText={getText} />
+      );
+
+      // Advance by 10 seconds (under required 20s)
       act(() => {
         vi.advanceTimersByTime(10000);
       });
 
-      // Change page to 2
       rerender(
-        <TrackerTestComponent bookId="book-1" currentPage={2} totalPages={100} />
+        <TrackerTestComponent bookId="book-dense" currentPage={2} totalPages={100} getText={getText} />
       );
 
       expect(recordSpy).not.toHaveBeenCalled();
     });
 
-    it('records page activity when user spends at least 15 seconds on a page and advances', async () => {
+    it('records dense page (600 chars) when user spends 22s and advances', async () => {
       const recordSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
+      const getText = vi.fn().mockReturnValue('A'.repeat(600)); // 600 chars -> 20s required
 
       const { rerender } = render(
-        <TrackerTestComponent bookId="book-1" currentPage={1} totalPages={100} />
+        <TrackerTestComponent bookId="book-dense" currentPage={1} totalPages={100} getText={getText} />
       );
 
-      // Advance by 20 seconds (>= 15s)
+      // Advance by 22 seconds (>= 20s)
       act(() => {
-        vi.advanceTimersByTime(20000);
+        vi.advanceTimersByTime(22000);
       });
 
-      // Change page to 2
       rerender(
-        <TrackerTestComponent bookId="book-1" currentPage={2} totalPages={100} />
+        <TrackerTestComponent bookId="book-dense" currentPage={2} totalPages={100} getText={getText} />
       );
 
       expect(recordSpy).toHaveBeenCalledTimes(1);
       const payload = recordSpy.mock.calls[0][0];
-      expect(payload.book_id).toBe('book-1');
       expect(payload.pages).toEqual([1]);
-      expect(payload.reading_time_seconds).toBe(20);
+      expect(payload.reading_time_seconds).toBe(22);
     });
 
-    it('records both pages when in dual-page spread mode', async () => {
+    it('works with asynchronous getText (Promise resolution like PDF.js)', async () => {
+      const recordSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
+      const getText = vi.fn().mockImplementation(() => Promise.resolve('B'.repeat(300))); // 300 chars -> 10s required
+
+      const { rerender } = render(
+        <TrackerTestComponent bookId="book-async" currentPage={1} totalPages={100} getText={getText} />
+      );
+
+      // Flush microtask for Promise resolution
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Advance by 12 seconds
+      act(() => {
+        vi.advanceTimersByTime(12000);
+      });
+
+      rerender(
+        <TrackerTestComponent bookId="book-async" currentPage={2} totalPages={100} getText={getText} />
+      );
+
+      expect(recordSpy).toHaveBeenCalledTimes(1);
+      const payload = recordSpy.mock.calls[0][0];
+      expect(payload.book_id).toBe('book-async');
+      expect(payload.pages).toEqual([1]);
+      expect(payload.reading_time_seconds).toBe(12);
+    });
+
+    it('records both pages in dual-page spread mode', async () => {
       const recordSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
 
       const { rerender } = render(
@@ -83,10 +175,9 @@ describe('Reading Activity Tracking & Visualization', () => {
       );
 
       act(() => {
-        vi.advanceTimersByTime(25000);
+        vi.advanceTimersByTime(10000);
       });
 
-      // Advance to spread 4 & 5
       rerender(
         <TrackerTestComponent
           bookId="book-pdf"
@@ -100,7 +191,6 @@ describe('Reading Activity Tracking & Visualization', () => {
       expect(recordSpy).toHaveBeenCalledTimes(1);
       const payload = recordSpy.mock.calls[0][0];
       expect(payload.pages).toEqual([2, 3]);
-      expect(payload.reading_time_seconds).toBe(25);
     });
 
     it('queues offline records when API fails and flushes when online', async () => {
@@ -111,19 +201,17 @@ describe('Reading Activity Tracking & Visualization', () => {
       );
 
       act(() => {
-        vi.advanceTimersByTime(18000);
+        vi.advanceTimersByTime(10000);
       });
 
       rerender(
         <TrackerTestComponent bookId="book-offline" currentPage={6} totalPages={100} />
       );
 
-      // Wait for async catch handler to enqueue
       await act(async () => {
         await Promise.resolve();
       });
 
-      // Verify queued in localStorage
       const queuedRaw = localStorage.getItem('uzi_offline_activity_queue');
       expect(queuedRaw).toBeTruthy();
       const queued = JSON.parse(queuedRaw);
@@ -131,7 +219,6 @@ describe('Reading Activity Tracking & Visualization', () => {
       expect(queued[0].book_id).toBe('book-offline');
       expect(queued[0].pages).toEqual([5]);
 
-      // Now mock success and flush
       const successSpy = vi.spyOn(activityApi, 'recordActivity').mockResolvedValue({ status: 'ok' });
       successSpy.mockClear();
       await flushOfflineActivityQueue();
@@ -142,10 +229,6 @@ describe('Reading Activity Tracking & Visualization', () => {
   });
 
   describe('ReadingActivityView component', () => {
-    beforeEach(() => {
-      vi.useRealTimers();
-    });
-
     it('renders metrics cards with streak, daily goal progress, and heatmap', async () => {
       vi.spyOn(activityApi, 'getOverview').mockResolvedValue({
         status: 'ok',
@@ -181,21 +264,13 @@ describe('Reading Activity Tracking & Visualization', () => {
         </I18nProvider>
       );
 
-      // Verify streak is rendered
       await waitFor(() => {
         expect(screen.getByText('5')).toBeInTheDocument();
       });
 
-      // Verify goal met badge
       expect(screen.getByText(/Meta Batida|Goal Achieved/i)).toBeInTheDocument();
-
-      // Verify total pages
       expect(screen.getByText('350')).toBeInTheDocument();
-
-      // Verify completed book is displayed
       expect(screen.getByText('Finished Book')).toBeInTheDocument();
-
-      // Verify book details for today
       expect(screen.getByText('Dune')).toBeInTheDocument();
     });
 
@@ -237,13 +312,11 @@ describe('Reading Activity Tracking & Visualization', () => {
         expect(screen.getByText(/10 pág\/dia/i)).toBeInTheDocument();
       });
 
-      // Click to edit goal
       fireEvent.click(screen.getByText(/10 pág\/dia/i));
 
       const input = screen.getByDisplayValue('10');
       fireEvent.change(input, { target: { value: '20' } });
 
-      // Click check icon button
       const checkBtn = input.nextElementSibling;
       fireEvent.click(checkBtn);
 

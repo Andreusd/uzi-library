@@ -19,6 +19,7 @@ import { useEpubAnnotations } from '../hooks/useEpubAnnotations';
 import { useAiCopilot } from '../hooks/useAiCopilot';
 import { useEpubNavigation } from '../hooks/useEpubNavigation';
 import { useReadingTracker } from '../hooks/useReadingTracker';
+import { extractEpubVisibleText } from '../utils/textToSpeech';
 import { getOfflineBookArrayBuffer, saveOfflineProgress } from '../services/offlineStorage';
 import {
   findChapterLabel,
@@ -245,12 +246,23 @@ export default function EpubViewer({
   // Subsystem Hook 5: AI Copilot
   const copilot = useAiCopilot();
 
-  // Reading Activity Tracker
+  // Dynamic text extractor for character-based dwell time calculation
+  const getEpubCurrentText = useCallback(() => {
+    if (!renditionRef.current) return '';
+    try {
+      return extractEpubVisibleText(renditionRef.current);
+    } catch {
+      return '';
+    }
+  }, []);
+
+  // Reading Activity Tracker (character-based dwell time calculation: 30 chars/s, floor 3s, cap 45s)
   useReadingTracker({
     bookId: book?.id,
     currentPage: pageInfo.page,
     totalPages: pageInfo.total,
     enabled: !!renditionReady,
+    getText: getEpubCurrentText,
   });
 
   // Handle dynamic text selection for AI Copilot (VS Code transient preview tab style)

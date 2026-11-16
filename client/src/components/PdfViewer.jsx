@@ -20,6 +20,7 @@ import { useTrackpadSwipe } from '../hooks/useTrackpadSwipe';
 import { useReaderHeaderPin } from '../hooks/useReaderHeaderPin';
 import { usePdfKeyboardGestures } from '../hooks/usePdfKeyboardGestures';
 import { useReadingTracker } from '../hooks/useReadingTracker';
+import { extractPdfPageText } from '../utils/textToSpeech';
 import { SimpleLinkService } from '../utils/SimpleLinkService';
 import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
 import { getOfflineBookArrayBuffer } from '../services/offlineStorage';
@@ -396,7 +397,23 @@ export default function PdfViewer({
     bookId: book?.id,
   });
 
-  // Reading Activity Tracker (pages read per day with 15s dwell time)
+  // Dynamic text extractor for character-based dwell time calculation
+  const getPdfCurrentText = useCallback(async (pageNum) => {
+    if (!pdfDoc) return '';
+    try {
+      if (nav.isDualPage && nav.spread) {
+        const leftText = nav.spread.left ? await extractPdfPageText(pdfDoc, nav.spread.left) : '';
+        const rightText = nav.spread.right ? await extractPdfPageText(pdfDoc, nav.spread.right) : '';
+        return `${leftText} ${rightText}`.trim();
+      }
+      const targetPage = pageNum || nav.currentPage;
+      return await extractPdfPageText(pdfDoc, targetPage);
+    } catch {
+      return '';
+    }
+  }, [pdfDoc, nav.isDualPage, nav.spread, nav.currentPage]);
+
+  // Reading Activity Tracker (character-based dwell time calculation: 30 chars/s, floor 3s, cap 45s)
   useReadingTracker({
     bookId: book?.id,
     currentPage: nav.currentPage,
@@ -404,6 +421,7 @@ export default function PdfViewer({
     isDualPage: nav.isDualPage,
     spread: nav.spread,
     enabled: !!pdfDoc,
+    getText: getPdfCurrentText,
   });
 
   // AI Copilot hook
