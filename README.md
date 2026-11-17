@@ -6,12 +6,6 @@ A modern, fast, responsive, and lightweight application to organize, browse, and
 [![Windows App](https://img.shields.io/badge/Windows-Standalone_.exe-0078D6?logo=windows)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.exe)
 [![Android App](https://img.shields.io/badge/Android-Installable_.apk-3DDC84?logo=android)](https://github.com/Andreusd/uzi-library/releases/latest/download/UziLibrary.apk)
 
-<p align="center">
-  <img src="docs/screenshots/mobile-home.jpg" width="300" alt="Uzi Library Mobile Home" />
-  &emsp;&emsp;
-  <img src="docs/screenshots/mobile-sidebar.jpg" width="300" alt="Uzi Library Navigation & Activity" />
-</p>
-
 ---
 
 ## 📥 Downloads (Standalone & Mobile Apps)
@@ -139,3 +133,19 @@ export BOOK_LIBRARY_PATH="/path/to/your/books"
 
 * **Backend**: Python 3.10+, FastAPI, Uvicorn, PyPDFium2, Pillow.
 * **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide React, PDF.js.
+
+---
+
+## 📸 Screenshots / Capturas de Tela
+
+### 🖥️ Desktop
+<p align="center">
+  <img src="docs/screenshots/desktop-home.jpg" width="100%" alt="Uzi Library Desktop Overview" />
+</p>
+
+### 📱 Mobile
+<p align="center">
+  <img src="docs/screenshots/mobile-home.jpg" width="300" alt="Uzi Library Mobile Home" />
+  &emsp;&emsp;
+  <img src="docs/screenshots/mobile-sidebar.jpg" width="300" alt="Uzi Library Navigation & Activity" />
+</p>
