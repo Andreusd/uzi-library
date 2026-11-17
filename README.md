@@ -131,8 +131,10 @@ export BOOK_LIBRARY_PATH="/path/to/your/books"
 
 ## 🛠️ Tech Stack
 
-* **Backend**: Python 3.10+, FastAPI, Uvicorn, PyPDFium2, Pillow.
-* **Frontend**: React 19, Vite, Tailwind CSS v4, Lucide React, PDF.js.
+* **Backend**: Python 3.10+, FastAPI, Uvicorn, SQLite, PyPDFium2, Pillow.
+* **Frontend / Web**: React 19, Vite, Tailwind CSS v4, Lucide React, PDF.js, Epub.js.
+* **Desktop App (`.exe`)**: Tauri v2, Rust (2021), WebView2, micro-proxy local com cache de arquivos e offline embutido (`tiny_http`, `ureq`).
+* **Android App (`.apk`)**: Kotlin, Android SDK 34 (Android 14), AndroidX, Android WebView, suporte a display cutout (notch) e Adaptive Icons.
 
 ---
 
