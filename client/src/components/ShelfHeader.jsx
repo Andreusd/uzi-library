@@ -44,8 +44,8 @@ export default function ShelfHeader({
   const formatBadge = isFormatFiltered ? formatFilter.toUpperCase() : null;
 
   return (
-    <div className="flex items-center justify-between mb-6 pb-2 border-b border-neutral-800">
-      <div>
+    <div className="flex items-center justify-between mb-6 pb-2 border-b border-neutral-800 gap-3">
+      <div className="min-w-0 flex-1">
         <h2 className="text-lg sm:text-xl font-bold text-neutral-100 tracking-tight flex items-center gap-2">
           {selectedShelf === 'continue-reading'
             ? t('continueReading')
@@ -103,13 +103,13 @@ export default function ShelfHeader({
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {isFolderPage && onUploadClick && (
           <button
             type="button"
             onClick={onUploadClick}
             data-testid="upload-book-btn"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-medium transition cursor-pointer shadow-sm hover:border-amber-500/50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-medium transition cursor-pointer shadow-sm hover:border-amber-500/50 shrink-0"
             title={t('uploadBook')}
           >
             <Upload className="w-3.5 h-3.5" />
