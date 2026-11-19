@@ -164,6 +164,12 @@ export const booksApi = {
       method: 'POST',
       body: JSON.stringify({ book_id: bookId }),
     }),
+
+  uploadBook: (formData) =>
+    apiJson('/api/books/upload', {
+      method: 'POST',
+      body: formData,
+    }),
 };
 
 /**

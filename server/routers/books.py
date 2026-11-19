@@ -1,10 +1,10 @@
 import os
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, UploadFile, File, Form
 from fastapi.responses import FileResponse
 import pypdfium2 as pdfium
 
-from ..scanner import LibraryScanner
+from ..scanner import LibraryScanner, compute_book_id
 from ..covers import CoverManager
 from ..users import UserManager
 from ..deps import (
@@ -551,4 +551,85 @@ def toggle_favorite(
         "book_id": payload.book_id,
         "is_favorite": is_fav,
         "favorite_ids": favorites_mgr.get_favorite_ids()
+    }
+
+@router.post("/api/books/upload")
+async def upload_book(
+    file: UploadFile = File(...),
+    folder_id: str = Form(...),
+    library_id: Optional[str] = Form(None),
+    scanner: LibraryScanner = Depends(get_scanner),
+):
+    """
+    Uploads a new book file (PDF or EPUB) to a specific physical folder in the active library.
+    Rejects the upload if a file with the same name already exists in the target folder.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename cannot be empty")
+
+    filename = os.path.basename(file.filename.strip())
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".pdf", ".epub"]:
+        raise HTTPException(status_code=400, detail="Only PDF and EPUB files are supported.")
+
+    lib_id, lib_path = scanner._resolve_library(library_id)
+    if not lib_path or not os.path.isdir(lib_path):
+        raise HTTPException(status_code=404, detail="Library path not found.")
+
+    clean_folder = os.path.basename(folder_id.strip())
+    if folder_id == "_general":
+        target_dir = lib_path
+    else:
+        target_dir = os.path.join(lib_path, clean_folder)
+
+    if not os.path.isdir(target_dir):
+        raise HTTPException(status_code=404, detail=f"Folder '{folder_id}' does not exist on disk.")
+
+    dest_path = os.path.join(target_dir, filename)
+
+    # Reject if file already exists in target folder (strict name collision check)
+    if os.path.exists(dest_path):
+        raise HTTPException(
+            status_code=409,
+            detail=f"A book named '{filename}' already exists in this folder."
+        )
+
+    # Read initial chunk to validate file header / magic bytes
+    initial_chunk = await file.read(1024)
+    if not initial_chunk:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    if ext == ".pdf":
+        if b"%PDF" not in initial_chunk:
+            raise HTTPException(status_code=400, detail="The file is not a valid PDF document.")
+    elif ext == ".epub":
+        if not initial_chunk.startswith(b"PK"):
+            raise HTTPException(status_code=400, detail="The file is not a valid EPUB document.")
+
+    try:
+        with open(dest_path, "wb") as f_out:
+            f_out.write(initial_chunk)
+            while chunk := await file.read(1024 * 1024):
+                f_out.write(chunk)
+    except Exception as e:
+        if os.path.exists(dest_path):
+            try:
+                os.remove(dest_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"Failed to save book to disk: {str(e)}")
+
+    # Rescan library so the new book is cataloged with its metadata
+    scanner.rescan_library(lib_id)
+
+    actual_shelf = "_general" if folder_id == "_general" else clean_folder
+    book_id = compute_book_id(actual_shelf, filename, lib_id)
+    created_book = scanner.find_book(book_id, lib_id)
+
+    return {
+        "status": "ok",
+        "message": f"Book '{filename}' uploaded successfully.",
+        "book": created_book,
+        "book_id": book_id,
+        "folder_id": folder_id
     }

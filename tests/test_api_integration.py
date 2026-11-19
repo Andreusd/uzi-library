@@ -561,5 +561,64 @@ class TestLookupAPI(BaseAPITestCase):
         self.assertEqual(get_resp.json()["original_text"], "world")
 
 
+class TestBookUploadAPI(BaseAPITestCase):
+    def test_upload_pdf_success(self):
+        content = b"%PDF-1.5 \n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
+        files = {"file": ("Neuromancer.pdf", content, "application/pdf")}
+        data = {"folder_id": "Sci-Fi", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 200)
+        res_json = resp.json()
+        self.assertEqual(res_json["status"], "ok")
+        self.assertIn("Neuromancer.pdf", res_json["message"])
+        saved_path = os.path.join(self.scifi_dir, "Neuromancer.pdf")
+        self.assertTrue(os.path.isfile(saved_path))
+        with open(saved_path, "rb") as f:
+            self.assertEqual(f.read(), content)
+
+    def test_upload_epub_success(self):
+        content = b"PK\x03\x04mock epub contents"
+        files = {"file": ("Hyperion.epub", content, "application/epub+zip")}
+        data = {"folder_id": "Sci-Fi", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 200)
+        res_json = resp.json()
+        self.assertEqual(res_json["status"], "ok")
+        saved_path = os.path.join(self.scifi_dir, "Hyperion.epub")
+        self.assertTrue(os.path.isfile(saved_path))
+
+    def test_upload_collision_rejection(self):
+        # Dune_Chronicles.pdf already exists in self.scifi_dir
+        content = b"%PDF-1.4 duplicate"
+        files = {"file": ("Dune_Chronicles.pdf", content, "application/pdf")}
+        data = {"folder_id": "Sci-Fi", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 409)
+        self.assertIn("already exists", resp.json()["detail"])
+
+    def test_upload_unsupported_format(self):
+        content = b"Some plain text"
+        files = {"file": ("notes.txt", content, "text/plain")}
+        data = {"folder_id": "Sci-Fi", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Only PDF and EPUB", resp.json()["detail"])
+
+    def test_upload_corrupt_file_rejection(self):
+        content = b"NOT_A_REAL_PDF_HEADER"
+        files = {"file": ("fake.pdf", content, "application/pdf")}
+        data = {"folder_id": "Sci-Fi", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("not a valid PDF", resp.json()["detail"])
+
+    def test_upload_nonexistent_folder(self):
+        content = b"%PDF-1.4 sample"
+        files = {"file": ("book.pdf", content, "application/pdf")}
+        data = {"folder_id": "NonExistentFolder", "library_id": self.library_id}
+        resp = self.client.post("/api/books/upload", files=files, data=data)
+        self.assertEqual(resp.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()

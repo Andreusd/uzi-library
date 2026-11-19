@@ -19,7 +19,10 @@ import { useLibraryData } from './hooks/useLibraryData';
 import { useLibraryKeyboardNavigation } from './hooks/useLibraryKeyboardNavigation';
 import { useSidebarSwipe } from './hooks/useSidebarSwipe';
 import { usePullToSearch } from './hooks/usePullToSearch';
+import { useFolderUpload } from './hooks/useFolderUpload';
 import PullToSearchIndicator from './components/PullToSearchIndicator';
+import FolderDropOverlay from './components/FolderDropOverlay';
+import UploadToast from './components/UploadToast';
 
 /**
  * Root Application Component.
@@ -83,6 +86,37 @@ export default function App() {
     isServerReachable,
     checkReachability,
   } = libraryData;
+
+  const isFolderPage = Boolean(
+    currentShelfObj &&
+    selectedShelf &&
+    selectedShelf !== 'folders' &&
+    selectedShelf !== 'all-books' &&
+    selectedShelf !== 'favorites' &&
+    selectedShelf !== 'continue-reading' &&
+    selectedShelf !== 'activity' &&
+    selectedShelf !== 'downloaded' &&
+    selectedShelf !== 'tags' &&
+    !selectedShelf.startsWith('tag:')
+  );
+
+  const {
+    isDragging,
+    uploadStatus,
+    dismissStatus,
+    openFilePicker,
+    fileInputRef,
+    onFileInputChange,
+  } = useFolderUpload({
+    isFolderPage,
+    currentShelfObj,
+    activeLibraryId,
+    books,
+    onUploadSuccess: async () => {
+      await libraryData.loadBooks?.();
+      await libraryData.loadShelves?.();
+    },
+  });
 
   const [isTransitionActive, setIsTransitionActive] = useState(false);
   const isReaderActive = Boolean(activeBook || isTransitionActive);
@@ -509,6 +543,8 @@ export default function App() {
                   currentTagObj={currentTagObj}
                   currentShelfObj={currentShelfObj}
                   onOpenTagManager={() => modals.openTagModal(null)}
+                  isFolderPage={isFolderPage}
+                  onUploadClick={openFilePicker}
                 />
 
                 <LibraryContent
@@ -563,6 +599,29 @@ export default function App() {
 
         {/* Encapsulated Modals and Context Menus */}
         <AppModals modals={modals} libraryData={libraryData} />
+
+        {/* Hidden File Input for Folder Uploads */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.epub"
+          multiple
+          onChange={onFileInputChange}
+          style={{ display: 'none' }}
+          data-testid="folder-upload-input"
+        />
+
+        {/* Drag & Drop Overlay (active only when dragging over a physical folder view) */}
+        <FolderDropOverlay
+          isDragging={isDragging}
+          folderName={currentShelfObj?.name}
+        />
+
+        {/* Upload Status Toast Notification */}
+        <UploadToast
+          uploadStatus={uploadStatus}
+          onDismiss={dismissStatus}
+        />
       </div>
     </BookActionsProvider>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { getTagColorConfig } from '../utils/tagColors';
 import { useI18n } from '../i18n';
 
@@ -31,6 +31,8 @@ export default function ShelfHeader({
   currentTagObj,
   currentShelfObj,
   onOpenTagManager,
+  isFolderPage,
+  onUploadClick,
 }) {
   const { t } = useI18n();
 
@@ -101,16 +103,31 @@ export default function ShelfHeader({
         </p>
       </div>
 
-      {selectedShelf === 'tags' && (
-        <button
-          type="button"
-          onClick={onOpenTagManager}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>{t('manageTags')}</span>
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {isFolderPage && onUploadClick && (
+          <button
+            type="button"
+            onClick={onUploadClick}
+            data-testid="upload-book-btn"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-medium transition cursor-pointer shadow-sm hover:border-amber-500/50"
+            title={t('uploadBook')}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>{t('uploadBook')}</span>
+          </button>
+        )}
+
+        {selectedShelf === 'tags' && (
+          <button
+            type="button"
+            onClick={onOpenTagManager}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t('manageTags')}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

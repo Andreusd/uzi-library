@@ -535,6 +535,17 @@ const translations = {
     noActivityOnDay: 'No reading recorded on this day.',
     completedBooks: 'Completed Books',
     keepReadingPrompt: 'Read at your own pace — pages are recorded automatically based on text length!',
+
+    // Book Upload / Drag & Drop
+    uploadBook: 'Upload book',
+    dropBooksHere: 'Drop book here to upload',
+    uploadToFolder: 'Add to folder {folder}',
+    uploadOnlyPdfEpub: 'Only PDF and EPUB files are supported.',
+    uploadFileConflict: 'A book named "{filename}" already exists in this folder.',
+    uploadSuccess: 'Book "{filename}" added successfully!',
+    uploadError: 'Failed to upload book: {error}',
+    uploadingBook: 'Uploading {filename}...',
+    supportedFormatsHint: 'Supported formats: PDF, EPUB',
   },
   pt: {
     // Sidebar
@@ -1070,6 +1081,17 @@ const translations = {
     noActivityOnDay: 'Nenhuma página registrada neste dia.',
     completedBooks: 'Livros Concluídos',
     keepReadingPrompt: 'Leia no seu próprio ritmo — o progresso é registrado automaticamente pelo conteúdo de cada página!',
+
+    // Book Upload / Drag & Drop
+    uploadBook: 'Adicionar livro',
+    dropBooksHere: 'Solte o livro aqui para enviar',
+    uploadToFolder: 'Adicionar à pasta {folder}',
+    uploadOnlyPdfEpub: 'Apenas arquivos PDF e EPUB são suportados.',
+    uploadFileConflict: 'Já existe um livro com o nome "{filename}" nesta pasta.',
+    uploadSuccess: 'Livro "{filename}" adicionado com sucesso!',
+    uploadError: 'Falha ao enviar o livro: {error}',
+    uploadingBook: 'Enviando {filename}...',
+    supportedFormatsHint: 'Formatos suportados: PDF, EPUB',
   },
   es: {
     // Sidebar
@@ -1605,6 +1627,17 @@ const translations = {
     noActivityOnDay: 'Ninguna página registrada en este día.',
     completedBooks: 'Libros Concluidos',
     keepReadingPrompt: '¡Lee a tu propio ritmo — el progreso se registra automáticamente según el contenido de cada página!',
+
+    // Book Upload / Drag & Drop
+    uploadBook: 'Añadir libro',
+    dropBooksHere: 'Suelta el libro aquí para subirlo',
+    uploadToFolder: 'Añadir a la carpeta {folder}',
+    uploadOnlyPdfEpub: 'Solo se admiten archivos PDF y EPUB.',
+    uploadFileConflict: 'Ya existe un libro con el nombre "{filename}" en esta carpeta.',
+    uploadSuccess: '¡Libro "{filename}" añadido con éxito!',
+    uploadError: 'Error al subir el libro: {error}',
+    uploadingBook: 'Subiendo {filename}...',
+    supportedFormatsHint: 'Formatos admitidos: PDF, EPUB',
   },
   fr: {
     // Sidebar
@@ -2140,6 +2173,17 @@ const translations = {
     noActivityOnDay: 'Aucune page enregistrée ce jour.',
     completedBooks: 'Livres terminés',
     keepReadingPrompt: 'Lisez à votre propre rythme — les pages sont enregistrées automatiquement selon la longueur du texte !',
+
+    // Book Upload / Drag & Drop
+    uploadBook: 'Ajouter un livre',
+    dropBooksHere: 'Déposez le livre ici pour le téléverser',
+    uploadToFolder: 'Ajouter au dossier {folder}',
+    uploadOnlyPdfEpub: 'Seuls les fichiers PDF et EPUB sont pris en charge.',
+    uploadFileConflict: 'Un livre nommé "{filename}" existe déjà dans ce dossier.',
+    uploadSuccess: 'Livre "{filename}" ajouté avec succès !',
+    uploadError: 'Échec du téléversement du livre : {error}',
+    uploadingBook: 'Téléversement de {filename}...',
+    supportedFormatsHint: 'Formats pris en charge : PDF, EPUB',
   }
 };
 
