@@ -350,7 +350,12 @@ export default function PdfViewer({
 
   const handlePageDimensionsLoaded = useCallback((p, dims) => {
     pageDimsMapRef.current[p] = dims;
-    setPageDimsMap(prev => ({ ...prev, [p]: dims }));
+    setPageDimsMap(prev => {
+      if (prev[p] && prev[p].width === dims.width && prev[p].height === dims.height) {
+        return prev;
+      }
+      return { ...prev, [p]: dims };
+    });
     if (!nav.isContinuous && centerVerticallyRef.current) {
       requestAnimationFrame(() => {
         centerPageVertically();
@@ -548,13 +553,20 @@ export default function PdfViewer({
   }, [pdfDoc, linkService, findController]);
 
   const { initializeDocument } = nav;
-  const initialPage = getInitialPage(book);
   const bookId = book?.id;
+  const initialPageRef = useRef(getInitialPage(book));
+  const prevBookIdForPageRef = useRef(bookId);
+  if (bookId !== prevBookIdForPageRef.current) {
+    prevBookIdForPageRef.current = bookId;
+    initialPageRef.current = getInitialPage(book);
+  }
 
   // Load PDF Document
   useEffect(() => {
+    if (!bookId) return;
     let active = true;
     let currentLoadingTask = null;
+    const startPage = initialPageRef.current;
 
     async function loadDoc() {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -578,7 +590,7 @@ export default function PdfViewer({
         if (!active) return;
 
         setPdfDoc(doc);
-        initializeDocument(doc.numPages, initialPage);
+        initializeDocument(doc.numPages, startPage);
         setLoading(false);
 
         try {
@@ -620,7 +632,7 @@ export default function PdfViewer({
       }
       clearPageRenderCache();
     };
-  }, [bookId, initialPage, initializeDocument]);
+  }, [bookId, initializeDocument]);
 
   // Outline item click handler
   const handleOutlineClick = useCallback((item) => {
