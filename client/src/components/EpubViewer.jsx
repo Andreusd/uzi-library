@@ -1235,6 +1235,8 @@ export default function EpubViewer({
         toggleFloatingButtons={navSystem.toggleFloatingButtons}
         upDownFlipEnabled={navSystem.upDownFlipEnabled}
         toggleUpDownFlip={navSystem.toggleUpDownFlip}
+        mouseWheelFlipEnabled={navSystem.mouseWheelFlipEnabled}
+        toggleMouseWheelFlip={navSystem.toggleMouseWheelFlip}
       />
 
       {/* Main EPUB Reader Stage + Side Drawers */}

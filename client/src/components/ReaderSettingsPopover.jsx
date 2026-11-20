@@ -67,6 +67,8 @@ export default function ReaderSettingsPopover({
   toggleFloatingButtons,
   upDownFlipEnabled,
   toggleUpDownFlip,
+  mouseWheelFlipEnabled,
+  toggleMouseWheelFlip,
   // PDF-specific settings
   centerVertically,
   toggleCenterVertically,
@@ -396,6 +398,17 @@ export default function ReaderSettingsPopover({
               description={t('upDownPageFlipDesc')}
               checked={upDownFlipEnabled}
               onChange={toggleUpDownFlip}
+              theme={resolvedTheme}
+            />
+          )}
+
+          {/* Mouse Wheel Page Flip */}
+          {toggleMouseWheelFlip && (
+            <ToggleItem
+              title={t('mouseWheelPageFlip')}
+              description={t('mouseWheelPageFlipDesc')}
+              checked={mouseWheelFlipEnabled}
+              onChange={toggleMouseWheelFlip}
               theme={resolvedTheme}
             />
           )}

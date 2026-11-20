@@ -65,6 +65,8 @@ export default function EpubToolbar({
   toggleFloatingButtons,
   upDownFlipEnabled,
   toggleUpDownFlip,
+  mouseWheelFlipEnabled,
+  toggleMouseWheelFlip,
 }) {
   const { t } = useI18n();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -439,6 +441,8 @@ export default function EpubToolbar({
             toggleFloatingButtons={toggleFloatingButtons}
             upDownFlipEnabled={upDownFlipEnabled}
             toggleUpDownFlip={toggleUpDownFlip}
+            mouseWheelFlipEnabled={mouseWheelFlipEnabled}
+            toggleMouseWheelFlip={toggleMouseWheelFlip}
             headerPinned={headerPinned}
             toggleHeaderPinned={toggleHeaderPinned}
             isFullscreen={isFullscreen}

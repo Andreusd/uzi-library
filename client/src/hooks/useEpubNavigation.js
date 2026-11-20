@@ -35,6 +35,9 @@ export function useEpubNavigation({
   const lastSwipeTimeRef = useRef(0);
   const accumulatedDeltaXRef = useRef(0);
   const clearSwipeTimerRef = useRef(null);
+  const lastWheelFlipTimeRef = useRef(0);
+  const accumulatedDeltaYRef = useRef(0);
+  const clearWheelTimerRef = useRef(null);
   const lastProcessedWheelEventRef = useRef(null);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
@@ -147,6 +150,28 @@ export function useEpubNavigation({
       const next = !prev;
       try {
         localStorage.setItem('reader_up_down_flip', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const [mouseWheelFlipEnabled, setMouseWheelFlipEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('reader_mouse_wheel_flip') !== 'false'; // default true
+    } catch {
+      return true;
+    }
+  });
+  const mouseWheelFlipEnabledRef = useRef(mouseWheelFlipEnabled);
+  useEffect(() => {
+    mouseWheelFlipEnabledRef.current = mouseWheelFlipEnabled;
+  }, [mouseWheelFlipEnabled]);
+
+  const toggleMouseWheelFlip = useCallback(() => {
+    setMouseWheelFlipEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('reader_mouse_wheel_flip', String(next));
       } catch {}
       return next;
     });
@@ -410,6 +435,36 @@ export function useEpubNavigation({
           lastSwipeTimeRef.current = now;
           const dir = accumulatedDeltaXRef.current;
           accumulatedDeltaXRef.current = 0;
+          if (dir > 0) {
+            flipNext();
+          } else {
+            flipPrev();
+          }
+        }
+      }
+      return;
+    }
+
+    if (absY >= absX && absY > 2) {
+      if (!mouseWheelFlipEnabledRef.current) {
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+      if (e.cancelable) e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+
+      if (now - lastWheelFlipTimeRef.current > 350 && !isNavigatingRef.current) {
+        accumulatedDeltaYRef.current += e.deltaY;
+
+        if (clearWheelTimerRef.current) clearTimeout(clearWheelTimerRef.current);
+        clearWheelTimerRef.current = setTimeout(() => {
+          accumulatedDeltaYRef.current = 0;
+        }, 150);
+
+        if (Math.abs(accumulatedDeltaYRef.current) >= 30) {
+          lastWheelFlipTimeRef.current = now;
+          const dir = accumulatedDeltaYRef.current;
+          accumulatedDeltaYRef.current = 0;
           if (dir > 0) {
             flipNext();
           } else {
@@ -998,6 +1053,8 @@ export function useEpubNavigation({
     toggleFloatingButtons,
     upDownFlipEnabled,
     toggleUpDownFlip,
+    mouseWheelFlipEnabled,
+    toggleMouseWheelFlip,
     // Internal refs
     handleNativeWheelRef,
     handleTouchStartRef,
