@@ -11,6 +11,7 @@ htmlcov/
 # Local cache & User data (covers, progress, favorites, shelf configs)
 .cache/
 books/
+data/
 
 # Python
 __pycache__/

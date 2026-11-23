@@ -3,10 +3,11 @@ import {
   Play, Pause, Square, SkipBack, SkipForward, X, 
   Volume2, Gauge, Mic, Check, 
   ChevronUp, Minimize2, Maximize2, 
-  Repeat, Headphones
+  Repeat, Headphones, Sparkles, Loader2
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { splitTextIntoReadableChunks, getAvailableVoices } from '../utils/textToSpeech';
+import { getAiTtsVoices, fetchAiTtsAudioBlob } from '../api';
 
 const RATE_OPTIONS = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -46,6 +47,12 @@ export default function TtsPlayerBar({
   const [showVoiceMenu, setShowVoiceMenu] = useState(false);
   const [showRateMenu, setShowRateMenu] = useState(false);
   const [voices, setVoices] = useState([]);
+  const [aiVoices, setAiVoices] = useState([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+
+  const audioRef = useRef(null);
+  const prebufferCacheRef = useRef({});
   
   const [rate, setRate] = useState(() => {
     try {
@@ -114,6 +121,26 @@ export default function TtsPlayerBar({
     }
   }, [uiLang]);
 
+  // Fetch available AI Gemini voices
+  useEffect(() => {
+    let mounted = true;
+    getAiTtsVoices()
+      .then(res => {
+        if (mounted && res && res.voices && res.voices.length > 0) {
+          setAiVoices(res.voices);
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  const clearAudioCache = useCallback(() => {
+    Object.values(prebufferCacheRef.current).forEach(url => {
+      try { URL.revokeObjectURL(url); } catch {}
+    });
+    prebufferCacheRef.current = {};
+  }, []);
+
   // Close menus on outside click
   useEffect(() => {
     const handleOutside = (e) => {
@@ -128,15 +155,54 @@ export default function TtsPlayerBar({
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  // Speak a specific chunk index
-  const speakChunk = useCallback(function playChunk(index) {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  const speakWithWebSpeech = useCallback((chunkText, index, onFinished) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance === 'undefined') {
+      return;
+    }
 
-    window.speechSynthesis.cancel();
+    const utterance = new window.SpeechSynthesisUtterance(chunkText);
+    utterance.rate = rateRef.current;
+    utterance.pitch = 1.0;
+
+    const activeVoices = voicesRef.current;
+    const currentUri = selectedVoiceUriRef.current;
+    let chosenVoice = activeVoices.find(v => v.voiceURI === currentUri);
+    if (!chosenVoice && activeVoices.length > 0) {
+      const langPrefix = uiLang.slice(0, 2).toLowerCase();
+      chosenVoice = activeVoices.find(v => v.lang.toLowerCase().startsWith(langPrefix)) || activeVoices[0];
+    }
+
+    if (chosenVoice) {
+      utterance.voice = chosenVoice;
+      utterance.lang = chosenVoice.lang;
+    }
+
+    utterance.onend = () => {
+      onFinished?.();
+    };
+
+    utterance.onerror = (e) => {
+      if (e.error !== 'canceled' && e.error !== 'interrupted') {
+        console.warn('SpeechSynthesis error:', e);
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }, [uiLang]);
+
+  // Speak a specific chunk index (Hybrid AI / Web Speech)
+  const speakChunk = useCallback(async function playChunk(index) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+    }
 
     const activeChunks = chunksRef.current;
     if (!activeChunks || index >= activeChunks.length) {
-      // Finished all chunks for this page/selection
       if (autoAdvanceRef.current && modeRef.current === 'page' && onNextPage) {
         setIsPlaying(true);
         setIsPaused(false);
@@ -153,7 +219,6 @@ export default function TtsPlayerBar({
 
     const chunkText = activeChunks[index];
     if (!chunkText || !chunkText.trim()) {
-      // Skip empty chunk
       playChunk(index + 1);
       return;
     }
@@ -162,43 +227,89 @@ export default function TtsPlayerBar({
     setIsPlaying(true);
     setIsPaused(false);
 
-    const utterance = new SpeechSynthesisUtterance(chunkText);
-    utterance.rate = rateRef.current;
-    utterance.pitch = 1.0;
-
-    // Resolve voice
-    const activeVoices = voicesRef.current;
     const currentUri = selectedVoiceUriRef.current;
-    let chosenVoice = activeVoices.find(v => v.voiceURI === currentUri);
-    if (!chosenVoice && activeVoices.length > 0) {
-      // Find matching language or fallback to first
-      const langPrefix = uiLang.slice(0, 2).toLowerCase();
-      chosenVoice = activeVoices.find(v => v.lang.toLowerCase().startsWith(langPrefix)) || activeVoices[0];
+    const isAiVoice = currentUri && currentUri.startsWith('ai:');
+
+    if (isAiVoice) {
+      const voiceId = currentUri.replace('ai:', '');
+      setIsAiLoading(true);
+      setAiError('');
+
+      try {
+        let audioUrl = prebufferCacheRef.current[index];
+        if (!audioUrl) {
+          const blob = await fetchAiTtsAudioBlob(chunkText, voiceId);
+          audioUrl = URL.createObjectURL(blob);
+          prebufferCacheRef.current[index] = audioUrl;
+        }
+
+        setIsAiLoading(false);
+
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        const audio = audioRef.current;
+        audio.src = audioUrl;
+        audio.playbackRate = rateRef.current;
+
+        audio.onended = () => {
+          if (isPlayingRef.current && !isPausedRef.current) {
+            playChunk(index + 1);
+          }
+        };
+
+        audio.onerror = (e) => {
+          console.warn('Audio playback error:', e);
+          setIsAiLoading(false);
+          speakWithWebSpeech(chunkText, index, () => {
+            if (isPlayingRef.current && !isPausedRef.current) {
+              playChunk(index + 1);
+            }
+          });
+        };
+
+        await audio.play();
+
+        // Background Pre-buffering of next chunk:
+        const nextIdx = index + 1;
+        if (nextIdx < activeChunks.length && !prebufferCacheRef.current[nextIdx]) {
+          const nextText = activeChunks[nextIdx];
+          if (nextText && nextText.trim()) {
+            fetchAiTtsAudioBlob(nextText, voiceId)
+              .then(blob => {
+                if (!prebufferCacheRef.current[nextIdx]) {
+                  prebufferCacheRef.current[nextIdx] = URL.createObjectURL(blob);
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('AI TTS failed, falling back to system voice:', err);
+        setIsAiLoading(false);
+        setAiError(t('aiTtsError') || 'AI voice synthesis error. Falling back to system voice.');
+        speakWithWebSpeech(chunkText, index, () => {
+          if (isPlayingRef.current && !isPausedRef.current) {
+            playChunk(index + 1);
+          }
+        });
+      }
+      return;
     }
 
-    if (chosenVoice) {
-      utterance.voice = chosenVoice;
-      utterance.lang = chosenVoice.lang;
-    }
-
-    utterance.onend = () => {
+    // Standard Web Speech API
+    setIsAiLoading(false);
+    speakWithWebSpeech(chunkText, index, () => {
       if (isPlayingRef.current && !isPausedRef.current) {
         playChunk(index + 1);
       }
-    };
-
-    utterance.onerror = (e) => {
-      if (e.error !== 'canceled' && e.error !== 'interrupted') {
-        console.warn('SpeechSynthesis error:', e);
-      }
-    };
-
-    window.speechSynthesis.speak(utterance);
-  }, [onNextPage, uiLang]);
+    });
+  }, [onNextPage, speakWithWebSpeech, t]);
 
   const [prevText, setPrevText] = useState(text);
   if (text !== prevText) {
     setPrevText(text);
+    clearAudioCache();
     setCurrentChunkIndex(0);
   }
 
@@ -217,41 +328,62 @@ export default function TtsPlayerBar({
   // Stop speech when component unmounts or closes
   useEffect(() => {
     return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      clearAudioCache();
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
     };
-  }, []);
+  }, [clearAudioCache]);
 
   const handlePlayPause = () => {
+    const isAiVoice = selectedVoiceUriRef.current && selectedVoiceUriRef.current.startsWith('ai:');
+
+    if (isAiVoice && audioRef.current && audioRef.current.src) {
+      if (isPlaying && !isPaused) {
+        audioRef.current.pause();
+        setIsPaused(true);
+      } else if (isPaused) {
+        audioRef.current.play().catch(() => {});
+        setIsPaused(false);
+      } else {
+        speakChunk(currentChunkIndexRef.current || 0);
+      }
+      return;
+    }
+
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     if (isPlaying && !isPaused) {
-      // Pause
       window.speechSynthesis.pause();
       setIsPaused(true);
     } else if (isPaused) {
-      // Resume
       window.speechSynthesis.resume();
       setIsPaused(false);
-      // Chrome resume workaround: if still paused after 150ms, restart chunk
       setTimeout(() => {
         if (window.speechSynthesis.paused) {
           speakChunk(currentChunkIndexRef.current);
         }
       }, 150);
     } else {
-      // Start from current or beginning
       speakChunk(currentChunkIndexRef.current || 0);
     }
   };
 
   const handleStop = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     setIsPlaying(false);
     setIsPaused(false);
+    setIsAiLoading(false);
     setCurrentChunkIndex(0);
   };
 
@@ -279,19 +411,25 @@ export default function TtsPlayerBar({
     } catch {}
     setShowRateMenu(false);
 
-    if (isPlaying && !isPaused) {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newRate;
+    }
+
+    const isAiVoice = selectedVoiceUriRef.current && selectedVoiceUriRef.current.startsWith('ai:');
+    if (!isAiVoice && isPlaying && !isPaused) {
       speakChunk(currentChunkIndexRef.current);
     }
   };
 
   const handleVoiceSelect = (voice) => {
-    const uri = voice.voiceURI || '';
+    const uri = voice.voiceURI || (voice.id ? `ai:${voice.id}` : '');
     setSelectedVoiceUri(uri);
     selectedVoiceUriRef.current = uri;
     try {
       localStorage.setItem('reader_tts_voice_uri', uri);
     } catch {}
     setShowVoiceMenu(false);
+    clearAudioCache();
 
     if (isPlaying && !isPaused) {
       speakChunk(currentChunkIndexRef.current);
@@ -346,8 +484,14 @@ export default function TtsPlayerBar({
   const currentSnippet = chunks[currentChunkIndex] || '';
 
   // Current active voice label
-  const activeVoiceObj = voices.find(v => v.voiceURI === selectedVoiceUri) || voices[0];
-  const voiceDisplayName = activeVoiceObj ? activeVoiceObj.name.replace(/(Microsoft|Google|Apple)\s*/gi, '').slice(0, 16) : t('defaultVoice');
+  const isSelectedAi = Boolean(selectedVoiceUri && selectedVoiceUri.startsWith('ai:'));
+  const selectedAiVoiceObj = isSelectedAi ? aiVoices.find(v => `ai:${v.id}` === selectedVoiceUri) : null;
+  const activeVoiceObj = !isSelectedAi ? (voices.find(v => v.voiceURI === selectedVoiceUri) || voices[0]) : null;
+  const voiceDisplayName = selectedAiVoiceObj
+    ? `✨ ${selectedAiVoiceObj.id}`
+    : activeVoiceObj
+    ? activeVoiceObj.name.replace(/(Microsoft|Google|Apple)\s*/gi, '').slice(0, 16)
+    : t('defaultVoice');
 
   // Minimized floating bubble
   if (isMinimized) {
@@ -361,7 +505,9 @@ export default function TtsPlayerBar({
           className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-95 cursor-pointer ${playBtnBg}`}
           title={isPlaying && !isPaused ? t('pauseSpeech') : t('playSpeech')}
         >
-          {isPlaying && !isPaused ? (
+          {isAiLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : isPlaying && !isPaused ? (
             <Pause className="w-4 h-4 fill-current" />
           ) : (
             <Play className="w-4 h-4 fill-current ml-0.5" />
@@ -409,13 +555,22 @@ export default function TtsPlayerBar({
       <div className="flex items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-6 h-6 rounded-full bg-amber-500/15 text-amber-500 flex items-center justify-center shrink-0">
-            <Headphones className="w-3.5 h-3.5 animate-pulse" />
+            {isAiLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+            ) : (
+              <Headphones className="w-3.5 h-3.5 animate-pulse" />
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 truncate text-[11px] sm:text-xs">
             <span className="font-semibold truncate">
               {mode === 'selection' ? t('readingSelection') : t('readingPage', { page: pageNumber, current: currentChunkIndex + 1, total: chunks.length || 1 })}
             </span>
+            {isSelectedAi && (
+              <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-400 text-[10px] font-semibold flex items-center gap-0.5 shrink-0">
+                <Sparkles className="w-2.5 h-2.5" /> AI
+              </span>
+            )}
           </div>
         </div>
 
@@ -460,7 +615,14 @@ export default function TtsPlayerBar({
       {/* Center Row: Live Subtitle / Currently spoken text snippet */}
       {currentSnippet && (
         <div className={`px-3 py-1.5 rounded-xl text-xs line-clamp-2 italic font-serif leading-relaxed opacity-90 transition-all ${badgeBg}`}>
-          "{currentSnippet}"
+          {isAiLoading ? (
+            <span className="text-amber-500 font-sans not-italic flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin inline shrink-0" />
+              <span>{t('generating') || 'Generating AI speech...'}</span>
+            </span>
+          ) : (
+            `"${currentSnippet}"`
+          )}
         </div>
       )}
 
@@ -518,7 +680,9 @@ export default function TtsPlayerBar({
             className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all transform active:scale-95 cursor-pointer ${playBtnBg}`}
             title={isPlaying && !isPaused ? t('pauseSpeech') : t('playSpeech')}
           >
-            {isPlaying && !isPaused ? (
+            {isAiLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-current" />
+            ) : isPlaying && !isPaused ? (
               <Pause className="w-5 h-5 fill-current" />
             ) : (
               <Play className="w-5 h-5 fill-current ml-0.5" />
@@ -558,25 +722,63 @@ export default function TtsPlayerBar({
             }`}
             title={t('voice')}
           >
-            <Mic className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            {isSelectedAi ? (
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            ) : (
+              <Mic className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            )}
             <span className="truncate">{voiceDisplayName}</span>
             <ChevronUp className="w-3 h-3 shrink-0 opacity-60 ml-0.5" />
           </button>
 
           {showVoiceMenu && (
-            <div className={`absolute bottom-full right-0 mb-2 p-1.5 rounded-2xl border backdrop-blur-xl shadow-2xl z-50 flex flex-col gap-0.5 w-64 max-h-56 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 ${containerTheme}`}>
-              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-500 border-b border-neutral-700/40 mb-1 flex items-center justify-between">
-                <span>{t('voice')}</span>
-                <span>{voices.length} voices</span>
+            <div className={`absolute bottom-full right-0 mb-2 p-1.5 rounded-2xl border backdrop-blur-xl shadow-2xl z-50 flex flex-col gap-0.5 w-72 max-h-72 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 ${containerTheme}`}>
+              {/* AI Voices Section */}
+              {aiVoices.length > 0 && (
+                <div className="mb-2">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-500 border-b border-neutral-700/40 mb-1 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    <span>{t('aiVoicesHeader') || 'AI Voices (Gemini)'}</span>
+                  </div>
+                  {aiVoices.map(av => {
+                    const isSelected = selectedVoiceUri === `ai:${av.id}`;
+                    return (
+                      <button
+                        key={av.id}
+                        onClick={() => handleVoiceSelect({ voiceURI: `ai:${av.id}`, id: av.id })}
+                        className={`w-full px-2.5 py-1.5 text-xs rounded-xl transition text-left flex items-center justify-between gap-2 cursor-pointer ${
+                          isSelected ? 'bg-amber-500/20 text-amber-500 font-semibold' : btnHover
+                        }`}
+                        title={av.description}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium truncate">{av.name}</span>
+                          </div>
+                          {av.description && (
+                            <div className="text-[10px] opacity-60 truncate mt-0.5">{av.description}</div>
+                          )}
+                        </div>
+                        {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-amber-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* System Voices Section */}
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-700/40 mb-1 flex items-center justify-between">
+                <span>{t('systemVoicesHeader') || 'System Voices'}</span>
+                <span>{voices.length}</span>
               </div>
               {voices.length > 0 ? (
                 voices.map(v => {
-                  const isSelected = v.voiceURI === selectedVoiceUri || (!selectedVoiceUri && v.default);
+                  const isSelected = v.voiceURI === selectedVoiceUri || (!selectedVoiceUri && !isSelectedAi && v.default);
                   return (
                     <button
                       key={v.voiceURI || v.name}
                       onClick={() => handleVoiceSelect(v)}
-                      className={`px-2.5 py-1.5 text-xs rounded-xl transition text-left flex items-center justify-between gap-2 cursor-pointer ${
+                      className={`w-full px-2.5 py-1.5 text-xs rounded-xl transition text-left flex items-center justify-between gap-2 cursor-pointer ${
                         isSelected ? 'bg-amber-500/20 text-amber-500 font-semibold' : btnHover
                       }`}
                     >

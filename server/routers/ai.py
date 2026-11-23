@@ -3,13 +3,14 @@ import json
 import re
 from typing import AsyncIterator, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 
 from ..ai.manager import AIManager
+from ..ai.tts import AI_VOICES, synthesize_speech
 from ..deps import get_ai_mgr, get_request_user
 from ..users import UserManager
 from ..database import get_db
-from ..schemas import AIChatPayload, CreateAIConversationPayload, UpdateAIConversationPayload, AISettingsPayload
+from ..schemas import AIChatPayload, CreateAIConversationPayload, UpdateAIConversationPayload, AISettingsPayload, AITtsPayload
 
 router = APIRouter(tags=["ai"])
 
@@ -326,3 +327,53 @@ async def chat_message(
         "title": active_conv.get("title"),
         "status": "ok"
     }
+
+@router.get("/api/ai/tts/voices")
+async def get_ai_tts_voices(ai_mgr: AIManager = Depends(get_ai_mgr)):
+    """Returns available high-fidelity Gemini AI voices and configuration status."""
+    db = get_db()
+    stored_key = db.get_setting("gemini_api_key") or os.environ.get("GEMINI_API_KEY", "") or ""
+    return {
+        "available": bool(stored_key.strip()),
+        "voices": AI_VOICES
+    }
+
+@router.post("/api/ai/tts")
+async def post_ai_tts(payload: AITtsPayload):
+    """Synthesizes high-fidelity speech audio for a text passage using Gemini AUDIO modality."""
+    if not payload.text or not payload.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    try:
+        wav_bytes = await synthesize_speech(text=payload.text, voice=payload.voice or "Aoede")
+        return Response(
+            content=wav_bytes,
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": "inline; filename=speech.wav",
+                "Cache-Control": "public, max-age=604800, immutable"
+            }
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/ai/tts")
+async def get_ai_tts(text: str = Query(...), voice: str = Query("Aoede")):
+    """GET endpoint for direct streaming or preloading audio in an HTMLAudioElement."""
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    try:
+        wav_bytes = await synthesize_speech(text=text, voice=voice)
+        return Response(
+            content=wav_bytes,
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": "inline; filename=speech.wav",
+                "Cache-Control": "public, max-age=604800, immutable"
+            }
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

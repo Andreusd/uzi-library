@@ -443,6 +443,33 @@ export async function saveAiSettings(apiKey, model = 'gemini-3.5-flash') {
   return await res.json();
 }
 
+export async function getAiTtsVoices() {
+  try {
+    const res = await apiFetch('/api/ai/tts/voices');
+    if (!res.ok) return { available: false, voices: [] };
+    return await res.json();
+  } catch {
+    return { available: false, voices: [] };
+  }
+}
+
+export async function fetchAiTtsAudioBlob(text, voice = 'Aoede') {
+  const res = await apiFetch('/api/ai/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice })
+  });
+  if (!res.ok) {
+    let msg = `TTS failed with status ${res.status}`;
+    try {
+      const err = await res.json();
+      if (err.detail) msg = err.detail;
+    } catch {}
+    throw new Error(msg);
+  }
+  return await res.blob();
+}
+
 export async function streamAiChat({
   messages,
   conversationId = null,

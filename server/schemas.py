@@ -121,6 +121,10 @@ class AISettingsPayload(BaseModel):
     api_key: Optional[str] = None
     model: Optional[str] = None
 
+class AITtsPayload(BaseModel):
+    text: str
+    voice: Optional[str] = "Aoede"
+
 class CreateAIConversationPayload(BaseModel):
     book_id: str
     title: Optional[str] = None
