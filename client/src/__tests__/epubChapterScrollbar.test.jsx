@@ -60,7 +60,7 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-neutral-400/50');
+    expect(thumb.className).toContain('bg-neutral-400/60');
   });
 
   it('matches sepia theme styles with warm brown thumb', () => {
@@ -72,7 +72,7 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-[#8c6b4f]/45');
+    expect(thumb.className).toContain('bg-[#8c6b4f]/55');
   });
 
   it('matches light theme styles with neutral thumb', () => {
@@ -84,6 +84,6 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-neutral-500/40');
+    expect(thumb.className).toContain('bg-neutral-500/50');
   });
 });

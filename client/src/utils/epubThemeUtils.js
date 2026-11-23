@@ -387,9 +387,15 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
         ${fontBodyCss}
         line-height: 1.8 !important;
         margin: 0 !important;
-        padding-left: 32px !important;
-        padding-right: 32px !important;
+        padding-left: 28px !important;
+        padding-right: 28px !important;
         font-weight: 400 !important;
+      }
+      @media (max-width: 640px) {
+        html, body {
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+        }
       }
       *, *::before, *::after {
         box-sizing: border-box !important;
@@ -629,9 +635,15 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       ${fontBodyCss}
       line-height: 1.8 !important;
       margin: 0 !important;
-      padding-left: 32px !important;
-      padding-right: 32px !important;
+      padding-left: 28px !important;
+      padding-right: 28px !important;
       font-weight: 400 !important;
+    }
+    @media (max-width: 640px) {
+      html, body {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+      }
     }
     *, *::before, *::after {
       box-sizing: border-box !important;

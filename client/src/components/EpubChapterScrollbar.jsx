@@ -157,10 +157,10 @@ export default function EpubChapterScrollbar({
 
   // Natural theme palettes: subtle translucent neutral/amber tones that blend into UI
   const thumbColor = isDark
-    ? 'bg-neutral-400/50 hover:bg-neutral-300/80 active:bg-amber-400/90'
+    ? 'bg-neutral-400/60 hover:bg-neutral-300/80 active:bg-amber-400/90'
     : isSepia
-      ? 'bg-[#8c6b4f]/45 hover:bg-[#725239]/70 active:bg-[#5e412a]/90'
-      : 'bg-neutral-500/40 hover:bg-neutral-700/70 active:bg-neutral-800/90';
+      ? 'bg-[#8c6b4f]/55 hover:bg-[#725239]/70 active:bg-[#5e412a]/90'
+      : 'bg-neutral-500/50 hover:bg-neutral-700/70 active:bg-neutral-800/90';
 
   const trackBg = (isHovered || isDragging)
     ? isDark
@@ -184,15 +184,15 @@ export default function EpubChapterScrollbar({
       ref={trackRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed ${topClass} ${bottomClass} right-1 z-40 transition-all duration-300 pointer-events-auto select-none rounded-full flex justify-center py-1 ${trackBg} ${
-        isInteracting ? 'w-2.5' : 'w-1.5'
+      className={`fixed ${topClass} ${bottomClass} right-0.5 sm:right-1 z-40 transition-all duration-300 pointer-events-auto select-none rounded-full flex justify-center py-1 ${trackBg} ${
+        isInteracting ? 'w-2 sm:w-2.5' : 'w-1 sm:w-1.5'
       } ${isVisible ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}
       aria-hidden="true"
     >
       <div
         onPointerDown={handlePointerDown}
         className={`rounded-full cursor-grab active:cursor-grabbing transition-all duration-150 backdrop-blur-[2px] absolute ${
-          isInteracting ? 'w-2' : 'w-1'
+          isInteracting ? 'w-1.5 sm:w-2' : 'w-0.5 sm:w-1'
         } ${thumbColor}`}
         style={{
           height: `${thumbHeightPercent}%`,
