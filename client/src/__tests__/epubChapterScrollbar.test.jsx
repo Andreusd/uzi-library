@@ -48,10 +48,10 @@ describe('EpubChapterScrollbar', () => {
     const scrollbar = container.querySelector('[aria-hidden="true"]');
     expect(scrollbar).toBeTruthy();
     expect(scrollbar.className).toContain('fixed');
-    expect(scrollbar.className).toContain('right-0.5');
+    expect(scrollbar.className).toContain('right-1');
   });
 
-  it('matches dark theme styles with amber thumb', () => {
+  it('matches dark theme styles with sleek natural thumb', () => {
     const { container } = render(
       <EpubChapterScrollbar
         viewerRef={mockViewerRef}
@@ -60,7 +60,7 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-amber-500/80');
+    expect(thumb.className).toContain('bg-neutral-400/50');
   });
 
   it('matches sepia theme styles with warm brown thumb', () => {
@@ -72,7 +72,7 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-[#a3704c]/85');
+    expect(thumb.className).toContain('bg-[#8c6b4f]/45');
   });
 
   it('matches light theme styles with neutral thumb', () => {
@@ -84,6 +84,6 @@ describe('EpubChapterScrollbar', () => {
       />
     );
     const thumb = container.querySelector('[aria-hidden="true"] > div');
-    expect(thumb.className).toContain('bg-neutral-600/75');
+    expect(thumb.className).toContain('bg-neutral-500/40');
   });
 });

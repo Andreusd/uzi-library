@@ -734,8 +734,8 @@ export default function EpubViewer({
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
                 margin: 0 !important;
-                padding-left: ${isMobile ? '16px' : '32px'} !important;
-                padding-right: ${isMobile ? '24px' : '36px'} !important;
+                padding-left: ${isMobile ? '16px' : '24px'} !important;
+                padding-right: ${isMobile ? '28px' : '40px'} !important;
               }
               #book-content, #sbo-rt-content, .epub-container {
                 margin-left: 0 !important;

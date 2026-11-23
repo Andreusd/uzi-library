@@ -387,8 +387,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
         ${fontBodyCss}
         line-height: 1.8 !important;
         margin: 0 !important;
-        padding-left: 20px !important;
-        padding-right: 20px !important;
+        padding-left: 24px !important;
+        padding-right: 36px !important;
         font-weight: 400 !important;
       }
       *, *::before, *::after {
@@ -396,7 +396,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       }
       #book-content, #sbo-rt-content, .epub-container {
         margin: 0 !important;
-        padding: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
         max-width: 100% !important;
       }
       html, body {
@@ -628,8 +629,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       ${fontBodyCss}
       line-height: 1.8 !important;
       margin: 0 !important;
-      padding-left: 20px !important;
-      padding-right: 20px !important;
+      padding-left: 24px !important;
+      padding-right: 36px !important;
       font-weight: 400 !important;
     }
     *, *::before, *::after {
@@ -637,7 +638,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
     }
     #book-content, #sbo-rt-content, .epub-container {
       margin: 0 !important;
-      padding: 0 !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
       max-width: 100% !important;
     }
     html, body {
