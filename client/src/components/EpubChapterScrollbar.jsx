@@ -10,6 +10,8 @@ export default function EpubChapterScrollbar({
   viewerRef,
   chapterScrollModeEnabled = false,
   theme = 'dark',
+  isHeaderShowing = true,
+  isFullscreen = false,
 }) {
   const [scrollProgress, setScrollProgress] = useState({ topRatio: 0, heightRatio: 0 });
   const [isScrolling, setIsScrolling] = useState(false);
@@ -37,7 +39,9 @@ export default function EpubChapterScrollbar({
       return;
     }
 
-    const heightRatio = Math.max(0.04, Math.min(1, clientHeight / scrollHeight));
+    // Keep thumb sized proportional to viewport content, clamped between 32px and total height
+    const heightRatio = Math.max(0.05, Math.min(1, clientHeight / scrollHeight));
+    // Clamp topRatio strictly between 0 and 1 so it never disappears off the bottom
     const topRatio = Math.max(0, Math.min(1, scrollTop / maxScroll));
 
     setScrollProgress({ topRatio, heightRatio });
@@ -51,7 +55,7 @@ export default function EpubChapterScrollbar({
     }
     hideTimerRef.current = setTimeout(() => {
       setIsScrolling(false);
-    }, 1200);
+    }, 1500);
   }, [updatePosition]);
 
   // Hook into scroll events on the epub container and iframes
@@ -117,7 +121,7 @@ export default function EpubChapterScrollbar({
     dragMaxScrollRef.current = maxScroll;
 
     const trackHeight = trackRef.current.clientHeight;
-    const thumbHeight = Math.max(24, trackHeight * scrollProgress.heightRatio);
+    const thumbHeight = Math.max(28, trackHeight * scrollProgress.heightRatio);
     const availableTrack = Math.max(1, trackHeight - thumbHeight);
 
     const onPointerMove = (moveEvent) => {
@@ -135,7 +139,7 @@ export default function EpubChapterScrollbar({
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       hideTimerRef.current = setTimeout(() => {
         setIsScrolling(false);
-      }, 1200);
+      }, 1500);
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: false });
@@ -158,29 +162,33 @@ export default function EpubChapterScrollbar({
       : 'bg-neutral-600/75 hover:bg-neutral-800 active:bg-neutral-900';
 
   const trackBg = isDark
-    ? 'bg-neutral-900/40 hover:bg-neutral-900/60'
+    ? 'bg-neutral-900/30 hover:bg-neutral-900/50'
     : isSepia
-      ? 'bg-[#e8d8be]/50 hover:bg-[#dfcdb1]/70'
-      : 'bg-neutral-200/50 hover:bg-neutral-300/70';
+      ? 'bg-[#e8d8be]/40 hover:bg-[#dfcdb1]/60'
+      : 'bg-neutral-200/40 hover:bg-neutral-300/60';
 
   const isVisible = isScrolling || isHovered || isDragging;
+
+  // Adapt top / bottom track bounds according to toolbar visibility and fullscreen state
+  const topClass = isHeaderShowing ? 'top-14 sm:top-16' : 'top-3';
+  const bottomClass = isFullscreen ? 'bottom-3' : 'bottom-14 sm:bottom-4';
 
   return (
     <div
       ref={trackRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed top-14 bottom-14 right-0.5 z-40 w-2.5 sm:w-3 transition-opacity duration-300 pointer-events-auto select-none rounded-full flex flex-col justify-start ${trackBg} ${
+      className={`fixed ${topClass} ${bottomClass} right-0.5 z-40 w-2 sm:w-2.5 transition-all duration-300 pointer-events-auto select-none rounded-full ${trackBg} ${
         isVisible ? 'opacity-100' : 'opacity-0 sm:opacity-20 hover:opacity-100'
       }`}
       aria-hidden="true"
     >
       <div
         onPointerDown={handlePointerDown}
-        className={`w-full rounded-full cursor-grab active:cursor-grabbing transition-colors duration-150 shadow-sm ${thumbBg}`}
+        className={`w-full rounded-full cursor-grab active:cursor-grabbing transition-colors duration-150 shadow-sm relative ${thumbBg}`}
         style={{
-          height: `${Math.max(24, scrollProgress.heightRatio * 100)}%`,
-          transform: `translateY(${scrollProgress.topRatio * ((1 - Math.max(0.04, scrollProgress.heightRatio)) / Math.max(0.04, scrollProgress.heightRatio)) * 100}%)`,
+          height: `${Math.max(28, scrollProgress.heightRatio * 100)}%`,
+          top: `${scrollProgress.topRatio * (100 - Math.max(28, scrollProgress.heightRatio * 100))}%`,
         }}
       />
     </div>

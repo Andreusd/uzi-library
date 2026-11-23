@@ -734,8 +734,8 @@ export default function EpubViewer({
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
                 margin: 0 !important;
-                padding-left: ${isMobile ? '12px' : '28px'} !important;
-                padding-right: ${isMobile ? '12px' : '28px'} !important;
+                padding-left: ${isMobile ? '16px' : '32px'} !important;
+                padding-right: ${isMobile ? '24px' : '36px'} !important;
               }
               #book-content, #sbo-rt-content, .epub-container {
                 margin-left: 0 !important;
@@ -1357,6 +1357,8 @@ export default function EpubViewer({
           viewerRef={viewerRef}
           chapterScrollModeEnabled={navSystem.chapterScrollModeEnabled}
           theme={themeSystem.theme}
+          isHeaderShowing={navSystem.isHeaderShowing}
+          isFullscreen={isFullscreen}
         />
 
         {/* Toggleable Right Comments & Highlights Drawer */}
