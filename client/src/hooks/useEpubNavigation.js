@@ -46,6 +46,17 @@ export function useEpubNavigation({
   const touchStartYRef = useRef(0);
   const touchLastYRef = useRef(null);
   const touchStartTimeRef = useRef(0);
+  const touchHistoryRef = useRef([]);
+  const inertiaRafIdRef = useRef(null);
+  const activeScrollerRef = useRef(null);
+  const isDraggingChapterScrollRef = useRef(false);
+
+  const stopInertiaGlide = useCallback(() => {
+    if (inertiaRafIdRef.current) {
+      cancelAnimationFrame(inertiaRafIdRef.current);
+      inertiaRafIdRef.current = null;
+    }
+  }, []);
 
   const handleTouchStartRef = useRef(null);
   const handleTouchMoveRef = useRef(null);
@@ -527,6 +538,7 @@ export function useEpubNavigation({
     if (absY >= absX && absY > 2) {
       // In chapter scroll mode, vertical wheel / two-finger trackpad swipe scrolls the chapter content.
       if (chapterScrollModeEnabledRef.current) {
+        stopInertiaGlide();
         const scroller = getChapterScrollContainer();
         if (scroller) {
           let delta = e.deltaY;
@@ -659,6 +671,7 @@ export function useEpubNavigation({
 
   useEffect(() => {
     return () => {
+      stopInertiaGlide();
       if (closeConfirmTimerRef.current) {
         clearTimeout(closeConfirmTimerRef.current);
       }
@@ -672,9 +685,10 @@ export function useEpubNavigation({
         clearTimeout(clearBoundaryTimerRef.current);
       }
     };
-  }, []);
+  }, [stopInertiaGlide]);
 
   const handleTouchStart = useCallback((e) => {
+    stopInertiaGlide();
     if (
       e.target?.closest?.('header') ||
       e.target?.closest?.('aside') ||
@@ -689,12 +703,17 @@ export function useEpubNavigation({
       return;
     }
     if (e.touches && e.touches.length === 1) {
-      touchStartXRef.current = e.touches[0].clientX;
-      touchStartYRef.current = e.touches[0].clientY;
-      touchLastYRef.current = e.touches[0].clientY;
+      const clientX = e.touches[0].clientX;
+      const clientY = e.touches[0].clientY;
+      touchStartXRef.current = clientX;
+      touchStartYRef.current = clientY;
+      touchLastYRef.current = clientY;
       touchStartTimeRef.current = Date.now();
+      touchHistoryRef.current = [{ y: clientY, t: Date.now() }];
+      isDraggingChapterScrollRef.current = false;
+      activeScrollerRef.current = getChapterScrollContainer();
     }
-  }, []);
+  }, [stopInertiaGlide, getChapterScrollContainer]);
 
   useEffect(() => {
     handleTouchStartRef.current = handleTouchStart;
@@ -719,9 +738,16 @@ export function useEpubNavigation({
       const clientY = e.touches[0].clientY;
       const deltaY = touchLastYRef.current - clientY;
       touchLastYRef.current = clientY;
-      const scroller = getChapterScrollContainer();
+
+      const now = Date.now();
+      const recent = touchHistoryRef.current.filter(p => now - p.t < 120);
+      recent.push({ y: clientY, t: now });
+      touchHistoryRef.current = recent;
+
+      const scroller = activeScrollerRef.current || getChapterScrollContainer();
       if (scroller && Math.abs(deltaY) > 0) {
         scroller.scrollTop += deltaY;
+        isDraggingChapterScrollRef.current = true;
       }
     }
   }, [getChapterScrollContainer]);
@@ -731,7 +757,65 @@ export function useEpubNavigation({
   }, [handleTouchMove]);
 
   const handleTouchEnd = useCallback((e) => {
+    const scroller = activeScrollerRef.current || getChapterScrollContainer();
+    activeScrollerRef.current = null;
     touchLastYRef.current = null;
+
+    if (chapterScrollModeEnabledRef.current && isDraggingChapterScrollRef.current && scroller) {
+      const now = Date.now();
+      const samples = touchHistoryRef.current.filter(p => now - p.t < 120);
+      if (samples.length >= 2) {
+        const first = samples[0];
+        const last = samples[samples.length - 1];
+        const dt = Math.max(1, last.t - first.t);
+        const dy = last.y - first.y;
+
+        // Velocity in px/ms: negative dy means finger moved UP, so content scrolls DOWN (+scrollTop)
+        const v_px_ms = -dy / dt;
+
+        if (Math.abs(v_px_ms) > 0.12) {
+          let velocity = v_px_ms * 16; // px per frame
+          const maxVelocity = 45;
+          if (Math.abs(velocity) > maxVelocity) {
+            velocity = Math.sign(velocity) * maxVelocity;
+          }
+
+          const friction = 0.95;
+          const minSpeed = 0.3;
+
+          const runInertia = () => {
+            const currentScroller = getChapterScrollContainer();
+            if (!currentScroller) {
+              inertiaRafIdRef.current = null;
+              return;
+            }
+
+            currentScroller.scrollTop += velocity;
+            velocity *= friction;
+
+            const maxScroll = Math.max(0, (currentScroller.scrollHeight || 0) - (currentScroller.clientHeight || 0));
+            const currentScroll = currentScroller.scrollTop || 0;
+
+            if ((currentScroll <= 0 && velocity < 0) || (currentScroll >= maxScroll && velocity > 0)) {
+              inertiaRafIdRef.current = null;
+              return;
+            }
+
+            if (Math.abs(velocity) < minSpeed) {
+              inertiaRafIdRef.current = null;
+              return;
+            }
+
+            inertiaRafIdRef.current = requestAnimationFrame(runInertia);
+          };
+
+          inertiaRafIdRef.current = requestAnimationFrame(runInertia);
+        }
+      }
+    }
+    touchHistoryRef.current = [];
+    isDraggingChapterScrollRef.current = false;
+
     if (!touchStartXRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;

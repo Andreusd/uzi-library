@@ -253,6 +253,73 @@ describe('EPUB Chapter Scroll Mode', () => {
 
       expect(mockContainer.scrollTop).toBe(200);
     });
+
+    it('triggers kinetic momentum glide on fast touch swipe release in chapter scroll mode', () => {
+      let rafCallback = null;
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+        rafCallback = cb;
+        return 123;
+      });
+
+      const renditionRef = { current: { next: vi.fn(), prev: vi.fn() } };
+      const mockContainer = {
+        scrollTop: 100,
+        scrollHeight: 3000,
+        clientHeight: 600,
+      };
+      const viewerRef = {
+        current: {
+          querySelector: vi.fn((sel) => (sel === '.epub-container' ? mockContainer : null)),
+        },
+      };
+
+      localStorage.setItem('reader_chapter_scroll_mode', 'true');
+
+      const { result } = renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      // Start touch
+      act(() => {
+        result.current.handleTouchStartRef.current({
+          touches: [{ clientX: 100, clientY: 400 }],
+        });
+      });
+
+      // Move rapidly upwards (simulates flick gesture)
+      act(() => {
+        result.current.handleTouchMoveRef.current({
+          touches: [{ clientX: 100, clientY: 250 }],
+        });
+      });
+
+      expect(mockContainer.scrollTop).toBe(250);
+
+      // Release touch (flick release)
+      act(() => {
+        result.current.handleTouchEndRef.current({
+          changedTouches: [{ clientX: 100, clientY: 250 }],
+        });
+      });
+
+      // Verify requestAnimationFrame was triggered for inertia glide
+      expect(window.requestAnimationFrame).toHaveBeenCalled();
+      expect(rafCallback).toBeInstanceOf(Function);
+
+      // Execute inertia step
+      act(() => {
+        rafCallback();
+      });
+
+      // scrollTop should have increased further due to momentum
+      expect(mockContainer.scrollTop).toBeGreaterThan(250);
+    });
   });
 
   describe('ReaderSettingsPopover chapter scroll and up/down flip sub-option', () => {
