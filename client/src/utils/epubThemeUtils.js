@@ -398,6 +398,15 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
         padding: 0 !important;
         max-width: 100% !important;
       }
+      html, body {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+      }
+      html::-webkit-scrollbar, body::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
       div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
         background-color: transparent !important;
       }
@@ -628,6 +637,15 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       margin: 0 !important;
       padding: 0 !important;
       max-width: 100% !important;
+    }
+    html, body {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    html::-webkit-scrollbar, body::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
     }
     div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
       background-color: transparent !important;

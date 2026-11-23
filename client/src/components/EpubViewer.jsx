@@ -9,6 +9,7 @@ import TtsPlayerBar from './TtsPlayerBar';
 import PdfOutline from './PdfOutline';
 import EpubToolbar from './EpubToolbar';
 import EpubReaderStage from './EpubReaderStage';
+import EpubChapterScrollbar from './EpubChapterScrollbar';
 import ReaderBackPill from './ReaderBackPill';
 import ReaderCloseConfirmation from './ReaderCloseConfirmation';
 import { useFullscreen } from '../hooks/useFullscreen';
@@ -743,6 +744,15 @@ export default function EpubViewer({
                 padding-right: 0 !important;
                 max-width: 100% !important;
               }
+              html, body {
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
+              }
+              html::-webkit-scrollbar, body::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
+              }
               .hl-annotation, .epubjs-hl, [ref="hl-annotation"] {
                 cursor: pointer !important;
                 transition: fill-opacity 0.15s ease;
@@ -1340,6 +1350,13 @@ export default function EpubViewer({
           flipPrev={navSystem.flipPrev}
           flipNext={navSystem.flipNext}
           chapterScrollModeEnabled={navSystem.chapterScrollModeEnabled}
+        />
+
+        {/* Custom Theme-Aware Scrollbar Glued to Screen Edge in Chapter Scroll Mode */}
+        <EpubChapterScrollbar
+          viewerRef={viewerRef}
+          chapterScrollModeEnabled={navSystem.chapterScrollModeEnabled}
+          theme={themeSystem.theme}
         />
 
         {/* Toggleable Right Comments & Highlights Drawer */}
