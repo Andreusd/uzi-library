@@ -79,8 +79,10 @@ export default function EpubReaderStage({
         </>
       )}
 
-      {/* Expanded Document Viewport */}
-      <div className="w-full h-full px-4 sm:px-12 md:px-16 lg:px-20 py-2 sm:py-3 flex flex-col items-center justify-center overflow-hidden">
+      {/* Document Viewport - flush to edges in chapter scroll mode to glue native scrollbar to screen border */}
+      <div className={`w-full h-full flex flex-col items-center justify-center overflow-hidden ${
+        chapterScrollModeEnabled ? 'p-0' : 'px-4 sm:px-12 md:px-16 lg:px-20 py-2 sm:py-3'
+      }`}>
         <div 
           ref={viewerRef} 
           className="flex-1 w-full h-full overflow-hidden select-none" 
