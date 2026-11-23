@@ -564,7 +564,9 @@ export default function TtsPlayerBar({
 
           <div className="flex items-center gap-1.5 truncate text-[11px] sm:text-xs">
             <span className="font-semibold truncate">
-              {mode === 'selection' ? t('readingSelection') : t('readingPage', { page: pageNumber, current: currentChunkIndex + 1, total: chunks.length || 1 })}
+              {mode === 'selection'
+                ? t('readingSelection', { current: currentChunkIndex + 1, total: chunks.length || 1 })
+                : t('readingPage', { page: pageNumber, current: currentChunkIndex + 1, total: chunks.length || 1 })}
             </span>
             {isSelectedAi && (
               <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-400 text-[10px] font-semibold flex items-center gap-0.5 shrink-0">
