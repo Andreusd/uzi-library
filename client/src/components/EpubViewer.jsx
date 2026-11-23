@@ -512,6 +512,7 @@ export default function EpubViewer({
 
   const chapterScrollModeRef = useRef(navSystem.chapterScrollModeEnabled);
   const singlePageRef = useRef(navSystem.singlePageEnabled);
+  const lastChapterSpineIndexRef = useRef(undefined);
 
   useEffect(() => {
     chapterScrollModeRef.current = navSystem.chapterScrollModeEnabled;
@@ -1062,9 +1063,23 @@ export default function EpubViewer({
         });
 
         // Rendered view hook
-        rendition.on('rendered', (_section, view) => {
+        let lastRenderedSectionHref = null;
+        rendition.on('rendered', (section, view) => {
           if (view?.document) {
             attachListenersToIframeRef.current?.(view.document, view.window, view);
+          }
+          if (chapterScrollModeRef.current) {
+            const currentHref = section?.href;
+            if (lastRenderedSectionHref !== null && currentHref && lastRenderedSectionHref !== currentHref) {
+              const scroller = viewerRef.current?.querySelector('.epub-container') || viewerRef.current;
+              if (scroller) {
+                scroller.scrollTop = 0;
+                requestAnimationFrame(() => {
+                  if (scroller) scroller.scrollTop = 0;
+                });
+              }
+            }
+            lastRenderedSectionHref = currentHref;
           }
         });
 
@@ -1103,6 +1118,19 @@ export default function EpubViewer({
             if (match) {
               spineIndex = Math.max(0, Math.floor(parseInt(match[1], 10) / 2) - 1);
             }
+          }
+
+          if (chapterScrollModeRef.current && spineIndex !== undefined) {
+            if (lastChapterSpineIndexRef.current !== undefined && lastChapterSpineIndexRef.current !== spineIndex) {
+              const scroller = viewerRef.current?.querySelector('.epub-container') || viewerRef.current;
+              if (scroller) {
+                scroller.scrollTop = 0;
+                requestAnimationFrame(() => {
+                  if (scroller) scroller.scrollTop = 0;
+                });
+              }
+            }
+            lastChapterSpineIndexRef.current = spineIndex;
           }
 
           let curPage = null;

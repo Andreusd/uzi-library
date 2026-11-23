@@ -522,6 +522,106 @@ describe('EPUB Chapter Scroll Mode', () => {
       expect(prevMock).toHaveBeenCalledTimes(1);
     });
 
+    it('always resets scroll position to top (scrollTop = 0) when going back in chapter scroll mode', () => {
+      const displayMock = vi.fn().mockReturnValue(Promise.resolve());
+      const prevSection = { href: 'chapter01.xhtml' };
+      const currentSection = {
+        prev: vi.fn(() => prevSection),
+        next: vi.fn(() => ({ href: 'chapter03.xhtml' })),
+      };
+      const renditionRef = {
+        current: {
+          display: displayMock,
+          prev: vi.fn().mockReturnValue(Promise.resolve()),
+          next: vi.fn().mockReturnValue(Promise.resolve()),
+          manager: {
+            views: {
+              first: () => ({ section: currentSection }),
+            },
+          },
+        },
+      };
+      const mockContainer = {
+        scrollTop: 1800, // User was near the end of the chapter
+        scrollHeight: 3000,
+        clientHeight: 600,
+      };
+      const viewerRef = {
+        current: {
+          querySelector: vi.fn((sel) => (sel === '.epub-container' ? mockContainer : null)),
+        },
+      };
+
+      localStorage.setItem('reader_chapter_scroll_mode', 'true');
+
+      const { result } = renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      act(() => {
+        result.current.flipPrev();
+      });
+
+      expect(displayMock).toHaveBeenCalledWith('chapter01.xhtml');
+      expect(mockContainer.scrollTop).toBe(0);
+    });
+
+    it('always resets scroll position to top (scrollTop = 0) when going next in chapter scroll mode', () => {
+      const displayMock = vi.fn().mockReturnValue(Promise.resolve());
+      const nextSection = { href: 'chapter03.xhtml' };
+      const currentSection = {
+        prev: vi.fn(() => ({ href: 'chapter01.xhtml' })),
+        next: vi.fn(() => nextSection),
+      };
+      const renditionRef = {
+        current: {
+          display: displayMock,
+          prev: vi.fn().mockReturnValue(Promise.resolve()),
+          next: vi.fn().mockReturnValue(Promise.resolve()),
+          manager: {
+            views: {
+              first: () => ({ section: currentSection }),
+            },
+          },
+        },
+      };
+      const mockContainer = {
+        scrollTop: 2500,
+        scrollHeight: 3000,
+        clientHeight: 600,
+      };
+      const viewerRef = {
+        current: {
+          querySelector: vi.fn((sel) => (sel === '.epub-container' ? mockContainer : null)),
+        },
+      };
+
+      localStorage.setItem('reader_chapter_scroll_mode', 'true');
+
+      const { result } = renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      act(() => {
+        result.current.flipNext();
+      });
+
+      expect(displayMock).toHaveBeenCalledWith('chapter03.xhtml');
+      expect(mockContainer.scrollTop).toBe(0);
+    });
+
     it('does not close reader settings when touch events occur on toggle inputs or dialog', () => {
       const renditionRef = { current: { next: vi.fn(), prev: vi.fn() } };
       const viewerRef = { current: { querySelector: () => null } };

@@ -440,11 +440,101 @@ export function useEpubNavigation({
     }
   }, [tocOpen, commentsDrawerOpen, copilotDrawerOpen, searchOpen, ttsOpen, readerSettingsOpen, headerPinned, isAnyDrawerOpen, startHideTimer]);
 
+  // Helper to locate active vertical scroll container in chapter scroll mode
+  const getChapterScrollContainer = useCallback(() => {
+    if (!viewerRef?.current) return null;
+    const epubContainer = viewerRef.current.querySelector('.epub-container');
+    if (epubContainer) return epubContainer;
+    return viewerRef.current;
+  }, [viewerRef]);
+
+  // Section helpers for chapter navigation
+  const getPrevSection = useCallback(() => {
+    if (!renditionRef?.current) return null;
+    const rendition = renditionRef.current;
+    const currentSection = rendition.manager?.views?.first?.()?.section ||
+                           rendition.views?.first?.()?.section;
+    if (currentSection && typeof currentSection.prev === 'function') {
+      const prev = currentSection.prev();
+      if (prev) return prev;
+    }
+    const loc = rendition.location || (typeof rendition.currentLocation === 'function' ? rendition.currentLocation() : null);
+    const index = loc?.start?.index;
+    if (typeof index === 'number' && rendition.book?.spine) {
+      if (typeof rendition.book.spine.prev === 'function') {
+        const prev = rendition.book.spine.prev(index);
+        if (prev) return prev;
+      }
+      if (index > 0 && typeof rendition.book.spine.get === 'function') {
+        return rendition.book.spine.get(index - 1);
+      }
+    }
+    return null;
+  }, [renditionRef]);
+
+  const getNextSection = useCallback(() => {
+    if (!renditionRef?.current) return null;
+    const rendition = renditionRef.current;
+    const currentSection = rendition.manager?.views?.first?.()?.section ||
+                           rendition.views?.first?.()?.section;
+    if (currentSection && typeof currentSection.next === 'function') {
+      const next = currentSection.next();
+      if (next) return next;
+    }
+    const loc = rendition.location || (typeof rendition.currentLocation === 'function' ? rendition.currentLocation() : null);
+    const index = loc?.start?.index;
+    if (typeof index === 'number' && rendition.book?.spine) {
+      if (typeof rendition.book.spine.next === 'function') {
+        const next = rendition.book.spine.next(index);
+        if (next) return next;
+      }
+      if (typeof rendition.book.spine.get === 'function') {
+        return rendition.book.spine.get(index + 1);
+      }
+    }
+    return null;
+  }, [renditionRef]);
+
   // Page flip controls
   const flipNext = useCallback(() => {
     if (isNavigatingRef.current || !renditionRef?.current) return;
     isNavigatingRef.current = true;
     try {
+      if (chapterScrollModeEnabledRef.current) {
+        stopInertiaGlide();
+        const nextSection = getNextSection();
+        let p;
+        if (nextSection && nextSection.href && typeof renditionRef.current.display === 'function') {
+          p = renditionRef.current.display(nextSection.href);
+        } else {
+          p = renditionRef.current.next();
+        }
+        const forceTop = () => {
+          const scroller = getChapterScrollContainer();
+          if (scroller) scroller.scrollTop = 0;
+        };
+        forceTop();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            forceTop();
+            requestAnimationFrame(forceTop);
+            setTimeout(forceTop, 50);
+            setTimeout(forceTop, 150);
+          }).finally(() => {
+            setTimeout(() => {
+              forceTop();
+              isNavigatingRef.current = false;
+            }, 180);
+          });
+        } else {
+          setTimeout(() => {
+            forceTop();
+            isNavigatingRef.current = false;
+          }, 250);
+        }
+        return;
+      }
+
       const p = renditionRef.current.next();
       if (p && typeof p.then === 'function') {
         p.finally(() => {
@@ -460,12 +550,47 @@ export function useEpubNavigation({
     } catch {
       isNavigatingRef.current = false;
     }
-  }, [renditionRef]);
+  }, [renditionRef, getNextSection, getChapterScrollContainer, stopInertiaGlide]);
 
   const flipPrev = useCallback(() => {
     if (isNavigatingRef.current || !renditionRef?.current) return;
     isNavigatingRef.current = true;
     try {
+      if (chapterScrollModeEnabledRef.current) {
+        stopInertiaGlide();
+        const prevSection = getPrevSection();
+        let p;
+        if (prevSection && prevSection.href && typeof renditionRef.current.display === 'function') {
+          p = renditionRef.current.display(prevSection.href);
+        } else {
+          p = renditionRef.current.prev();
+        }
+        const forceTop = () => {
+          const scroller = getChapterScrollContainer();
+          if (scroller) scroller.scrollTop = 0;
+        };
+        forceTop();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            forceTop();
+            requestAnimationFrame(forceTop);
+            setTimeout(forceTop, 50);
+            setTimeout(forceTop, 150);
+          }).finally(() => {
+            setTimeout(() => {
+              forceTop();
+              isNavigatingRef.current = false;
+            }, 180);
+          });
+        } else {
+          setTimeout(() => {
+            forceTop();
+            isNavigatingRef.current = false;
+          }, 250);
+        }
+        return;
+      }
+
       const p = renditionRef.current.prev();
       if (p && typeof p.then === 'function') {
         p.finally(() => {
@@ -481,15 +606,7 @@ export function useEpubNavigation({
     } catch {
       isNavigatingRef.current = false;
     }
-  }, [renditionRef]);
-
-  // Helper to locate active vertical scroll container in chapter scroll mode
-  const getChapterScrollContainer = useCallback(() => {
-    if (!viewerRef?.current) return null;
-    const epubContainer = viewerRef.current.querySelector('.epub-container');
-    if (epubContainer) return epubContainer;
-    return viewerRef.current;
-  }, [viewerRef]);
+  }, [renditionRef, getPrevSection, getChapterScrollContainer, stopInertiaGlide]);
 
   // Gesture handling: Two-finger trackpad horizontal swipe & vertical wheel
   const handleNativeWheel = useCallback((e) => {
