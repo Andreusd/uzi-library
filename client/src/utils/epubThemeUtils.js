@@ -387,8 +387,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
         ${fontBodyCss}
         line-height: 1.8 !important;
         margin: 0 !important;
-        padding-left: 24px !important;
-        padding-right: 36px !important;
+        padding-left: 32px !important;
+        padding-right: 32px !important;
         font-weight: 400 !important;
       }
       *, *::before, *::after {
@@ -629,8 +629,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       ${fontBodyCss}
       line-height: 1.8 !important;
       margin: 0 !important;
-      padding-left: 24px !important;
-      padding-right: 36px !important;
+      padding-left: 32px !important;
+      padding-right: 32px !important;
       font-weight: 400 !important;
     }
     *, *::before, *::after {
