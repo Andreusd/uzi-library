@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isLikelyTrackpad } from '../utils/trackpadUtils';
 
 /**
  * Hook encapsulating keyboard shortcuts and wheel/trackpad gestures for PDF Reader.
@@ -14,6 +15,8 @@ export function usePdfKeyboardGestures({
   handleTrackpadWheel,
 }) {
   const lastWheelTimeRef = useRef(0);
+  const isTrackpadGestureRef = useRef(false);
+  const resetTrackpadGestureTimerRef = useRef(null);
 
   // Keyboard navigation & smart scrolling
   useEffect(() => {
@@ -138,8 +141,28 @@ export function usePdfKeyboardGestures({
       const container = containerRef.current;
       if (!container) return;
 
+      // Trackpad vs mouse wheel distinction
+      const isTrackpad = isLikelyTrackpad(e);
+      if (isTrackpad) {
+        isTrackpadGestureRef.current = true;
+      }
+      if (resetTrackpadGestureTimerRef.current) {
+        clearTimeout(resetTrackpadGestureTimerRef.current);
+      }
+      resetTrackpadGestureTimerRef.current = setTimeout(() => {
+        isTrackpadGestureRef.current = false;
+      }, 300);
+
+      const isFromTrackpad = isTrackpad || isTrackpadGestureRef.current;
+
       // 3. Normal Wheel on non-scrollable page to flip pages (flip mode only)
       if (!isContinuous) {
+        // Two-finger swiping up and down on dual or single page mode should NOT pass the page, only left and right!
+        if (isFromTrackpad) {
+          if (e.cancelable) e.preventDefault();
+          return;
+        }
+
         const isScrollable = container.scrollHeight > container.clientHeight + 10;
         if (!isScrollable) {
           const now = Date.now();
@@ -159,6 +182,9 @@ export function usePdfKeyboardGestures({
     window.addEventListener('wheel', handleNativeWheel, { passive: false });
     return () => {
       window.removeEventListener('wheel', handleNativeWheel);
+      if (resetTrackpadGestureTimerRef.current) {
+        clearTimeout(resetTrackpadGestureTimerRef.current);
+      }
     };
   }, [handleTrackpadWheel, isContinuous, goToNextPage, goToPrevPage, zoom, containerRef]);
 }

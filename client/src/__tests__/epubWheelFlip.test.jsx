@@ -146,6 +146,85 @@ describe('EPUB Mouse Wheel Page Flip', () => {
       expect(nextMock).not.toHaveBeenCalled();
     });
 
+    it('does not flip page on two-finger vertical trackpad swiping up and down in dual or single page mode', () => {
+      const nextMock = vi.fn().mockReturnValue(Promise.resolve());
+      const prevMock = vi.fn().mockReturnValue(Promise.resolve());
+      const renditionRef = { current: { next: nextMock, prev: prevMock } };
+      const viewerRef = { current: { querySelector: () => null } };
+
+      renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      act(() => {
+        // Continuous small / fractional deltas characteristic of trackpad two-finger swipe
+        const trackpadSwipeDown = new WheelEvent('wheel', {
+          deltaX: 1,
+          deltaY: 18.5,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(trackpadSwipeDown);
+
+        const trackpadSwipeDown2 = new WheelEvent('wheel', {
+          deltaX: 0,
+          deltaY: 24,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(trackpadSwipeDown2);
+
+        const trackpadSwipeUp = new WheelEvent('wheel', {
+          deltaX: 0,
+          deltaY: -18,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(trackpadSwipeUp);
+      });
+
+      // Trackpad vertical swiping must NOT pass pages in paginated (dual/single) mode!
+      expect(nextMock).not.toHaveBeenCalled();
+      expect(prevMock).not.toHaveBeenCalled();
+    });
+
+    it('allows two-finger horizontal trackpad swipe to flip pages in dual or single page mode', () => {
+      const nextMock = vi.fn().mockReturnValue(Promise.resolve());
+      const prevMock = vi.fn().mockReturnValue(Promise.resolve());
+      const renditionRef = { current: { next: nextMock, prev: prevMock } };
+      const viewerRef = { current: { querySelector: () => null } };
+
+      renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      act(() => {
+        // Horizontal swipe right (next page)
+        const trackpadSwipeRight = new WheelEvent('wheel', {
+          deltaX: 55,
+          deltaY: 2,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(trackpadSwipeRight);
+      });
+
+      expect(nextMock).toHaveBeenCalledTimes(1);
+      expect(prevMock).not.toHaveBeenCalled();
+    });
+
     it('does not navigate on wheel when mouseWheelFlipEnabled is disabled', () => {
       localStorage.setItem('reader_mouse_wheel_flip', 'false');
       const nextMock = vi.fn().mockReturnValue(Promise.resolve());

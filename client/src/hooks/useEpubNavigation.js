@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { EpubCFI } from 'epubjs';
 import { applyThemeToDoc } from '../utils/epubThemeUtils';
 import { normalizeRangeToTextNodes, sanitizeCfiRange } from '../utils/epubLocationUtils';
+import { isLikelyTrackpad } from '../utils/trackpadUtils';
 
 /**
  * Hook for managing EPUB navigation, keyboard shortcuts, wheel/touch gestures,
@@ -51,6 +52,8 @@ export function useEpubNavigation({
   const activeScrollerRef = useRef(null);
   const isDraggingChapterScrollRef = useRef(false);
   const lastProcessedTouchMoveRef = useRef(null);
+  const isTrackpadGestureRef = useRef(false);
+  const resetTrackpadGestureTimerRef = useRef(null);
 
   const stopInertiaGlide = useCallback(() => {
     if (inertiaRafIdRef.current) {
@@ -623,7 +626,22 @@ export function useEpubNavigation({
     const absY = Math.abs(e.deltaY);
     const now = Date.now();
 
+    // Differentiate trackpad vs physical mouse wheel
+    const isTrackpad = isLikelyTrackpad(e);
+    if (isTrackpad) {
+      isTrackpadGestureRef.current = true;
+    }
+    if (resetTrackpadGestureTimerRef.current) {
+      clearTimeout(resetTrackpadGestureTimerRef.current);
+    }
+    resetTrackpadGestureTimerRef.current = setTimeout(() => {
+      isTrackpadGestureRef.current = false;
+    }, 300);
+
+    const isFromTrackpad = isTrackpad || isTrackpadGestureRef.current;
+
     if (absX > absY && absX > 2) {
+      isTrackpadGestureRef.current = true;
       if (!trackpadSwipeEnabledRef.current) {
         if (e.cancelable) e.preventDefault();
         return;
@@ -707,6 +725,14 @@ export function useEpubNavigation({
         if (e.cancelable) e.preventDefault();
         return;
       }
+
+      // In dual or single page mode:
+      // Two-finger swiping up and down on trackpad should NOT pass the page, only left and right!
+      if (isFromTrackpad) {
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+
       if (!mouseWheelFlipEnabledRef.current) {
         if (e.cancelable) e.preventDefault();
         return;
@@ -715,7 +741,11 @@ export function useEpubNavigation({
       if (typeof e.stopPropagation === 'function') e.stopPropagation();
 
       if (now - lastWheelFlipTimeRef.current > 350 && !isNavigatingRef.current) {
-        accumulatedDeltaYRef.current += e.deltaY;
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) {
+          delta *= 24;
+        }
+        accumulatedDeltaYRef.current += delta;
 
         if (clearWheelTimerRef.current) clearTimeout(clearWheelTimerRef.current);
         clearWheelTimerRef.current = setTimeout(() => {
@@ -801,6 +831,9 @@ export function useEpubNavigation({
       }
       if (clearBoundaryTimerRef.current) {
         clearTimeout(clearBoundaryTimerRef.current);
+      }
+      if (resetTrackpadGestureTimerRef.current) {
+        clearTimeout(resetTrackpadGestureTimerRef.current);
       }
     };
   }, [stopInertiaGlide]);
