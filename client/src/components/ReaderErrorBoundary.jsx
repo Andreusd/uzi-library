@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, ArrowLeft, Download, RefreshCw, Copy, Check } from 'lucide-react';
 import { logError, generateDiagnosticReport } from '../services/errorLogger';
 import { copyToClipboard } from '../utils/clipboard';
+import { translate } from '../i18n';
 
 export default class ReaderErrorBoundary extends React.Component {
   constructor(props) {
@@ -59,10 +60,10 @@ export default class ReaderErrorBoundary extends React.Component {
             </div>
 
             <h2 className="text-xl font-bold text-white mb-2">
-              Erro ao Abrir Livro / Unable to Open Book
+              {translate('errorOpeningBook')}
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400 mb-4 max-w-sm leading-relaxed">
-              Ocorreu um erro ao renderizar <span className="font-medium text-neutral-200">"{book?.title || 'este livro'}"</span>.
+              {translate('errorRenderingBook', { title: book?.title || translate('thisBook') })}
             </p>
 
             {this.state.error?.message && (
@@ -80,12 +81,12 @@ export default class ReaderErrorBoundary extends React.Component {
                 {this.state.copied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400">Copiado!</span>
+                    <span className="text-emerald-400">{translate('diagnosticsCopied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    <span>Copiar Diagnóstico</span>
+                    <span>{translate('copyDiagnostics')}</span>
                   </>
                 )}
               </button>
@@ -97,7 +98,7 @@ export default class ReaderErrorBoundary extends React.Component {
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span>Voltar à Biblioteca</span>
+                  <span>{translate('backToLibrary')}</span>
                 </button>
               )}
 
@@ -107,7 +108,7 @@ export default class ReaderErrorBoundary extends React.Component {
                 className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Tentar Novamente</span>
+                <span>{translate('tryAgain')}</span>
               </button>
 
               {downloadUrl && (
@@ -117,7 +118,7 @@ export default class ReaderErrorBoundary extends React.Component {
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold transition"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Baixar Arquivo</span>
+                  <span>{translate('downloadFile')}</span>
                 </a>
               )}
             </div>

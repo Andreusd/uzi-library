@@ -1,4 +1,4 @@
-from .providers import BaseAIProvider, CLIProvider, DummyProvider
+from .providers import BaseAIProvider, GeminiProvider, DummyProvider
 from .manager import AIManager
 
-__all__ = ["BaseAIProvider", "CLIProvider", "DummyProvider", "AIManager"]
+__all__ = ["BaseAIProvider", "GeminiProvider", "DummyProvider", "AIManager"]

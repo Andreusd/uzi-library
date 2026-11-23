@@ -450,8 +450,13 @@ export default function SettingsModal({
       onClick={onClose}
     >
       <div 
+        role="dialog"
+        aria-modal="true"
         className="w-full max-w-2xl bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] cursor-default"
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900 shrink-0">
@@ -873,7 +878,7 @@ export default function SettingsModal({
               <div className="flex items-center gap-2">
                 <Bug className="w-4 h-4 text-amber-400" />
                 <h3 className="text-xs font-bold text-neutral-200">
-                  Diagnóstico e Relatório de Erros
+                  {t('diagnosticsAndErrorReport')}
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -883,14 +888,14 @@ export default function SettingsModal({
                   className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition flex items-center gap-1.5 cursor-pointer"
                 >
                   {diagnosticsCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{diagnosticsCopied ? 'Copiado!' : 'Copiar Diagnóstico'}</span>
+                  <span>{diagnosticsCopied ? t('diagnosticsCopied') : t('copyDiagnostics')}</span>
                 </button>
                 {errorLogs.length > 0 && (
                   <button
                     type="button"
                     onClick={handleClearErrors}
                     className="p-1 text-neutral-400 hover:text-rose-400 hover:bg-rose-950/30 rounded-lg transition cursor-pointer"
-                    title="Limpar logs"
+                    title={t('clearLogs')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -899,8 +904,8 @@ export default function SettingsModal({
             </div>
             <p className="text-[11px] text-neutral-400 leading-relaxed">
               {errorLogs.length === 0
-                ? 'Nenhum erro registrado recentemente. O sistema está estável.'
-                : `${errorLogs.length} erro(s) registrado(s). Use o botão acima para copiar o relatório completo com stack trace e informações do dispositivo.`}
+                ? t('noRecentErrors')
+                : t('errorsRecordedCount', { count: errorLogs.length })}
             </p>
             {errorLogs.length > 0 && (
               <div className="bg-neutral-950 rounded-xl p-2.5 text-[10px] font-mono text-neutral-400 max-h-24 overflow-y-auto space-y-1 select-text border border-neutral-850">

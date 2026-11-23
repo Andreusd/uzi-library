@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import Sidebar from '../components/Sidebar';
 import { I18nProvider } from '../i18n';
 
@@ -55,14 +55,29 @@ describe('Sidebar component', () => {
   });
 
   it('renders home, continue reading, and favorites items with counts', () => {
-    renderSidebar();
+    const { container } = renderSidebar({ activityStreak: 4 });
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Continue Reading')).toBeInTheDocument();
     expect(screen.getByText('Favorites')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // favorite count badge
     expect(screen.getByText('5')).toBeInTheDocument(); // read count badge
+    const activityBtn = container.querySelector('[data-item-id="menu-activity"]');
+    expect(within(activityBtn).getByText('4')).toBeInTheDocument(); // activity streak badge
     expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1); // count badges
+  });
+
+  it('updates activity streak badge when activity-stats-updated event is dispatched', () => {
+    const { container } = renderSidebar({ activityStreak: 1 });
+    const activityBtn = container.querySelector('[data-item-id="menu-activity"]');
+    expect(within(activityBtn).getByText('1')).toBeInTheDocument();
+
+    fireEvent(window, new CustomEvent('activity-stats-updated', {
+      detail: { current_streak: 7 }
+    }));
+
+    expect(within(activityBtn).getByText('7')).toBeInTheDocument();
   });
 
   it('calls onSelectShelf when clicking navigation items', () => {

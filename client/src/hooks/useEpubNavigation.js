@@ -38,12 +38,17 @@ export function useEpubNavigation({
   const lastWheelFlipTimeRef = useRef(0);
   const accumulatedDeltaYRef = useRef(0);
   const clearWheelTimerRef = useRef(null);
+  const lastBoundaryFlipTimeRef = useRef(0);
+  const accumulatedBoundaryDeltaRef = useRef(0);
+  const clearBoundaryTimerRef = useRef(null);
   const lastProcessedWheelEventRef = useRef(null);
   const touchStartXRef = useRef(0);
   const touchStartYRef = useRef(0);
+  const touchLastYRef = useRef(null);
   const touchStartTimeRef = useRef(0);
 
   const handleTouchStartRef = useRef(null);
+  const handleTouchMoveRef = useRef(null);
   const handleTouchEndRef = useRef(null);
   const handleNativeWheelRef = useRef(null);
   const attachListenersToIframeRef = useRef(null);
@@ -172,6 +177,72 @@ export function useEpubNavigation({
       const next = !prev;
       try {
         localStorage.setItem('reader_mouse_wheel_flip', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // EPUB Reading Mode: 'dual' (Dual Page) | 'single' (Single Page) | 'chapterScroll' (Chapter Scroll)
+  const [epubReadingMode, setEpubReadingMode] = useState(() => {
+    try {
+      const savedMode = localStorage.getItem('reader_epub_reading_mode');
+      if (savedMode === 'single' || savedMode === 'chapterScroll' || savedMode === 'dual') {
+        return savedMode;
+      }
+      if (localStorage.getItem('reader_chapter_scroll_mode') === 'true') {
+        return 'chapterScroll';
+      }
+      if (localStorage.getItem('reader_epub_single_page') === 'true') {
+        return 'single';
+      }
+      return 'dual'; // default
+    } catch {
+      return 'dual';
+    }
+  });
+
+  const epubReadingModeRef = useRef(epubReadingMode);
+  const chapterScrollModeEnabled = epubReadingMode === 'chapterScroll';
+  const singlePageEnabled = epubReadingMode === 'single';
+
+  const chapterScrollModeEnabledRef = useRef(chapterScrollModeEnabled);
+  const singlePageEnabledRef = useRef(singlePageEnabled);
+
+  useEffect(() => {
+    epubReadingModeRef.current = epubReadingMode;
+    chapterScrollModeEnabledRef.current = epubReadingMode === 'chapterScroll';
+    singlePageEnabledRef.current = epubReadingMode === 'single';
+  }, [epubReadingMode]);
+
+  const changeEpubReadingMode = useCallback((newMode) => {
+    if (!['dual', 'single', 'chapterScroll'].includes(newMode)) return;
+    setEpubReadingMode(newMode);
+    try {
+      localStorage.setItem('reader_epub_reading_mode', newMode);
+      localStorage.setItem('reader_chapter_scroll_mode', String(newMode === 'chapterScroll'));
+      localStorage.setItem('reader_epub_single_page', String(newMode === 'single'));
+    } catch {}
+  }, []);
+
+  const toggleChapterScrollMode = useCallback(() => {
+    setEpubReadingMode(prev => {
+      const next = prev === 'chapterScroll' ? 'dual' : 'chapterScroll';
+      try {
+        localStorage.setItem('reader_epub_reading_mode', next);
+        localStorage.setItem('reader_chapter_scroll_mode', String(next === 'chapterScroll'));
+        localStorage.setItem('reader_epub_single_page', String(next === 'single'));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const toggleSinglePage = useCallback(() => {
+    setEpubReadingMode(prev => {
+      const next = prev === 'single' ? 'dual' : 'single';
+      try {
+        localStorage.setItem('reader_epub_reading_mode', next);
+        localStorage.setItem('reader_chapter_scroll_mode', String(next === 'chapterScroll'));
+        localStorage.setItem('reader_epub_single_page', String(next === 'single'));
       } catch {}
       return next;
     });
@@ -400,6 +471,14 @@ export function useEpubNavigation({
     }
   }, [renditionRef]);
 
+  // Helper to locate active vertical scroll container in chapter scroll mode
+  const getChapterScrollContainer = useCallback(() => {
+    if (!viewerRef?.current) return null;
+    const epubContainer = viewerRef.current.querySelector('.epub-container');
+    if (epubContainer) return epubContainer;
+    return viewerRef.current;
+  }, [viewerRef]);
+
   // Gesture handling: Two-finger trackpad horizontal swipe & vertical wheel
   const handleNativeWheel = useCallback((e) => {
     if (lastProcessedWheelEventRef.current === e) return;
@@ -446,6 +525,58 @@ export function useEpubNavigation({
     }
 
     if (absY >= absX && absY > 2) {
+      // In chapter scroll mode, vertical wheel / two-finger trackpad swipe scrolls the chapter content.
+      if (chapterScrollModeEnabledRef.current) {
+        const scroller = getChapterScrollContainer();
+        if (scroller) {
+          let delta = e.deltaY;
+          if (e.deltaMode === 1) {
+            delta *= 24;
+          } else if (e.deltaMode === 2) {
+            delta *= (scroller.clientHeight || 400);
+          }
+
+          const maxScroll = Math.max(0, (scroller.scrollHeight || 0) - (scroller.clientHeight || 0));
+          const currentScroll = scroller.scrollTop || 0;
+          const isAtBottom = maxScroll > 0 && currentScroll >= maxScroll - 3;
+          const isAtTop = currentScroll <= 3;
+
+          if (isAtBottom && delta > 0) {
+            if (now - lastBoundaryFlipTimeRef.current > 600 && !isNavigatingRef.current) {
+              accumulatedBoundaryDeltaRef.current += delta;
+              if (clearBoundaryTimerRef.current) clearTimeout(clearBoundaryTimerRef.current);
+              clearBoundaryTimerRef.current = setTimeout(() => {
+                accumulatedBoundaryDeltaRef.current = 0;
+              }, 200);
+
+              if (accumulatedBoundaryDeltaRef.current >= 80) {
+                lastBoundaryFlipTimeRef.current = now;
+                accumulatedBoundaryDeltaRef.current = 0;
+                flipNext();
+              }
+            }
+          } else if (isAtTop && delta < 0) {
+            if (now - lastBoundaryFlipTimeRef.current > 600 && !isNavigatingRef.current) {
+              accumulatedBoundaryDeltaRef.current += delta;
+              if (clearBoundaryTimerRef.current) clearTimeout(clearBoundaryTimerRef.current);
+              clearBoundaryTimerRef.current = setTimeout(() => {
+                accumulatedBoundaryDeltaRef.current = 0;
+              }, 200);
+
+              if (accumulatedBoundaryDeltaRef.current <= -80) {
+                lastBoundaryFlipTimeRef.current = now;
+                accumulatedBoundaryDeltaRef.current = 0;
+                flipPrev();
+              }
+            }
+          } else {
+            accumulatedBoundaryDeltaRef.current = 0;
+            scroller.scrollTop += delta;
+          }
+        }
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
       if (!mouseWheelFlipEnabledRef.current) {
         if (e.cancelable) e.preventDefault();
         return;
@@ -476,10 +607,10 @@ export function useEpubNavigation({
     }
 
     if (absY >= absX) {
-      if (e.cancelable) e.preventDefault();
+      if (!chapterScrollModeEnabledRef.current && e.cancelable) e.preventDefault();
       return;
     }
-  }, [flipNext, flipPrev]);
+  }, [flipNext, flipPrev, getChapterScrollContainer]);
 
   useEffect(() => {
     handleNativeWheelRef.current = handleNativeWheel;
@@ -531,13 +662,36 @@ export function useEpubNavigation({
       if (closeConfirmTimerRef.current) {
         clearTimeout(closeConfirmTimerRef.current);
       }
+      if (clearWheelTimerRef.current) {
+        clearTimeout(clearWheelTimerRef.current);
+      }
+      if (clearSwipeTimerRef.current) {
+        clearTimeout(clearSwipeTimerRef.current);
+      }
+      if (clearBoundaryTimerRef.current) {
+        clearTimeout(clearBoundaryTimerRef.current);
+      }
     };
   }, []);
 
   const handleTouchStart = useCallback((e) => {
+    if (
+      e.target?.closest?.('header') ||
+      e.target?.closest?.('aside') ||
+      e.target?.closest?.('nav') ||
+      e.target?.closest?.('[role="dialog"]') ||
+      e.target?.closest?.('[data-reader-settings]') ||
+      e.target?.closest?.('[data-popover]') ||
+      e.target?.closest?.('label') ||
+      e.target?.closest?.('input') ||
+      e.target?.closest?.('button')
+    ) {
+      return;
+    }
     if (e.touches && e.touches.length === 1) {
       touchStartXRef.current = e.touches[0].clientX;
       touchStartYRef.current = e.touches[0].clientY;
+      touchLastYRef.current = e.touches[0].clientY;
       touchStartTimeRef.current = Date.now();
     }
   }, []);
@@ -546,7 +700,38 @@ export function useEpubNavigation({
     handleTouchStartRef.current = handleTouchStart;
   }, [handleTouchStart]);
 
+  const handleTouchMove = useCallback((e) => {
+    if (!chapterScrollModeEnabledRef.current) return;
+    if (
+      e.target?.closest?.('header') ||
+      e.target?.closest?.('aside') ||
+      e.target?.closest?.('nav') ||
+      e.target?.closest?.('[role="dialog"]') ||
+      e.target?.closest?.('[data-reader-settings]') ||
+      e.target?.closest?.('[data-popover]') ||
+      e.target?.closest?.('label') ||
+      e.target?.closest?.('input') ||
+      e.target?.closest?.('button')
+    ) {
+      return;
+    }
+    if (e.touches && e.touches.length === 1 && touchLastYRef.current !== null) {
+      const clientY = e.touches[0].clientY;
+      const deltaY = touchLastYRef.current - clientY;
+      touchLastYRef.current = clientY;
+      const scroller = getChapterScrollContainer();
+      if (scroller && Math.abs(deltaY) > 0) {
+        scroller.scrollTop += deltaY;
+      }
+    }
+  }, [getChapterScrollContainer]);
+
+  useEffect(() => {
+    handleTouchMoveRef.current = handleTouchMove;
+  }, [handleTouchMove]);
+
   const handleTouchEnd = useCallback((e) => {
+    touchLastYRef.current = null;
     if (!touchStartXRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
     const touchEndX = e.changedTouches[0].clientX;
     const touchEndY = e.changedTouches[0].clientY;
@@ -559,12 +744,17 @@ export function useEpubNavigation({
     touchStartXRef.current = 0;
     touchStartYRef.current = 0;
 
-    // Never intercept touches that originated on buttons, drawers, or dialogs
+    // Never intercept touches that originated on buttons, drawers, dialogs, or popover controls
     if (
       e.target?.closest?.('button') ||
       e.target?.closest?.('aside') ||
       e.target?.closest?.('nav') ||
-      e.target?.closest?.('[role="dialog"]')
+      e.target?.closest?.('[role="dialog"]') ||
+      e.target?.closest?.('[data-reader-settings]') ||
+      e.target?.closest?.('[data-popover]') ||
+      e.target?.closest?.('[data-popover-backdrop]') ||
+      e.target?.closest?.('label') ||
+      e.target?.closest?.('input')
     ) {
       return;
     }
@@ -594,7 +784,7 @@ export function useEpubNavigation({
     }
 
     // 1. Sliding UP TO DOWN: diffY >= 50, predominantly vertical, duration < 800ms
-    if (diffY >= 50 && diffY > Math.abs(diffX) * 1.2 && duration < 800) {
+    if (!chapterScrollModeEnabledRef.current && diffY >= 50 && diffY > Math.abs(diffX) * 1.2 && duration < 800) {
       handleSlideDown();
       return;
     }
@@ -778,8 +968,14 @@ export function useEpubNavigation({
       handleTouchEndRef.current?.(e);
     };
 
+    const onTouchMove = (e) => {
+      handleTouchMoveRef.current?.(e);
+    };
+
     targetWin.addEventListener('touchstart', onTouchStart, { passive: true });
     targetDoc.addEventListener('touchstart', onTouchStart, { passive: true });
+    targetWin.addEventListener('touchmove', onTouchMove, { passive: true });
+    targetDoc.addEventListener('touchmove', onTouchMove, { passive: true });
     targetWin.addEventListener('touchend', onTouchEnd, { passive: true });
     targetDoc.addEventListener('touchend', onTouchEnd, { passive: true });
 
@@ -893,18 +1089,21 @@ export function useEpubNavigation({
   useEffect(() => {
     const onWheel = (e) => handleNativeWheel(e);
     const onTouchStart = (e) => handleTouchStart(e);
+    const onTouchMove = (e) => handleTouchMove(e);
     const onTouchEnd = (e) => handleTouchEnd(e);
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
 
     return () => {
       window.removeEventListener('wheel', onWheel, { capture: true });
       window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
     };
-  }, [handleNativeWheel, handleTouchStart, handleTouchEnd]);
+  }, [handleNativeWheel, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   // Keydown listeners
   useEffect(() => {
@@ -924,10 +1123,10 @@ export function useEpubNavigation({
         return;
       }
 
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || (upDownFlipEnabledRef.current && e.key === 'ArrowDown')) {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || (chapterScrollModeEnabledRef.current && upDownFlipEnabledRef.current && e.key === 'ArrowDown')) {
         e.preventDefault();
         flipNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (upDownFlipEnabledRef.current && e.key === 'ArrowUp')) {
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || (chapterScrollModeEnabledRef.current && upDownFlipEnabledRef.current && e.key === 'ArrowUp')) {
         e.preventDefault();
         flipPrev();
       } else if (e.key === 'Escape' || e.key === 'Backspace') {
@@ -1055,9 +1254,16 @@ export function useEpubNavigation({
     toggleUpDownFlip,
     mouseWheelFlipEnabled,
     toggleMouseWheelFlip,
+    chapterScrollModeEnabled,
+    toggleChapterScrollMode,
+    singlePageEnabled,
+    toggleSinglePage,
+    epubReadingMode,
+    changeEpubReadingMode,
     // Internal refs
     handleNativeWheelRef,
     handleTouchStartRef,
+    handleTouchMoveRef,
     handleTouchEndRef,
     handleIframeMouseMoveRef,
     handleKeyDownRef,

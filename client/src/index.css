@@ -161,6 +161,22 @@
   scrollbar-color: rgba(140, 140, 140, 0.45) transparent;
 }
 
+/* Chapter Scroll Mode container styling */
+.chapter-scroll-mode .epub-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain;
+  scroll-behavior: auto;
+  touch-action: pan-y !important;
+}
+
+.chapter-scroll-mode .epub-view,
+.chapter-scroll-mode .epub-view iframe {
+  touch-action: pan-y !important;
+}
+
 .reader-settings-scroll::-webkit-scrollbar {
   width: 5px;
 }

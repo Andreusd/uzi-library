@@ -39,12 +39,12 @@ describe('GlobalErrorBoundary & ErrorLogger', () => {
       </GlobalErrorBoundary>
     );
 
-    // Verify error UI appeared
-    expect(screen.getByText('Ocorreu um erro na aplicação')).toBeDefined();
+    // Verify error UI appeared (default English)
+    expect(screen.getByText(/An application error occurred|Ocorreu um erro na aplicação/i)).toBeDefined();
     expect(screen.getByText('Test crash in rendering')).toBeDefined();
-    expect(screen.getByText('Copiar Diagnóstico')).toBeDefined();
-    expect(screen.getByText('Recarregar')).toBeDefined();
-    expect(screen.getByText('Ir para Início')).toBeDefined();
+    expect(screen.getByText(/Copy Diagnostics|Copiar Diagnóstico/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Reload|Recarregar/i })).toBeDefined();
+    expect(screen.getByText(/Go to Home|Ir para Início/i)).toBeDefined();
 
     // Verify error was logged to errorLogger
     const logs = getErrorLogs();
@@ -67,7 +67,7 @@ describe('GlobalErrorBoundary & ErrorLogger', () => {
       </GlobalErrorBoundary>
     );
 
-    const copyBtn = screen.getByText('Copiar Diagnóstico');
+    const copyBtn = screen.getByText(/Copy Diagnostics|Copiar Diagnóstico/i);
     await act(async () => {
       fireEvent.click(copyBtn);
     });
@@ -76,7 +76,7 @@ describe('GlobalErrorBoundary & ErrorLogger', () => {
     const copiedText = writeTextMock.mock.calls[0][0];
     expect(copiedText).toContain('=== UZI LIBRARY DIAGNOSTIC REPORT ===');
     expect(copiedText).toContain('Test crash in rendering');
-    expect(screen.getByText('Diagnóstico Copiado!')).toBeDefined();
+    expect(screen.getByText(/Copied!|Diagnóstico Copiado!/i)).toBeDefined();
   });
 
   it('logs errors and generates diagnostic report properly', () => {

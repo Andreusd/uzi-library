@@ -57,6 +57,23 @@ from .routers.legacy import router as legacy_router
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLIENT_DIST = os.path.abspath(os.path.join(BASE_DIR, "..", "client", "dist"))
 
+# Load .env configuration if present
+env_file = os.path.abspath(os.path.join(BASE_DIR, "..", ".env"))
+if os.path.isfile(env_file):
+    try:
+        with open(env_file, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _k, _v = _line.split("=", 1)
+                _k = _k.strip()
+                _v = _v.strip().strip("'\"")
+                if _k and _k not in os.environ:
+                    os.environ[_k] = _v
+    except Exception:
+        pass
+
 # Core components via dependency injection
 scanner = get_scanner()
 cover_mgr = get_cover_mgr()

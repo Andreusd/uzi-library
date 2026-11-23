@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, Copy, Check, RefreshCw, Home, ChevronDown, ChevronUp } from 'lucide-react';
 import { logError, generateDiagnosticReport } from '../services/errorLogger';
 import { copyToClipboard } from '../utils/clipboard';
+import { translate } from '../i18n';
 
 export default class GlobalErrorBoundary extends React.Component {
   constructor(props) {
@@ -57,8 +58,8 @@ export default class GlobalErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      const errorMessage = this.state.error?.message || 'Erro desconhecido na interface.';
-      const stack = this.state.error?.stack || this.state.errorInfo?.componentStack || 'Sem stack trace disponível.';
+      const errorMessage = this.state.error?.message || translate('errorUnknown');
+      const stack = this.state.error?.stack || this.state.errorInfo?.componentStack || translate('noStackTrace');
 
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950 text-neutral-100 p-4 sm:p-6 select-none overflow-y-auto">
@@ -69,10 +70,10 @@ export default class GlobalErrorBoundary extends React.Component {
             </div>
 
             <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 tracking-tight">
-              Ocorreu um erro na aplicação
+              {translate('appErrorTitle')}
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400 mb-5 max-w-md leading-relaxed">
-              A interface do Uzi Library encontrou uma falha inesperada. Você pode copiar o relatório de diagnóstico para identificar o problema ou tentar recarregar.
+              {translate('appErrorDesc')}
             </p>
 
             {/* Error Message Box */}
@@ -90,12 +91,12 @@ export default class GlobalErrorBoundary extends React.Component {
                 {this.state.copied ? (
                   <>
                     <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="text-emerald-400">Diagnóstico Copiado!</span>
+                    <span className="text-emerald-400">{translate('diagnosticsCopied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-4 h-4" />
-                    <span>Copiar Diagnóstico</span>
+                    <span>{translate('copyDiagnostics')}</span>
                   </>
                 )}
               </button>
@@ -106,7 +107,7 @@ export default class GlobalErrorBoundary extends React.Component {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-95"
               >
                 <RefreshCw className="w-4 h-4" />
-                <span>Recarregar</span>
+                <span>{translate('reloadApp')}</span>
               </button>
 
               <button
@@ -115,7 +116,7 @@ export default class GlobalErrorBoundary extends React.Component {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs sm:text-sm font-semibold transition-all cursor-pointer active:scale-95"
               >
                 <Home className="w-4 h-4" />
-                <span>Ir para Início</span>
+                <span>{translate('goToHome')}</span>
               </button>
             </div>
 
@@ -126,7 +127,7 @@ export default class GlobalErrorBoundary extends React.Component {
                 onClick={() => this.setState((prev) => ({ showDetails: !prev.showDetails }))}
                 className="flex items-center justify-between w-full text-[11px] font-medium text-neutral-400 hover:text-neutral-200 py-1 transition cursor-pointer"
               >
-                <span>Detalhes técnicos (Stack trace)</span>
+                <span>{translate('technicalDetails')}</span>
                 {this.state.showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
 

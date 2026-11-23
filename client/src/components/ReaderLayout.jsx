@@ -225,7 +225,7 @@ export default function ReaderLayout({
               <div 
                 className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
-                title={`Livro: ${progressPercent}%`}
+                title={`${t('book')}: ${progressPercent}%`}
               />
             </div>
           )}
@@ -236,7 +236,7 @@ export default function ReaderLayout({
               <div 
                 className="h-full bg-amber-400/80 transition-all duration-300 shadow-[0_0_4px_rgba(251,191,36,0.5)]"
                 style={{ width: `${Math.min(100, Math.max(0, chapterProgressPercent))}%` }}
-                title={`Capítulo: ${chapterProgressPercent}%`}
+                title={`${t('chapter')}: ${chapterProgressPercent}%`}
               />
             </div>
           )}

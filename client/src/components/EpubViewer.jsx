@@ -19,6 +19,7 @@ import { useEpubAnnotations } from '../hooks/useEpubAnnotations';
 import { useAiCopilot } from '../hooks/useAiCopilot';
 import { useEpubNavigation } from '../hooks/useEpubNavigation';
 import { useReadingTracker } from '../hooks/useReadingTracker';
+import { useI18n } from '../i18n';
 import { extractEpubVisibleText } from '../utils/textToSpeech';
 import { getOfflineBookArrayBuffer, saveOfflineProgress } from '../services/offlineStorage';
 import {
@@ -45,6 +46,7 @@ export default function EpubViewer({
   mode,
   onModeChange,
 }) {
+  const { t } = useI18n();
 
   const shouldShowExtension = showFileExtension !== undefined 
     ? Boolean(showFileExtension) 
@@ -268,7 +270,7 @@ export default function EpubViewer({
   // Handle dynamic text selection for AI Copilot (VS Code transient preview tab style)
   const handleTransientText = useCallback((text) => {
     if (!text || !text.trim()) return;
-    const loc = locationInfo.chapter || (pageInfo.page ? `Pág. ${pageInfo.page}` : '');
+    const loc = locationInfo.chapter || (pageInfo.page ? t('pageBadge', { page: pageInfo.page }) : '');
     copilot.handleSetTransientContext({
       text: text.trim(),
       location: loc
@@ -508,6 +510,35 @@ export default function EpubViewer({
     };
   }, []);
 
+  const chapterScrollModeRef = useRef(navSystem.chapterScrollModeEnabled);
+  const singlePageRef = useRef(navSystem.singlePageEnabled);
+
+  useEffect(() => {
+    chapterScrollModeRef.current = navSystem.chapterScrollModeEnabled;
+    singlePageRef.current = navSystem.singlePageEnabled;
+
+    if (viewerRef.current) {
+      if (navSystem.chapterScrollModeEnabled) {
+        viewerRef.current.classList.add('chapter-scroll-mode');
+      } else {
+        viewerRef.current.classList.remove('chapter-scroll-mode');
+      }
+    }
+    if (!renditionRef.current) return;
+    try {
+      const targetFlow = navSystem.chapterScrollModeEnabled ? 'scrolled-doc' : 'paginated';
+      const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
+      if (navSystem.chapterScrollModeEnabled || navSystem.singlePageEnabled) {
+        renditionRef.current.spread('none');
+      } else {
+        renditionRef.current.spread(isMobileScreen ? 'none' : 'auto');
+      }
+      renditionRef.current.flow(targetFlow);
+    } catch (err) {
+      console.warn('Failed to toggle epub flow/spread:', err);
+    }
+  }, [navSystem.chapterScrollModeEnabled, navSystem.singlePageEnabled]);
+
   // Resize and overscroll cleanup with debouncing and exact dimensional recalculation
   useEffect(() => {
     let resizeTimer = null;
@@ -527,8 +558,12 @@ export default function EpubViewer({
         }
         lastDimensions = { width, height };
 
-        const isSinglePage = width < 800 || (typeof window !== 'undefined' && window.innerWidth < 768);
-        renditionRef.current.spread(isSinglePage ? 'none' : 'auto');
+        if (!chapterScrollModeRef.current) {
+          const isSinglePage = singlePageRef.current || width < 800 || (typeof window !== 'undefined' && window.innerWidth < 768);
+          renditionRef.current.spread(isSinglePage ? 'none' : 'auto');
+        } else {
+          renditionRef.current.spread('none');
+        }
 
         const currentCfi = renditionRef.current.currentLocation()?.start?.cfi;
         renditionRef.current.resize(width, height, currentCfi);
@@ -621,12 +656,20 @@ export default function EpubViewer({
 
         viewerRef.current.innerHTML = '';
 
+        if (chapterScrollModeRef.current) {
+          viewerRef.current.classList.add('chapter-scroll-mode');
+        } else {
+          viewerRef.current.classList.remove('chapter-scroll-mode');
+        }
+
         const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < 640;
+        const initialFlow = chapterScrollModeRef.current ? 'scrolled-doc' : 'paginated';
+        const initialSpread = (chapterScrollModeRef.current || singlePageRef.current) ? 'none' : (isMobileScreen ? 'none' : 'auto');
         const rendition = epubBook.renderTo(viewerRef.current, {
           width: '100%',
           height: '100%',
-          flow: 'paginated',
-          spread: isMobileScreen ? 'none' : 'auto',
+          flow: initialFlow,
+          spread: initialSpread,
           gap: isMobileScreen ? 20 : 60
         });
         renditionRef.current = rendition;
@@ -684,6 +727,10 @@ export default function EpubViewer({
             contents.addStylesheetCss(`
               *, *::before, *::after {
                 box-sizing: border-box !important;
+              }
+              html, body {
+                touch-action: pan-y !important;
+                -webkit-overflow-scrolling: touch !important;
               }
               ${isMobile ? `
                 html, body {
@@ -1237,6 +1284,12 @@ export default function EpubViewer({
         toggleUpDownFlip={navSystem.toggleUpDownFlip}
         mouseWheelFlipEnabled={navSystem.mouseWheelFlipEnabled}
         toggleMouseWheelFlip={navSystem.toggleMouseWheelFlip}
+        chapterScrollModeEnabled={navSystem.chapterScrollModeEnabled}
+        toggleChapterScrollMode={navSystem.toggleChapterScrollMode}
+        singlePageEnabled={navSystem.singlePageEnabled}
+        toggleSinglePage={navSystem.toggleSinglePage}
+        epubReadingMode={navSystem.epubReadingMode}
+        changeEpubReadingMode={navSystem.changeEpubReadingMode}
       />
 
       {/* Main EPUB Reader Stage + Side Drawers */}
@@ -1262,6 +1315,7 @@ export default function EpubViewer({
           floatingButtonsEnabled={navSystem.floatingButtonsEnabled}
           flipPrev={navSystem.flipPrev}
           flipNext={navSystem.flipNext}
+          chapterScrollModeEnabled={navSystem.chapterScrollModeEnabled}
         />
 
         {/* Toggleable Right Comments & Highlights Drawer */}
@@ -1280,7 +1334,7 @@ export default function EpubViewer({
           isOpen={copilot.copilotDrawerOpen}
           onClose={() => handleSetCopilotDrawerOpen(false)}
           book={book}
-          currentLocation={locationInfo.chapter || locationInfo.cfi || (pageInfo.page ? `Pág. ${pageInfo.page}` : '')}
+          currentLocation={locationInfo.chapter || locationInfo.cfi || (pageInfo.page ? t('pageBadge', { page: pageInfo.page }) : '')}
           activeContexts={copilot.activeContexts}
           onRemoveContext={copilot.handleRemoveContext}
           onAddContext={copilot.handleAskCopilot}
@@ -1323,7 +1377,7 @@ export default function EpubViewer({
           onReadAloud={ttsSystem.handleReadSelection}
           onAskCopilot={(text) => {
             handleSetCommentsDrawerOpen(false);
-            const loc = locationInfo.chapter || (pageInfo.page ? `Pág. ${pageInfo.page}` : '');
+            const loc = locationInfo.chapter || (pageInfo.page ? t('pageBadge', { page: pageInfo.page }) : '');
             copilot.handleAskCopilot(text, loc);
           }}
           isCopilotOpen={copilot.copilotDrawerOpen}
@@ -1347,7 +1401,7 @@ export default function EpubViewer({
                       : locationInfo.percentage
                   ))}%` 
                 }}
-                title={`Livro: ${locationInfo.percentage}%`}
+                title={`${t('book')}: ${locationInfo.percentage}%`}
               />
             </div>
           )}
@@ -1360,7 +1414,7 @@ export default function EpubViewer({
                 style={{ 
                   width: `${Math.min(100, Math.max(0, locationInfo.chapterPercentage || 0))}%` 
                 }}
-                title={locationInfo.chapter ? `${locationInfo.chapter}: ${locationInfo.chapterPercentage}%` : `Capítulo: ${locationInfo.chapterPercentage}%`}
+                title={locationInfo.chapter ? `${locationInfo.chapter}: ${locationInfo.chapterPercentage}%` : `${t('chapter')}: ${locationInfo.chapterPercentage}%`}
               />
             </div>
           )}

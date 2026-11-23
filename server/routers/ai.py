@@ -1,3 +1,4 @@
+import os
 import json
 import re
 from typing import AsyncIterator, Optional
@@ -8,7 +9,7 @@ from ..ai.manager import AIManager
 from ..deps import get_ai_mgr, get_request_user
 from ..users import UserManager
 from ..database import get_db
-from ..schemas import AIChatPayload, CreateAIConversationPayload, UpdateAIConversationPayload
+from ..schemas import AIChatPayload, CreateAIConversationPayload, UpdateAIConversationPayload, AISettingsPayload
 
 router = APIRouter(tags=["ai"])
 
@@ -29,11 +30,60 @@ def generate_ai_title(prompt: str, location: Optional[str] = None) -> str:
 
 @router.get("/api/ai/status")
 async def get_ai_status(ai_mgr: AIManager = Depends(get_ai_mgr)):
-    """Checks whether the local AI engine is available."""
+    """Checks whether the configured AI engine is available."""
     available = await ai_mgr.is_available()
     return {
         "available": available,
-        "engine": "local_cli"
+        "engine": getattr(ai_mgr.provider, "engine_name", "gemini_flash")
+    }
+
+@router.get("/api/ai/settings")
+async def get_ai_settings(ai_mgr: AIManager = Depends(get_ai_mgr)):
+    """Returns current AI configuration status with masked API key."""
+    db = get_db()
+    stored_key = db.get_setting("gemini_api_key") or os.environ.get("GEMINI_API_KEY", "") or ""
+    stored_model = db.get_setting("gemini_model") or os.environ.get("GEMINI_MODEL", "gemini-3.5-flash") or "gemini-3.5-flash"
+    
+    masked = ""
+    if stored_key:
+        masked = f"...{stored_key[-4:]}" if len(stored_key) > 4 else "***"
+
+    return {
+        "has_api_key": bool(stored_key),
+        "api_key_masked": masked,
+        "model": stored_model,
+        "available": await ai_mgr.is_available()
+    }
+
+@router.post("/api/ai/settings")
+async def update_ai_settings(
+    payload: AISettingsPayload,
+    ai_mgr: AIManager = Depends(get_ai_mgr)
+):
+    """Updates and persists the Gemini API key and model in SQLite without env vars."""
+    db = get_db()
+    if payload.api_key is not None:
+        clean_key = payload.api_key.strip()
+        db.set_setting("gemini_api_key", clean_key)
+        if hasattr(ai_mgr.provider, "api_key"):
+            ai_mgr.provider.api_key = clean_key
+
+    if payload.model:
+        clean_model = payload.model.strip()
+        db.set_setting("gemini_model", clean_model)
+        if hasattr(ai_mgr.provider, "model"):
+            ai_mgr.provider.model = clean_model
+
+    stored_key = db.get_setting("gemini_api_key") or os.environ.get("GEMINI_API_KEY", "") or ""
+    stored_model = db.get_setting("gemini_model") or os.environ.get("GEMINI_MODEL", "gemini-3.5-flash") or "gemini-3.5-flash"
+    masked = f"...{stored_key[-4:]}" if len(stored_key) > 4 else ("***" if stored_key else "")
+
+    return {
+        "status": "ok",
+        "has_api_key": bool(stored_key),
+        "api_key_masked": masked,
+        "model": stored_model,
+        "available": await ai_mgr.is_available()
     }
 
 @router.get("/api/ai/conversations")
@@ -102,7 +152,7 @@ async def delete_conversation(
     conversation_id: str,
     user: str = Depends(get_request_user)
 ):
-    """Deletes conversation, its messages, and any underlying CLI session cache."""
+    """Deletes conversation and its messages."""
     user_slug, _ = UserManager.normalize_username(user)
     db = get_db()
     deleted = db.delete_ai_conversation(user_slug, conversation_id)
@@ -129,12 +179,9 @@ async def chat_stream(
 
     active_conv_id = payload.conversation_id
     active_conv = None
-    agy_conv_id = None
 
     if active_conv_id:
         active_conv = db.get_ai_conversation(user_slug, active_conv_id)
-        if active_conv:
-            agy_conv_id = active_conv.get("agy_conversation_id")
 
     if not active_conv:
         last_user_prompt = payload.messages[-1].content
@@ -171,7 +218,7 @@ async def chat_stream(
 
             async for item in ai_mgr.stream_chat(
                 messages=msg_dicts,
-                conversation_id=agy_conv_id,
+                conversation_id=active_conv_id,
                 book_id=payload.book_id,
                 book_title=payload.book_title,
                 book_author=payload.book_author,
@@ -180,12 +227,7 @@ async def chat_stream(
                 contexts=ctx_dicts,
                 system_prompt=payload.system_prompt
             ):
-                if isinstance(item, dict):
-                    # Provider returned a structured event (e.g. CLIProvider yielded internal agy ID)
-                    agy_id = item.get("conversation_id")
-                    if agy_id:
-                        db.update_ai_conversation(user_slug, active_conv_id, agy_conversation_id=agy_id)
-                elif isinstance(item, str) and item:
+                if isinstance(item, str) and item:
                     accumulated_reply.append(item)
                     data = json.dumps({"chunk": item}, ensure_ascii=False)
                     yield f"data: {data}\n\n"
@@ -231,12 +273,9 @@ async def chat_message(
 
     active_conv_id = payload.conversation_id
     active_conv = None
-    agy_conv_id = None
 
     if active_conv_id:
         active_conv = db.get_ai_conversation(user_slug, active_conv_id)
-        if active_conv:
-            agy_conv_id = active_conv.get("agy_conversation_id")
 
     if not active_conv:
         last_user_prompt = payload.messages[-1].content
@@ -263,7 +302,7 @@ async def chat_message(
 
     reply = await ai_mgr.generate_chat(
         messages=msg_dicts,
-        conversation_id=agy_conv_id,
+        conversation_id=active_conv_id,
         book_id=payload.book_id,
         book_title=payload.book_title,
         book_author=payload.book_author,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import { I18nProvider, useI18n } from '../i18n';
+import { I18nProvider, useI18n, translate, getStoredLang } from '../i18n';
 
 const TestConsumer = ({ translationKey = 'appTitle', params = {}, onReady }) => {
   const i18n = useI18n();
@@ -98,6 +98,16 @@ describe('i18n', () => {
       'floatingSideButtonsDesc',
       'upDownPageFlip',
       'upDownPageFlipDesc',
+      'mouseWheelPageFlip',
+      'mouseWheelPageFlipDesc',
+      'chapterScrollMode',
+      'chapterScrollModeDesc',
+      'singlePageSetting',
+      'singlePageSettingDesc',
+      'readingMode',
+      'readingModeDual',
+      'readingModeSingle',
+      'readingModeChapterScroll',
       'dualPageSetting',
       'dualPageSettingDesc',
       'bookTexture',
@@ -114,6 +124,8 @@ describe('i18n', () => {
       'continuousScroll',
       'pageSpacing',
       'pinHeader',
+      'pagesPerDay',
+      'pagesPerDay_one',
     ];
 
     // English
@@ -133,5 +145,82 @@ describe('i18n', () => {
       expect(translated).not.toBe(k);
       expect(translated.length).toBeGreaterThan(0);
     });
+  });
+
+  it('provides translate helper and exposes language property with key parity for newly added keys', () => {
+    let i18nInstance;
+    render(
+      <I18nProvider>
+        <TestConsumer onReady={(inst) => { i18nInstance = inst; }} />
+      </I18nProvider>
+    );
+
+    expect(i18nInstance.language).toBe('en');
+
+    const newKeys = [
+      'page',
+      'pages',
+      'pages_one',
+      'pagesToday',
+      'pagesTotal',
+      'readBooksCountShort',
+      'loading',
+      'chapter',
+      'book',
+      'thisBook',
+      'finished',
+      'confirm',
+      'deleteConfirmPrompt',
+      'updateApiKey',
+      'failedToSaveKey',
+      'failedToRemoveKey',
+      'failedToLoadMessages',
+      'show',
+      'hide',
+      'geminiFlashStable',
+      'geminiFlashFallback',
+      'doubleClick',
+      'timeAgoNow',
+      'timeAgoMin',
+      'timeAgoHours',
+      'timeAgoYesterday',
+      'timeAgoDays',
+      'diagnosticsAndErrorReport',
+      'copyDiagnostics',
+      'diagnosticsCopied',
+      'noRecentErrors',
+      'errorsRecordedCount',
+      'clearLogs',
+      'errorOpeningBook',
+      'errorRenderingBook',
+      'appErrorTitle',
+      'appErrorDesc',
+      'errorUnknown',
+      'noStackTrace',
+      'reloadApp',
+      'goToHome',
+      'technicalDetails',
+      'tryAgain',
+    ];
+
+    ['en', 'pt', 'es', 'fr'].forEach(lang => {
+      newKeys.forEach(key => {
+        const val = translate(key, { count: 5, title: 'BookTitle' }, lang);
+        expect(val).toBeDefined();
+        expect(typeof val).toBe('string');
+        expect(val.length).toBeGreaterThan(0);
+      });
+    });
+
+    expect(translate('pages', {}, 'pt')).toBe('páginas');
+    expect(translate('finished', {}, 'pt')).toBe('Concluído');
+    expect(translate('finished', {}, 'en')).toBe('Completed');
+    expect(translate('chapter', {}, 'pt')).toBe('Capítulo');
+    expect(translate('chapter', {}, 'en')).toBe('Chapter');
+    expect(translate('book', {}, 'pt')).toBe('Livro');
+    expect(translate('book', {}, 'en')).toBe('Book');
+    expect(translate('timeAgoMin', { count: 12 }, 'en')).toBe('12m ago');
+    expect(translate('timeAgoMin', { count: 12 }, 'pt')).toBe('12m atrás');
+    expect(translate('errorRenderingBook', { title: 'Dune' }, 'en')).toBe('An error occurred while rendering "Dune".');
   });
 });

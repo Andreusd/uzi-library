@@ -101,6 +101,12 @@ const translations = {
     fitWidth: 'Fit Width',
     dualPageMode: 'Dual Page View',
     singlePageMode: 'Single Page View',
+    singlePageSetting: 'Single Page Mode',
+    singlePageSettingDesc: 'Force a single page view instead of fitting two pages on wide screens',
+    readingMode: 'Reading Mode',
+    readingModeDual: 'Dual Page',
+    readingModeSingle: 'Single Page',
+    readingModeChapterScroll: 'Chapter Scroll',
     dualPageToggle: 'Toggle Dual Page View',
     dualPageSetting: 'Dual Page Mode',
     dualPageSettingDesc: 'Display two pages side-by-side like an open book',
@@ -134,6 +140,8 @@ const translations = {
     upDownPageFlipDesc: 'Turn page when reaching start or end with Up/Down arrows',
     mouseWheelPageFlip: 'Mouse Wheel Page Flip',
     mouseWheelPageFlipDesc: 'Scroll down for next page, scroll up for previous page',
+    chapterScrollMode: 'Chapter Scroll Mode',
+    chapterScrollModeDesc: 'Read each chapter as a continuous vertical scrollable page',
     verticalKeysFlip: 'Up/Down Page Flip',
     verticalKeysFlipDesc: 'Turn page when reaching start or end with Up/Down arrows',
     dualPageModeDesc: 'Display two pages side-by-side like an open book',
@@ -218,7 +226,19 @@ const translations = {
     noConversations: 'No previous conversations for this book.',
     confirmDeleteConversation: 'Are you sure you want to delete this conversation?',
     conversationTitlePlaceholder: 'Conversation title...',
-    copilotOffline: 'Local AI engine offline',
+    aiSettingsTitle: 'AI Chat (Gemini Flash)',
+    aiSettingsDesc: 'Configure your Google AI Studio API key for reading assistance without terminal commands.',
+    geminiApiKey: 'Gemini API Key',
+    geminiApiKeyPlaceholder: 'Paste your API key (AIzaSy...)',
+    saveApiKey: 'Save Key',
+    apiKeySaved: 'API key saved successfully!',
+    getFreeApiKey: 'Get a free key at Google AI Studio',
+    apiKeyConfigured: 'Configured',
+    apiKeyNotConfigured: 'Not configured',
+    geminiModel: 'Model',
+    clearApiKey: 'Remove Key',
+    configureAiKey: 'Configure AI Key',
+    copilotOffline: 'AI engine unavailable (API key missing)',
     copilotTyping: 'Thinking...',
     sendPrompt: 'Send',
     stopGeneration: 'Stop',
@@ -515,6 +535,8 @@ const translations = {
     streakPendingToday: 'Read today to maintain your streak!',
     dailyGoal: 'Daily Goal',
     editGoal: 'Adjust Goal',
+    pagesPerDay: '{count} pages/day',
+    pagesPerDay_one: '{count} page/day',
     goalAchieved: 'Goal Achieved!',
     totalPagesRead: 'Total Pages Read',
     totalReadingDays: 'days reading',
@@ -548,6 +570,53 @@ const translations = {
     uploadError: 'Failed to upload book: {error}',
     uploadingBook: 'Uploading {filename}...',
     supportedFormatsHint: 'Supported formats: PDF, EPUB',
+
+    // General reading & status
+    page: 'Page',
+    pages: 'pages',
+    pages_one: 'page',
+    pagesToday: 'pages today',
+    pagesTotal: 'pages in total',
+    readBooksCountShort: 'read',
+    loading: 'Loading',
+    chapter: 'Chapter',
+    book: 'Book',
+    thisBook: 'this book',
+    finished: 'Completed',
+    confirm: 'OK',
+    deleteConfirmPrompt: 'Delete?',
+    updateApiKey: 'Update API Key',
+    failedToSaveKey: 'Failed to save key',
+    failedToRemoveKey: 'Failed to remove key',
+    failedToLoadMessages: 'Failed to load messages.',
+    show: 'Show',
+    hide: 'Hide',
+    geminiFlashStable: 'Gemini 3.5 Flash (Recommended & Stable)',
+    geminiFlashFallback: 'Gemini 3.8 Flash (High Demand / Automatic Fallback)',
+    doubleClick: 'double click',
+    timeAgoNow: 'Just now',
+    timeAgoMin: '{count}m ago',
+    timeAgoHours: '{count}h ago',
+    timeAgoYesterday: 'Yesterday',
+    timeAgoDays: '{count}d ago',
+
+    // Diagnostics & Error Handling
+    diagnosticsAndErrorReport: 'Diagnostics and Error Report',
+    copyDiagnostics: 'Copy Diagnostics',
+    diagnosticsCopied: 'Copied!',
+    noRecentErrors: 'No recent errors recorded. System is stable.',
+    errorsRecordedCount: '{count} error(s) recorded. Use the button above to copy the full report with stack trace and device info.',
+    clearLogs: 'Clear logs',
+    errorOpeningBook: 'Unable to Open Book',
+    errorRenderingBook: 'An error occurred while rendering "{title}".',
+    appErrorTitle: 'An application error occurred',
+    appErrorDesc: 'The Uzi Library interface encountered an unexpected failure. You can copy the diagnostic report to identify the issue or try reloading.',
+    errorUnknown: 'Unknown error in interface.',
+    noStackTrace: 'No stack trace available.',
+    reloadApp: 'Reload',
+    goToHome: 'Go to Home',
+    technicalDetails: 'Technical details (Stack trace)',
+    tryAgain: 'Try Again',
   },
   pt: {
     // Sidebar
@@ -649,6 +718,12 @@ const translations = {
     fitWidth: 'Ajustar Largura',
     dualPageMode: 'Visualização em Duas Páginas',
     singlePageMode: 'Visualização em Página Única',
+    singlePageSetting: 'Modo Página Única',
+    singlePageSettingDesc: 'Forçar exibição em página única em vez de duas páginas em telas largas',
+    readingMode: 'Modo de Leitura',
+    readingModeDual: 'Página Dupla',
+    readingModeSingle: 'Página Única',
+    readingModeChapterScroll: 'Rolagem por Capítulo',
     dualPageToggle: 'Alternar Modo Duas Páginas',
     dualPageSetting: 'Modo Duas Páginas',
     dualPageSettingDesc: 'Exibir duas páginas lado a lado como um livro aberto',
@@ -682,6 +757,8 @@ const translations = {
     upDownPageFlipDesc: 'Mudar de página ao atingir o início ou fim com as setas para Cima/Baixo',
     mouseWheelPageFlip: 'Virar Páginas com a Roda do Mouse',
     mouseWheelPageFlipDesc: 'Rolar para baixo para avançar, rolar para cima para voltar',
+    chapterScrollMode: 'Modo Rolagem por Capítulo',
+    chapterScrollModeDesc: 'Ler cada capítulo como uma página contínua com rolagem vertical',
     verticalKeysFlip: 'Virar Páginas com Cima/Baixo',
     verticalKeysFlipDesc: 'Mudar de página ao atingir o início ou fim com as setas para Cima/Baixo',
     dualPageModeDesc: 'Exibir duas páginas lado a lado como um livro aberto',
@@ -766,7 +843,19 @@ const translations = {
     noConversations: 'Nenhuma conversa anterior para este livro.',
     confirmDeleteConversation: 'Tem certeza que deseja excluir esta conversa?',
     conversationTitlePlaceholder: 'Título da conversa...',
-    copilotOffline: 'Motor de IA local indisponível',
+    aiSettingsTitle: 'Chat com IA (Gemini Flash)',
+    aiSettingsDesc: 'Configure sua chave de API gratuita do Google AI Studio para tirar dúvidas da leitura sem comandos de terminal.',
+    geminiApiKey: 'Chave da API Gemini',
+    geminiApiKeyPlaceholder: 'Cole sua chave de API (AIzaSy...)',
+    saveApiKey: 'Salvar Chave',
+    apiKeySaved: 'Chave de API salva com sucesso!',
+    getFreeApiKey: 'Obter chave gratuita no Google AI Studio',
+    apiKeyConfigured: 'Configurada',
+    apiKeyNotConfigured: 'Não configurada',
+    geminiModel: 'Modelo',
+    clearApiKey: 'Remover Chave',
+    configureAiKey: 'Configurar Chave da IA',
+    copilotOffline: 'Motor de IA indisponível (chave ausente)',
     copilotTyping: 'Pensando...',
     sendPrompt: 'Enviar',
     stopGeneration: 'Parar',
@@ -1063,6 +1152,8 @@ const translations = {
     streakPendingToday: 'Leia hoje para manter sua ofensiva!',
     dailyGoal: 'Meta Diária',
     editGoal: 'Ajustar Meta',
+    pagesPerDay: '{count} págs/dia',
+    pagesPerDay_one: '{count} pág/dia',
     goalAchieved: 'Meta Batida!',
     totalPagesRead: 'Total de Páginas',
     totalReadingDays: 'dias lendo',
@@ -1096,6 +1187,53 @@ const translations = {
     uploadError: 'Falha ao enviar o livro: {error}',
     uploadingBook: 'Enviando {filename}...',
     supportedFormatsHint: 'Formatos suportados: PDF, EPUB',
+
+    // General reading & status
+    page: 'Página',
+    pages: 'páginas',
+    pages_one: 'página',
+    pagesToday: 'págs hoje',
+    pagesTotal: 'páginas no total',
+    readBooksCountShort: 'lidos',
+    loading: 'Carregando',
+    chapter: 'Capítulo',
+    book: 'Livro',
+    thisBook: 'este livro',
+    finished: 'Concluído',
+    confirm: 'OK',
+    deleteConfirmPrompt: 'Excluir?',
+    updateApiKey: 'Atualizar Chave da API',
+    failedToSaveKey: 'Falha ao salvar chave',
+    failedToRemoveKey: 'Falha ao remover chave',
+    failedToLoadMessages: 'Falha ao carregar mensagens.',
+    show: 'Mostrar',
+    hide: 'Ocultar',
+    geminiFlashStable: 'Gemini 3.5 Flash (Recomendado & Estável)',
+    geminiFlashFallback: 'Gemini 3.8 Flash (Alta Demanda / Fallback Automático)',
+    doubleClick: 'duplo clique',
+    timeAgoNow: 'Agora',
+    timeAgoMin: '{count}m atrás',
+    timeAgoHours: '{count}h atrás',
+    timeAgoYesterday: 'Ontem',
+    timeAgoDays: '{count}d atrás',
+
+    // Diagnostics & Error Handling
+    diagnosticsAndErrorReport: 'Diagnóstico e Relatório de Erros',
+    copyDiagnostics: 'Copiar Diagnóstico',
+    diagnosticsCopied: 'Copiado!',
+    noRecentErrors: 'Nenhum erro registrado recentemente. O sistema está estável.',
+    errorsRecordedCount: '{count} erro(s) registrado(s). Use o botão acima para copiar o relatório completo com stack trace e informações do dispositivo.',
+    clearLogs: 'Limpar logs',
+    errorOpeningBook: 'Erro ao Abrir Livro',
+    errorRenderingBook: 'Ocorreu um erro ao renderizar "{title}".',
+    appErrorTitle: 'Ocorreu um erro na aplicação',
+    appErrorDesc: 'A interface do Uzi Library encontrou uma falha inesperada. Você pode copiar o relatório de diagnóstico para identificar o problema ou tentar recarregar.',
+    errorUnknown: 'Erro desconhecido na interface.',
+    noStackTrace: 'Sem stack trace disponível.',
+    reloadApp: 'Recarregar',
+    goToHome: 'Ir para Início',
+    technicalDetails: 'Detalhes técnicos (Stack trace)',
+    tryAgain: 'Tentar Novamente',
   },
   es: {
     // Sidebar
@@ -1197,6 +1335,12 @@ const translations = {
     fitWidth: 'Ajustar al ancho',
     dualPageMode: 'Vista de doble página',
     singlePageMode: 'Vista de página única',
+    singlePageSetting: 'Modo de página única',
+    singlePageSettingDesc: 'Forzar vista de una sola página en lugar de dos páginas en pantallas anchas',
+    readingMode: 'Modo de lectura',
+    readingModeDual: 'Página doble',
+    readingModeSingle: 'Página única',
+    readingModeChapterScroll: 'Desplazamiento por capítulo',
     dualPageToggle: 'Alternar vista de doble página',
     dualPageSetting: 'Modo doble página',
     dualPageSettingDesc: 'Muestra dos páginas lado a lado como un libro abierto',
@@ -1230,6 +1374,8 @@ const translations = {
     upDownPageFlipDesc: 'Cambia de página al llegar al inicio o final con las flechas Arriba/Abajo',
     mouseWheelPageFlip: 'Pasar páginas con la rueda del ratón',
     mouseWheelPageFlipDesc: 'Desplazar hacia abajo para avanzar, hacia arriba para retroceder',
+    chapterScrollMode: 'Modo Desplazamiento por Capítulo',
+    chapterScrollModeDesc: 'Leer cada capítulo como una página continua con desplazamiento vertical',
     verticalKeysFlip: 'Pasar páginas con Arriba/Abajo',
     verticalKeysFlipDesc: 'Cambia de página al llegar al inicio o final con las flechas Arriba/Abajo',
     dualPageModeDesc: 'Mostrar dos páginas una al lado de la otra como un libro abierto',
@@ -1314,7 +1460,19 @@ const translations = {
     noConversations: 'Sin conversaciones previas para este libro.',
     confirmDeleteConversation: '¿Seguro que deseas eliminar esta conversación?',
     conversationTitlePlaceholder: 'Título de la conversación...',
-    copilotOffline: 'Motor de IA local no disponible',
+    aiSettingsTitle: 'Chat con IA (Gemini Flash)',
+    aiSettingsDesc: 'Configure su clave de API gratuita de Google AI Studio para ayuda de lectura sin comandos de terminal.',
+    geminiApiKey: 'Clave de API Gemini',
+    geminiApiKeyPlaceholder: 'Pegue su clave de API (AIzaSy...)',
+    saveApiKey: 'Guardar Clave',
+    apiKeySaved: '¡Clave de API guardada con éxito!',
+    getFreeApiKey: 'Obtener clave gratuita en Google AI Studio',
+    apiKeyConfigured: 'Configurada',
+    apiKeyNotConfigured: 'No configurada',
+    geminiModel: 'Modelo',
+    clearApiKey: 'Eliminar Clave',
+    configureAiKey: 'Configurar Clave de IA',
+    copilotOffline: 'Motor de IA no disponible (falta clave)',
     copilotTyping: 'Pensando...',
     sendPrompt: 'Enviar',
     stopGeneration: 'Detener',
@@ -1611,6 +1769,8 @@ const translations = {
     streakPendingToday: '¡Lee hoy para mantener tu racha!',
     dailyGoal: 'Meta Diaria',
     editGoal: 'Ajustar Meta',
+    pagesPerDay: '{count} págs/día',
+    pagesPerDay_one: '{count} pág/día',
     goalAchieved: '¡Meta Conseguida!',
     totalPagesRead: 'Total de Páginas',
     totalReadingDays: 'días leyendo',
@@ -1644,6 +1804,53 @@ const translations = {
     uploadError: 'Error al subir el libro: {error}',
     uploadingBook: 'Subiendo {filename}...',
     supportedFormatsHint: 'Formatos admitidos: PDF, EPUB',
+
+    // General reading & status
+    page: 'Página',
+    pages: 'páginas',
+    pages_one: 'página',
+    pagesToday: 'págs hoy',
+    pagesTotal: 'páginas en total',
+    readBooksCountShort: 'leídos',
+    loading: 'Cargando',
+    chapter: 'Capítulo',
+    book: 'Libro',
+    thisBook: 'este libro',
+    finished: 'Concluido',
+    confirm: 'OK',
+    deleteConfirmPrompt: '¿Eliminar?',
+    updateApiKey: 'Actualizar Clave de API',
+    failedToSaveKey: 'Error al guardar la clave',
+    failedToRemoveKey: 'Error al eliminar la clave',
+    failedToLoadMessages: 'Error al cargar los mensajes.',
+    show: 'Mostrar',
+    hide: 'Ocultar',
+    geminiFlashStable: 'Gemini 3.5 Flash (Recomendado y Estable)',
+    geminiFlashFallback: 'Gemini 3.8 Flash (Alta Demanda / Fallback Automático)',
+    doubleClick: 'doble clic',
+    timeAgoNow: 'Ahora',
+    timeAgoMin: 'hace {count}m',
+    timeAgoHours: 'hace {count}h',
+    timeAgoYesterday: 'Ayer',
+    timeAgoDays: 'hace {count}d',
+
+    // Diagnostics & Error Handling
+    diagnosticsAndErrorReport: 'Diagnóstico e Informe de Errores',
+    copyDiagnostics: 'Copiar Diagnóstico',
+    diagnosticsCopied: '¡Copiado!',
+    noRecentErrors: 'No hay errores recientes registrados. El sistema está estable.',
+    errorsRecordedCount: '{count} error(es) registrado(s). Use el botón de arriba para copiar el informe completo con stack trace e información del dispositivo.',
+    clearLogs: 'Limpiar registros',
+    errorOpeningBook: 'Error al Abrir el Libro',
+    errorRenderingBook: 'Ocurrió un error al renderizar "{title}".',
+    appErrorTitle: 'Ocurrió un error en la aplicación',
+    appErrorDesc: 'La interfaz de Uzi Library encontró un fallo inesperado. Puede copiar el informe de diagnóstico para identificar el problema o intentar recargar.',
+    errorUnknown: 'Error desconocido en la interfaz.',
+    noStackTrace: 'No hay stack trace disponible.',
+    reloadApp: 'Recargar',
+    goToHome: 'Ir al Inicio',
+    technicalDetails: 'Detalles técnicos (Stack trace)',
+    tryAgain: 'Intentar de nuevo',
   },
   fr: {
     // Sidebar
@@ -1745,6 +1952,12 @@ const translations = {
     fitWidth: 'Ajuster à la largeur',
     dualPageMode: 'Affichage double page',
     singlePageMode: 'Affichage simple page',
+    singlePageSetting: 'Mode simple page',
+    singlePageSettingDesc: 'Forcer l’affichage d’une seule page au lieu de deux sur les écrans larges',
+    readingMode: 'Mode de lecture',
+    readingModeDual: 'Double page',
+    readingModeSingle: 'Page unique',
+    readingModeChapterScroll: 'Défilement par chapitre',
     dualPageToggle: 'Basculer double page',
     dualPageSetting: 'Mode double page',
     dualPageSettingDesc: 'Afficher deux pages côte à côte comme un livre ouvert',
@@ -1778,6 +1991,8 @@ const translations = {
     upDownPageFlipDesc: 'Changer de page au début ou à la fin avec les flèches Haut/Bas',
     mouseWheelPageFlip: 'Tourner les pages avec la molette de la souris',
     mouseWheelPageFlipDesc: 'Faire défiler vers le bas pour avancer, vers le haut pour reculer',
+    chapterScrollMode: 'Mode Défilement par Chapitre',
+    chapterScrollModeDesc: 'Lire chaque chapitre comme une page continue avec défilement vertical',
     verticalKeysFlip: 'Tourner les pages avec Haut/Bas',
     verticalKeysFlipDesc: 'Changer de page au début ou à la fin avec les flèches Haut/Bas',
     dualPageModeDesc: 'Afficher deux pages côte à côte comme un livre ouvert',
@@ -1862,7 +2077,19 @@ const translations = {
     noConversations: 'Aucune conversation précédente pour ce livre.',
     confirmDeleteConversation: 'Êtes-vous sûr de vouloir supprimer cette conversation ?',
     conversationTitlePlaceholder: 'Titre de la conversation...',
-    copilotOffline: 'Moteur d’IA local indisponible',
+    aiSettingsTitle: 'Chat IA (Gemini Flash)',
+    aiSettingsDesc: 'Configurez votre clé API gratuite Google AI Studio pour obtenir de l\'aide à la lecture sans commandes de terminal.',
+    geminiApiKey: 'Clé API Gemini',
+    geminiApiKeyPlaceholder: 'Collez votre clé API (AIzaSy...)',
+    saveApiKey: 'Enregistrer la clé',
+    apiKeySaved: 'Clé API enregistrée avec succès !',
+    getFreeApiKey: 'Obtenir une clé gratuite sur Google AI Studio',
+    apiKeyConfigured: 'Configurée',
+    apiKeyNotConfigured: 'Non configurée',
+    geminiModel: 'Modèle',
+    clearApiKey: 'Supprimer la clé',
+    configureAiKey: 'Configurer la clé IA',
+    copilotOffline: 'Moteur d’IA non disponible (clé manquante)',
     copilotTyping: 'Réflexion en cours...',
     sendPrompt: 'Envoyer',
     stopGeneration: 'Arrêter',
@@ -2159,6 +2386,8 @@ const translations = {
     streakPendingToday: 'Lisez aujourd\'hui pour maintenir votre série !',
     dailyGoal: 'Objectif quotidien',
     editGoal: 'Modifier l\'objectif',
+    pagesPerDay: '{count} pages/jour',
+    pagesPerDay_one: '{count} page/jour',
     goalAchieved: 'Objectif atteint !',
     totalPagesRead: 'Total des pages',
     totalReadingDays: 'jours de lecture',
@@ -2192,14 +2421,83 @@ const translations = {
     uploadError: 'Échec du téléversement du livre : {error}',
     uploadingBook: 'Téléversement de {filename}...',
     supportedFormatsHint: 'Formats pris en charge : PDF, EPUB',
+
+    // General reading & status
+    page: 'Page',
+    pages: 'pages',
+    pages_one: 'page',
+    pagesToday: 'pages auj.',
+    pagesTotal: 'pages au total',
+    readBooksCountShort: 'lus',
+    loading: 'Chargement',
+    chapter: 'Chapitre',
+    book: 'Livre',
+    thisBook: 'ce livre',
+    finished: 'Terminé',
+    confirm: 'OK',
+    deleteConfirmPrompt: 'Supprimer ?',
+    updateApiKey: 'Mettre à jour la clé API',
+    failedToSaveKey: 'Échec de l’enregistrement de la clé',
+    failedToRemoveKey: 'Échec de la suppression de la clé',
+    failedToLoadMessages: 'Échec du chargement des messages.',
+    show: 'Afficher',
+    hide: 'Masquer',
+    geminiFlashStable: 'Gemini 3.5 Flash (Recommandé & Stable)',
+    geminiFlashFallback: 'Gemini 3.8 Flash (Forte demande / Fallback automatique)',
+    doubleClick: 'double-clic',
+    timeAgoNow: 'À l’instant',
+    timeAgoMin: 'il y a {count}m',
+    timeAgoHours: 'il y a {count}h',
+    timeAgoYesterday: 'Hier',
+    timeAgoDays: 'il y a {count}d',
+
+    // Diagnostics & Error Handling
+    diagnosticsAndErrorReport: 'Diagnostic et rapport d’erreurs',
+    copyDiagnostics: 'Copier le diagnostic',
+    diagnosticsCopied: 'Copié !',
+    noRecentErrors: 'Aucune erreur récente enregistrée. Le système est stable.',
+    errorsRecordedCount: '{count} erreur(s) enregistrée(s). Utilisez le bouton ci-dessus pour copier le rapport complet avec stack trace et infos appareil.',
+    clearLogs: 'Effacer les journaux',
+    errorOpeningBook: 'Impossible d’ouvrir le livre',
+    errorRenderingBook: 'Une erreur s’est produite lors du rendu de "{title}".',
+    appErrorTitle: 'Une erreur est survenue dans l’application',
+    appErrorDesc: 'L’interface d’Uzi Library a rencontré une erreur inattendue. Vous pouvez copier le rapport de diagnostic pour identifier le problème ou recharger.',
+    errorUnknown: 'Erreur inconnue dans l’interface.',
+    noStackTrace: 'Aucune stack trace disponible.',
+    reloadApp: 'Recharger',
+    goToHome: 'Aller à l’accueil',
+    technicalDetails: 'Détails techniques (Stack trace)',
+    tryAgain: 'Réessayer',
   }
 };
+
+export function getStoredLang() {
+  if (typeof window === 'undefined') return 'en';
+  return localStorage.getItem('uzi_library_lang') || localStorage.getItem('book_library_lang') || 'en';
+}
+
+export function translate(key, params = {}, lang = null) {
+  const currentLang = lang || getStoredLang();
+  const dict = translations[currentLang] || translations.en;
+  let str = dict[key] || translations.en[key] || key;
+  const resolvedParams = { ...params };
+  if (resolvedParams.shelves !== undefined && resolvedParams.folders === undefined) {
+    resolvedParams.folders = resolvedParams.shelves;
+  }
+  if (resolvedParams.folders !== undefined && resolvedParams.shelves === undefined) {
+    resolvedParams.shelves = resolvedParams.folders;
+  }
+  for (const [k, v] of Object.entries(resolvedParams)) {
+    str = str.replace(`{${k}}`, v);
+  }
+  return str;
+}
 
 const I18nContext = createContext(null);
 
 export function I18nProvider({ children }) {
   const [lang, setLangState] = useState(() => {
-    return localStorage.getItem('uzi_library_lang') || localStorage.getItem('book_library_lang') || 'en';
+    return getStoredLang();
   });
 
   const setLang = (newLang) => {
@@ -2210,22 +2508,10 @@ export function I18nProvider({ children }) {
   };
 
   const t = (key, params = {}) => {
-    const dict = translations[lang] || translations.en;
-    let str = dict[key] || translations.en[key] || key;
-    const resolvedParams = { ...params };
-    if (resolvedParams.shelves !== undefined && resolvedParams.folders === undefined) {
-      resolvedParams.folders = resolvedParams.shelves;
-    }
-    if (resolvedParams.folders !== undefined && resolvedParams.shelves === undefined) {
-      resolvedParams.shelves = resolvedParams.folders;
-    }
-    for (const [k, v] of Object.entries(resolvedParams)) {
-      str = str.replace(`{${k}}`, v);
-    }
-    return str;
+    return translate(key, params, lang);
   };
 
-  return React.createElement(I18nContext.Provider, { value: { lang, setLang, t } }, children);
+  return React.createElement(I18nContext.Provider, { value: { lang, language: lang, setLang, t } }, children);
 }
 
 export function useI18n() {

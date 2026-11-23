@@ -16,6 +16,7 @@ export default function Sidebar({
   continueReadingCount = 0,
   readCount = 0,
   downloadedCount = 0,
+  activityStreak = 0,
   selectedShelf,
   onSelectShelf,
   onShelfContextMenu,
@@ -42,6 +43,21 @@ export default function Sidebar({
   setIsUserDropdownOpen: propSetIsUserDropdownOpen,
 }) {
   const [shelfFilter, setShelfFilter] = useState('');
+  const [internalStreak, setInternalStreak] = useState(activityStreak);
+
+  useEffect(() => {
+    setInternalStreak(activityStreak);
+  }, [activityStreak]);
+
+  useEffect(() => {
+    const handleStats = (e) => {
+      if (e?.detail?.current_streak !== undefined) {
+        setInternalStreak(e.detail.current_streak);
+      }
+    };
+    window.addEventListener('activity-stats-updated', handleStats);
+    return () => window.removeEventListener('activity-stats-updated', handleStats);
+  }, []);
   const [internalLibraryDropdownOpen, setInternalLibraryDropdownOpen] = useState(false);
   const libraryDropdownOpen = propIsLibraryDropdownOpen !== undefined
     ? propIsLibraryDropdownOpen
@@ -597,6 +613,12 @@ export default function Sidebar({
                 <Flame className={`w-4 h-4 shrink-0 ${selectedShelf === 'activity' ? 'fill-orange-400 text-orange-400' : 'text-orange-400'}`} />
                 <span className="truncate">{t('activity')}</span>
               </div>
+              <span className={`
+                text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold
+                ${selectedShelf === 'activity' ? 'bg-orange-500/20 text-orange-300' : 'bg-neutral-800 text-neutral-400'}
+              `}>
+                {internalStreak}
+              </span>
             </button>
 
             {/* Downloaded / Offline Books Option (if any or selected) */}

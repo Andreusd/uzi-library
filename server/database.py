@@ -318,12 +318,18 @@ class Database:
             conn.execute("DELETE FROM books WHERE library_id = ?", (lib_id,))
             return res.rowcount > 0
 
+    # ----------------- Settings (General) -----------------
+    SENSITIVE_SETTINGS = {"gemini_api_key"}
+
     def get_setting(self, key: str, default: Any = None) -> Any:
         with self._lock, self.get_connection() as conn:
             row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
             if not row:
                 return default
             val = row["value"]
+            if key in self.SENSITIVE_SETTINGS:
+                from .crypto import decrypt_secret
+                return decrypt_secret(val)
             if val in ("1", "true", "True"):
                 return True
             if val in ("0", "false", "False"):
@@ -331,7 +337,11 @@ class Database:
             return val
 
     def set_setting(self, key: str, value: Any) -> Any:
-        val_str = "1" if value is True else ("0" if value is False else str(value))
+        if key in self.SENSITIVE_SETTINGS:
+            from .crypto import encrypt_secret
+            val_str = encrypt_secret(str(value)) if value else ""
+        else:
+            val_str = "1" if value is True else ("0" if value is False else str(value))
         with self._lock, self.get_connection() as conn:
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, val_str))
         return value
@@ -1000,24 +1010,14 @@ class Database:
     def delete_ai_conversation(self, user_slug: str, conversation_id: str) -> bool:
         with self._lock, self.get_connection() as conn:
             row = conn.execute(
-                "SELECT agy_conversation_id FROM ai_conversations WHERE user_slug = ? AND id = ?",
+                "SELECT id FROM ai_conversations WHERE user_slug = ? AND id = ?",
                 (user_slug, conversation_id)
             ).fetchone()
             if not row:
                 return False
 
-            agy_id = row["agy_conversation_id"]
             conn.execute("DELETE FROM ai_messages WHERE conversation_id = ?", (conversation_id,))
             conn.execute("DELETE FROM ai_conversations WHERE user_slug = ? AND id = ?", (user_slug, conversation_id))
-
-            # Clean up agy brain session directory if present
-            if agy_id:
-                try:
-                    brain_dir = os.path.expanduser(f"~/.gemini/antigravity-cli/brain/{agy_id}")
-                    if os.path.isdir(brain_dir):
-                        shutil.rmtree(brain_dir, ignore_errors=True)
-                except Exception:
-                    pass
             return True
 
     def add_ai_message(

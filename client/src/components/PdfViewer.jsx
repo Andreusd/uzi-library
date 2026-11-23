@@ -20,6 +20,7 @@ import { useTrackpadSwipe } from '../hooks/useTrackpadSwipe';
 import { useReaderHeaderPin } from '../hooks/useReaderHeaderPin';
 import { usePdfKeyboardGestures } from '../hooks/usePdfKeyboardGestures';
 import { useReadingTracker } from '../hooks/useReadingTracker';
+import { useI18n } from '../i18n';
 import { extractPdfPageText } from '../utils/textToSpeech';
 import { SimpleLinkService } from '../utils/SimpleLinkService';
 import { queuePreloadPages, clearPageRenderCache, getDualPageSpread, getNextSpreadPage, getPrevSpreadPage } from '../utils/pdfPageUtils';
@@ -73,6 +74,7 @@ export default function PdfViewer({
   mode,
   onModeChange,
 }) {
+  const { t } = useI18n();
   const shouldShowExtension = showFileExtension !== undefined 
     ? Boolean(showFileExtension) 
     : (() => {
@@ -437,7 +439,7 @@ export default function PdfViewer({
     if (!text || !text.trim()) return;
     copilot.handleSetTransientContext({
       text: text.trim(),
-      location: `Pág. ${page || nav.currentPage}`
+      location: t('pageBadge', { page: page || nav.currentPage })
     });
   }, [copilot, nav.currentPage]);
 
@@ -933,7 +935,7 @@ export default function PdfViewer({
       setCommentsDrawerOpen={handleSetCommentsDrawerOpen}
       copilotDrawerOpen={copilot.copilotDrawerOpen}
       setCopilotDrawerOpen={handleSetCopilotDrawerOpen}
-      currentLocation={nav?.currentPage ? `Pág. ${nav.currentPage}` : ''}
+      currentLocation={nav?.currentPage ? t('pageBadge', { page: nav.currentPage }) : ''}
       activeContexts={copilot.activeContexts}
       onRemoveContext={copilot.handleRemoveContext}
       onAddContext={copilot.handleAskCopilot}
@@ -945,7 +947,7 @@ export default function PdfViewer({
       onClearPendingSelection={copilot.handleClearPendingSelection}
       onAskCopilot={(text) => {
         handleSetCommentsDrawerOpen(false);
-        copilot.handleAskCopilot(text, `Pág. ${annotations.selectionMenu?.page || nav.currentPage}`);
+        copilot.handleAskCopilot(text, t('pageBadge', { page: annotations.selectionMenu?.page || nav.currentPage }));
       }}
       onJumpToAnnotation={handleJumpToAnnotation}
       onUpdateComment={annotations.handleUpdateComment}

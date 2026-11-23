@@ -311,10 +311,10 @@ describe('Reading Activity Tracking & Dynamic Character-based Dwell Time', () =>
       );
 
       await waitFor(() => {
-        expect(screen.getByText(/10 pág\/dia/i)).toBeInTheDocument();
+        expect(screen.getByText(/10 (pages\/day|pág\/dia)/i)).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText(/10 pág\/dia/i));
+      fireEvent.click(screen.getByText(/10 (pages\/day|pág\/dia)/i));
 
       const input = screen.getByDisplayValue('10');
       fireEvent.change(input, { target: { value: '20' } });

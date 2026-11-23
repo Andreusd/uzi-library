@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { booksApi, foldersApi, librariesApi, tagsApi } from '../api';
+import { booksApi, foldersApi, librariesApi, tagsApi, activityApi } from '../api';
 import { useI18n } from '../i18n';
 import { getOfflineBooksList, syncPendingProgress, migrateOfflineBooksLibraries } from '../services/offlineStorage';
 import { useNetworkStatus } from './useNetworkStatus';
@@ -43,6 +43,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
   const [continueReading, setContinueReading] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [readBooks, setReadBooks] = useState([]);
+  const [activityStreak, setActivityStreak] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const favoriteIdsRef = useRef(favoriteIds);
   favoriteIdsRef.current = favoriteIds;
@@ -315,6 +316,31 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       .catch(err => console.error('Failed to load tags:', err));
   }, [activeLibraryId]);
 
+  // Load consecutive day reading streak
+  const loadActivityStreak = useCallback(() => {
+    if (isOffline) return;
+    try {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      activityApi.getOverview(7, todayStr)
+        .then(data => {
+          if (data?.status === 'ok' && data.stats) {
+            setActivityStreak(data.stats.current_streak || 0);
+          }
+        })
+        .catch(() => {});
+    } catch {}
+  }, [isOffline]);
+
+  useEffect(() => {
+    const handleStats = (e) => {
+      if (e?.detail?.current_streak !== undefined) {
+        setActivityStreak(e.detail.current_streak);
+      }
+    };
+    window.addEventListener('activity-stats-updated', handleStats);
+    return () => window.removeEventListener('activity-stats-updated', handleStats);
+  }, []);
+
   // Handle Book Tags Updated from Modal
   const handleBookTagsUpdated = useCallback((bookId, updatedTags) => {
     setBooks(prev => prev.map(b => b.id === bookId ? { ...b, tags: updatedTags } : b));
@@ -466,8 +492,9 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       loadReadBooks(activeLibraryId);
       loadTags(activeLibraryId);
       loadBooks(activeLibraryId);
+      loadActivityStreak();
     }
-  }, [activeLibraryId, setCurrentUser, loadContinueReading, loadFavorites, loadReadBooks, loadTags, loadBooks]);
+  }, [activeLibraryId, setCurrentUser, loadContinueReading, loadFavorites, loadReadBooks, loadTags, loadBooks, loadActivityStreak]);
 
   // Select Library from selector screen
   const selectLibrary = useCallback((libraryId) => {
@@ -481,7 +508,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     loadFavorites(libraryId);
     loadReadBooks(libraryId);
     loadTags(libraryId);
-  }, [routerNavigateToShelf, loadShelves, loadBooks, loadContinueReading, loadFavorites, loadReadBooks, loadTags]);
+    loadActivityStreak();
+  }, [routerNavigateToShelf, loadShelves, loadBooks, loadContinueReading, loadFavorites, loadReadBooks, loadTags, loadActivityStreak]);
 
   // Return to All Libraries selection screen
   const selectAllLibraries = useCallback(() => {
@@ -557,7 +585,8 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     loadContinueReading(activeLibraryId);
     loadFavorites(activeLibraryId);
     loadReadBooks(activeLibraryId);
-  }, [selectedShelf, activeLibraryId, routerNavigateToShelf, loadContinueReading, loadFavorites, loadReadBooks]);
+    loadActivityStreak();
+  }, [selectedShelf, activeLibraryId, routerNavigateToShelf, loadContinueReading, loadFavorites, loadReadBooks, loadActivityStreak]);
 
   // Synchronize route state with URL router
   useEffect(() => {
@@ -636,8 +665,9 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
       loadFavorites(activeLibraryId);
       loadReadBooks(activeLibraryId);
       loadTags(activeLibraryId);
+      loadActivityStreak();
     }
-  }, [activeLibraryId, formatFilter, loadShelves, loadContinueReading, loadFavorites, loadReadBooks, loadTags]);
+  }, [activeLibraryId, formatFilter, loadShelves, loadContinueReading, loadFavorites, loadReadBooks, loadTags, loadActivityStreak]);
 
   useEffect(() => {
     if (activeLibraryId) {
@@ -873,6 +903,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     tags,
     users,
     offlineBooksCount,
+    activityStreak,
     loading,
     isOffline,
     isOnline,
@@ -904,6 +935,7 @@ export function useLibraryData({ setCurrentUser, modals, router }) {
     loadFavorites,
     loadReadBooks,
     loadTags,
+    loadActivityStreak,
     selectLibrary,
     selectAllLibraries,
     switchLibrary,

@@ -781,7 +781,7 @@ export default function LibrarySelector({
               <p className="text-xs text-neutral-400 mt-1.5 mb-5 leading-relaxed">
                 {offlineBooksCount > 0
                   ? `${t('offlineBannerNotice')} (${offlineBooksCount === 1 ? t('bookCountBadge_one') : t('bookCountBadge', { count: offlineBooksCount })}).`
-                  : (t('noOfflineBooksDesc') || 'Nenhum livro foi baixado previamente para leitura offline.')}
+                  : (t('noOfflineBooksDesc') || 'No books have been downloaded for offline reading yet.')}
               </p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
                 {offlineBooksCount > 0 && onSelectOffline && (

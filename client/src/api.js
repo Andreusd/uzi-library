@@ -421,6 +421,28 @@ export async function getAiStatus() {
   }
 }
 
+export async function getAiSettings() {
+  try {
+    const res = await apiFetch('/api/ai/settings');
+    if (!res.ok) return { has_api_key: false, api_key_masked: '', model: 'gemini-3.5-flash', available: false };
+    return await res.json();
+  } catch {
+    return { has_api_key: false, api_key_masked: '', model: 'gemini-3.5-flash', available: false };
+  }
+}
+
+export async function saveAiSettings(apiKey, model = 'gemini-3.5-flash') {
+  const res = await apiFetch('/api/ai/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ api_key: apiKey, model })
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to save AI settings (${res.status})`);
+  }
+  return await res.json();
+}
+
 export async function streamAiChat({
   messages,
   conversationId = null,

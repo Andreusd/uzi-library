@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, X, ZoomIn, ZoomOut, Palette, Type, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, X, ZoomIn, ZoomOut, Palette, Type, ChevronDown, BookOpen } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { EPUB_FONTS } from '../utils/epubThemeUtils';
 
@@ -24,7 +24,13 @@ function ToggleItem({
   const toggleOffBg = isDark ? 'bg-neutral-800 border-neutral-700' : 'bg-neutral-300 border-neutral-300';
 
   return (
-    <label className={`flex items-start justify-between gap-3 p-2.5 rounded-xl transition-colors cursor-pointer group ${nested ? 'pl-6' : ''} ${hoverBg}`}>
+    <label 
+      className={`flex items-start justify-between gap-3 p-2.5 rounded-xl transition-colors cursor-pointer group ${nested ? 'pl-6' : ''} ${hoverBg}`}
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+    >
       <div className="min-w-0 flex-1">
         <span className={`text-xs font-semibold block transition-colors ${titleColor}`}>
           {title}
@@ -69,6 +75,12 @@ export default function ReaderSettingsPopover({
   toggleUpDownFlip,
   mouseWheelFlipEnabled,
   toggleMouseWheelFlip,
+  chapterScrollModeEnabled,
+  toggleChapterScrollMode,
+  singlePageEnabled,
+  toggleSinglePage,
+  epubReadingMode,
+  changeEpubReadingMode,
   // PDF-specific settings
   centerVertically,
   toggleCenterVertically,
@@ -131,10 +143,25 @@ export default function ReaderSettingsPopover({
   return (
     <>
       <div
+        data-popover-backdrop="true"
         className="fixed inset-0 z-40 bg-transparent"
         onClick={onClose}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose?.();
+        }}
       />
-      <div className={`absolute right-0 top-full mt-2 w-72 sm:w-80 max-h-[calc(100vh-5.5rem)] flex flex-col rounded-2xl p-3.5 z-50 text-left select-none animate-in fade-in zoom-in-95 duration-150 border ${containerTheme}`}>
+      <div 
+        role="dialog"
+        aria-modal="true"
+        data-reader-settings="true"
+        className={`absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] max-h-[calc(100vh-5.5rem)] flex flex-col rounded-2xl p-3.5 z-50 text-left select-none animate-in fade-in zoom-in-95 duration-150 border ${containerTheme}`}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
         <div className={`flex items-center justify-between pb-2.5 mb-2.5 border-b shrink-0 ${headerBorder}`}>
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-amber-500" />
@@ -288,6 +315,69 @@ export default function ReaderSettingsPopover({
             </div>
           )}
 
+          {/* Reading Mode (EPUB: Dual Page, Single Page, Chapter Scroll) */}
+          {changeEpubReadingMode && (
+            <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between gap-3 ${
+              isDark ? 'bg-neutral-800/40 border-neutral-700/60' : isSepia ? 'bg-[#efe0c2]/40 border-[#e5d5b5]' : 'bg-neutral-100 border-neutral-200'
+            }`}>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                <span className={`text-xs font-semibold ${headerTitle}`}>
+                  {t('readingMode') || 'Reading Mode'}
+                </span>
+              </div>
+              <div className="relative min-w-0 flex-1 max-w-[170px] sm:max-w-[190px]">
+                <select
+                  value={epubReadingMode || (chapterScrollModeEnabled ? 'chapterScroll' : singlePageEnabled ? 'single' : 'dual')}
+                  onChange={(e) => changeEpubReadingMode(e.target.value)}
+                  className={`w-full py-1.5 pl-2.5 pr-7 text-xs rounded-lg border appearance-none font-medium cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-amber-500 truncate ${
+                    isDark
+                      ? 'bg-neutral-800 border-neutral-700 text-neutral-100 hover:bg-neutral-700'
+                      : isSepia
+                      ? 'bg-[#efe0c2] border-[#d8c5a0] text-[#292014] hover:bg-[#e4d2b0]'
+                      : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-50'
+                  }`}
+                  aria-label={t('readingMode') || 'Reading Mode'}
+                >
+                  <option
+                    value="dual"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('readingModeDual') || 'Dual Page'}
+                  </option>
+                  <option
+                    value="single"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('readingModeSingle') || 'Single Page'}
+                  </option>
+                  <option
+                    value="chapterScroll"
+                    className={isDark ? 'bg-neutral-900 text-neutral-100' : isSepia ? 'bg-[#fbf0d9] text-[#292014]' : 'bg-white text-neutral-800'}
+                  >
+                    {t('readingModeChapterScroll') || 'Chapter Scroll'}
+                  </option>
+                </select>
+                <ChevronDown className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${
+                  isDark ? 'text-neutral-400' : isSepia ? 'text-[#7c6a53]' : 'text-neutral-500'
+                }`} />
+              </div>
+            </div>
+          )}
+
+          {/* Up/Down Arrow Page Flip (Sub-option of Chapter Scroll Mode in EPUB) */}
+          {((changeEpubReadingMode && (epubReadingMode === 'chapterScroll' || (!epubReadingMode && chapterScrollModeEnabled))) ||
+            (!changeEpubReadingMode && (Boolean(toggleChapterScrollMode ? chapterScrollModeEnabled : true)))) && toggleUpDownFlip && (
+            <ToggleItem
+              title={t('upDownPageFlip')}
+              description={t('upDownPageFlipDesc')}
+              checked={upDownFlipEnabled}
+              onChange={toggleUpDownFlip}
+              theme={resolvedTheme}
+              nested={Boolean(changeEpubReadingMode || toggleChapterScrollMode)}
+            />
+          )}
+
           {/* Zoom (PDF) */}
           {handleZoomIn && handleZoomOut && (
             <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between ${
@@ -391,17 +481,6 @@ export default function ReaderSettingsPopover({
             />
           )}
 
-          {/* Up/Down Arrow Page Flip */}
-          {toggleUpDownFlip && (
-            <ToggleItem
-              title={t('upDownPageFlip')}
-              description={t('upDownPageFlipDesc')}
-              checked={upDownFlipEnabled}
-              onChange={toggleUpDownFlip}
-              theme={resolvedTheme}
-            />
-          )}
-
           {/* Mouse Wheel Page Flip */}
           {toggleMouseWheelFlip && (
             <ToggleItem
@@ -409,6 +488,27 @@ export default function ReaderSettingsPopover({
               description={t('mouseWheelPageFlipDesc')}
               checked={mouseWheelFlipEnabled}
               onChange={toggleMouseWheelFlip}
+              theme={resolvedTheme}
+            />
+          )}
+
+          {/* Legacy fallback if changeEpubReadingMode is not provided */}
+          {!changeEpubReadingMode && toggleChapterScrollMode && (
+            <ToggleItem
+              title={t('chapterScrollMode')}
+              description={t('chapterScrollModeDesc')}
+              checked={chapterScrollModeEnabled}
+              onChange={toggleChapterScrollMode}
+              theme={resolvedTheme}
+            />
+          )}
+
+          {!changeEpubReadingMode && !chapterScrollModeEnabled && toggleSinglePage && (
+            <ToggleItem
+              title={t('singlePageSetting')}
+              description={t('singlePageSettingDesc')}
+              checked={singlePageEnabled}
+              onChange={toggleSinglePage}
               theme={resolvedTheme}
             />
           )}

@@ -3,7 +3,8 @@ import {
   Sparkles, X, Send, Square, Trash2, Copy, Check, 
   Plus, Pin, Loader2, Lightbulb, HelpCircle, BookOpen, 
   FileText, CornerDownLeft, AlertCircle, RotateCcw,
-  History, Pencil, MessageSquare, Clock
+  History, Pencil, MessageSquare, Clock, Key, ExternalLink,
+  Eye, EyeOff
 } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { 
@@ -11,11 +12,13 @@ import {
   getAiConversations, 
   getAiConversationMessages, 
   updateAiConversation, 
-  deleteAiConversation 
+  deleteAiConversation,
+  getAiSettings,
+  saveAiSettings
 } from '../api';
 import { useResizableDrawer } from '../hooks/useResizableDrawer';
 
-function formatRelativeTime(isoString) {
+function formatRelativeTime(isoString, t) {
   if (!isoString) return '';
   try {
     const date = new Date(isoString);
@@ -23,128 +26,23 @@ function formatRelativeTime(isoString) {
     const now = new Date();
     const diffMs = now - date;
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Agora';
-    if (diffMin < 60) return `${diffMin}m atrás`;
+    if (diffMin < 1) return t ? t('timeAgoNow') : 'Just now';
+    if (diffMin < 60) return t ? t('timeAgoMin', { count: diffMin }) : `${diffMin}m ago`;
     const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h atrás`;
+    if (diffHours < 24) return t ? t('timeAgoHours', { count: diffHours }) : `${diffHours}h ago`;
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return 'Ontem';
-    if (diffDays < 7) return `${diffDays}d atrás`;
+    if (diffDays === 1) return t ? t('timeAgoYesterday') : 'Yesterday';
+    if (diffDays < 7) return t ? t('timeAgoDays', { count: diffDays }) : `${diffDays}d ago`;
     return date.toLocaleDateString();
   } catch {
     return '';
   }
 }
 
-/**
- * Lightweight formatting helper for assistant responses (code blocks, bold, lists, paragraphs).
- */
-function FormattedMessage({ content }) {
-  if (!content) return null;
+import MarkdownRenderer, { InlineMarkdown } from './MarkdownRenderer';
 
-  // Split code blocks
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  return (
-    <div className="space-y-2 text-xs leading-relaxed break-words select-text">
-      {parts.map((part, idx) => {
-        if (part.startsWith('```') && part.endsWith('```')) {
-          const lines = part.slice(3, -3).trim().split('\n');
-          const firstLine = lines[0].trim();
-          const hasLang = firstLine && !firstLine.includes(' ') && lines.length > 1;
-          const lang = hasLang ? firstLine : '';
-          const code = hasLang ? lines.slice(1).join('\n') : lines.join('\n');
-
-          return (
-            <div key={idx} className="my-2 rounded-lg bg-neutral-950 border border-neutral-800 overflow-hidden font-mono text-[11px]">
-              {lang && (
-                <div className="px-3 py-1 bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-semibold uppercase">
-                  {lang}
-                </div>
-              )}
-              <pre className="p-3 overflow-x-auto text-neutral-200">
-                <code>{code}</code>
-              </pre>
-            </div>
-          );
-        }
-
-        // Split paragraphs
-        const paragraphs = part.split(/\n\s*\n/);
-        return (
-          <React.Fragment key={idx}>
-            {paragraphs.map((p, pIdx) => {
-              const trimmed = p.trim();
-              if (!trimmed) return null;
-
-              // Bullet points
-              if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                const items = trimmed.split(/\n[-*]\s+/).map(s => s.replace(/^[-*]\s+/, '').trim()).filter(Boolean);
-                return (
-                  <ul key={pIdx} className="list-disc list-inside space-y-1 pl-1 text-neutral-200">
-                    {items.map((it, iIdx) => (
-                      <li key={iIdx}>
-                        <InlineMarkdown text={it} />
-                      </li>
-                    ))}
-                  </ul>
-                );
-              }
-
-              // Numbered list
-              if (/^\d+\.\s+/.test(trimmed)) {
-                const items = trimmed.split(/\n\d+\.\s+/).map(s => s.replace(/^\d+\.\s+/, '').trim()).filter(Boolean);
-                return (
-                  <ol key={pIdx} className="list-decimal list-inside space-y-1 pl-1 text-neutral-200">
-                    {items.map((it, iIdx) => (
-                      <li key={iIdx}>
-                        <InlineMarkdown text={it} />
-                      </li>
-                    ))}
-                  </ol>
-                );
-              }
-
-              return (
-                <p key={pIdx} className="text-neutral-200">
-                  <InlineMarkdown text={trimmed} />
-                </p>
-              );
-            })}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * Handles bold (**text**), italic (*text*), and inline code (`code`).
- */
-function InlineMarkdown({ text }) {
-  if (!text) return null;
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
-
-  return (
-    <>
-      {parts.map((segment, idx) => {
-        if (segment.startsWith('`') && segment.endsWith('`') && segment.length >= 2) {
-          return (
-            <code key={idx} className="px-1.5 py-0.5 rounded bg-neutral-800 text-amber-300 font-mono text-[11px]">
-              {segment.slice(1, -1)}
-            </code>
-          );
-        }
-        if (segment.startsWith('**') && segment.endsWith('**') && segment.length >= 4) {
-          return <strong key={idx} className="font-semibold text-neutral-100">{segment.slice(2, -2)}</strong>;
-        }
-        if (segment.startsWith('*') && segment.endsWith('*') && segment.length >= 2) {
-          return <em key={idx} className="italic text-neutral-300">{segment.slice(1, -1)}</em>;
-        }
-        return segment;
-      })}
-    </>
-  );
+export function FormattedMessage({ content }) {
+  return <MarkdownRenderer content={content} />;
 }
 
 export default function AiCopilotDrawer({
@@ -193,6 +91,81 @@ export default function AiCopilotDrawer({
   // Delete confirmation inside history list
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  // Key config state
+  const [isKeyConfigOpen, setIsKeyConfigOpen] = useState(false);
+  const [drawerApiKey, setDrawerApiKey] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(true);
+  const [drawerKeySaving, setDrawerKeySaving] = useState(false);
+  const [drawerKeySaved, setDrawerKeySaved] = useState(false);
+  const [drawerKeyError, setDrawerKeyError] = useState(null);
+  const [showDrawerApiKey, setShowDrawerApiKey] = useState(false);
+  const [aiSettings, setAiSettings] = useState({
+    has_api_key: false,
+    api_key_masked: '',
+    model: 'gemini-3.5-flash',
+    available: false
+  });
+  const [aiModelInput, setAiModelInput] = useState('gemini-3.5-flash');
+
+  const checkAiSettings = useCallback(async () => {
+    try {
+      const data = await getAiSettings();
+      if (data) {
+        setAiSettings(data);
+        setHasApiKey(Boolean(data.has_api_key));
+        if (data.model) setAiModelInput(data.model);
+      }
+    } catch {
+      setHasApiKey(false);
+    }
+  }, []);
+
+  const handleSaveDrawerKey = async () => {
+    if (!drawerApiKey.trim()) return;
+    setDrawerKeySaving(true);
+    setDrawerKeyError(null);
+    try {
+      const res = await saveAiSettings(drawerApiKey.trim(), aiModelInput);
+      setAiSettings(res);
+      setHasApiKey(Boolean(res.has_api_key));
+      setDrawerKeySaved(true);
+      setDrawerApiKey('');
+      setChatError(null);
+      setTimeout(() => {
+        setDrawerKeySaved(false);
+      }, 3000);
+    } catch (err) {
+      setDrawerKeyError(err.message || t('failedToSaveKey'));
+    } finally {
+      setDrawerKeySaving(false);
+    }
+  };
+
+  const handleClearDrawerKey = async () => {
+    setDrawerKeySaving(true);
+    setDrawerKeyError(null);
+    try {
+      const res = await saveAiSettings('', aiModelInput);
+      setAiSettings(res);
+      setHasApiKey(Boolean(res.has_api_key));
+      setDrawerApiKey('');
+    } catch (err) {
+      setDrawerKeyError(err.message || t('failedToRemoveKey'));
+    } finally {
+      setDrawerKeySaving(false);
+    }
+  };
+
+  const handleModelChange = async (newModel) => {
+    setAiModelInput(newModel);
+    try {
+      const res = await saveAiSettings(undefined, newModel);
+      setAiSettings(res);
+    } catch (err) {
+      console.error('Failed to update AI model:', err);
+    }
+  };
+
   // Load conversations for the current book (Opção A - Kindle style auto-select latest)
   const loadConversations = useCallback(async (autoSelectLatest = true) => {
     if (!book?.id) {
@@ -231,14 +204,18 @@ export default function AiCopilotDrawer({
   }, [book?.id]);
 
   useEffect(() => {
-    if (isOpen && book?.id) {
-      loadConversations(true);
+    if (isOpen) {
+      checkAiSettings();
+      if (book?.id) {
+        loadConversations(true);
+      }
     } else if (!isOpen) {
       setIsHistoryOpen(false);
       setIsEditingTitle(false);
       setConfirmDeleteId(null);
+      setIsKeyConfigOpen(false);
     }
-  }, [isOpen, book?.id, loadConversations]);
+  }, [isOpen, book?.id, loadConversations, checkAiSettings]);
 
   useEffect(() => {
     if (isOpen) {
@@ -292,7 +269,7 @@ export default function AiCopilotDrawer({
         setMessages(data.messages);
       }
     } catch (err) {
-      setChatError('Falha ao carregar mensagens.');
+      setChatError(t('failedToLoadMessages'));
     } finally {
       setIsLoadingMessages(false);
     }
@@ -639,6 +616,20 @@ export default function AiCopilotDrawer({
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
+          {/* Button: Configurar Chave da IA */}
+          <button
+            onClick={() => setIsKeyConfigOpen(prev => !prev)}
+            className={`p-1.5 rounded-lg transition cursor-pointer ${
+              isKeyConfigOpen || !hasApiKey
+                ? 'text-amber-400 bg-amber-500/10 border border-amber-500/30'
+                : 'text-neutral-400 hover:text-amber-400 hover:bg-neutral-800'
+            }`}
+            title={t('configureAiKey')}
+            aria-label={t('configureAiKey')}
+          >
+            <Key className="w-3.5 h-3.5" />
+          </button>
+
           {messages.length > 0 && (
             <button
               onClick={handleClearChat}
@@ -658,6 +649,128 @@ export default function AiCopilotDrawer({
           </button>
         </div>
       </div>
+
+      {/* Inline API Key Configuration Card */}
+      {isKeyConfigOpen && (
+        <div className="p-3.5 mx-3 my-2 rounded-xl bg-neutral-950 border border-amber-500/30 shadow-lg space-y-3 shrink-0 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-neutral-200 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>{t('aiSettingsTitle')}</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1 ${
+                hasApiKey
+                  ? 'bg-emerald-950/80 border border-emerald-500/30 text-emerald-300'
+                  : 'bg-amber-950/80 border border-amber-500/30 text-amber-300'
+              }`}>
+                {hasApiKey ? (
+                  <>
+                    <Check className="w-2.5 h-2.5" />
+                    <span>{t('apiKeyConfigured')}</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    <span>{t('apiKeyNotConfigured')}</span>
+                  </>
+                )}
+              </span>
+              <button
+                onClick={() => setIsKeyConfigOpen(false)}
+                className="p-1 text-neutral-400 hover:text-neutral-200 rounded cursor-pointer transition"
+                title={t('close')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-neutral-400 leading-relaxed">
+            {t('aiSettingsDesc')}
+          </p>
+
+          {hasApiKey && aiSettings.api_key_masked && (
+            <div className="flex items-center justify-between p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-xs">
+              <div className="flex items-center gap-2 text-neutral-300 font-mono">
+                <Key className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[11px] text-neutral-400">{t('geminiApiKey')}:</span>
+                <span className="text-amber-400 font-semibold">{aiSettings.api_key_masked}</span>
+              </div>
+              <button
+                onClick={handleClearDrawerKey}
+                disabled={drawerKeySaving}
+                className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer disabled:opacity-50"
+              >
+                {t('clearApiKey')}
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-neutral-300 block">
+              {hasApiKey ? t('updateApiKey') : t('geminiApiKey')}
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type={showDrawerApiKey ? 'text' : 'password'}
+                value={drawerApiKey}
+                onChange={(e) => setDrawerApiKey(e.target.value)}
+                placeholder={t('geminiApiKeyPlaceholder')}
+                className="w-full pl-3 pr-10 py-1.5 rounded-lg bg-neutral-900 border border-neutral-750 focus:border-amber-500 text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowDrawerApiKey(prev => !prev)}
+                className="absolute right-2 p-1 text-neutral-400 hover:text-neutral-200 cursor-pointer"
+                title={showDrawerApiKey ? t('hide') : t('show')}
+              >
+                {showDrawerApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[11px] font-medium text-neutral-300 block">
+              {t('geminiModel')}
+            </label>
+            <select
+              value={aiModelInput}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-neutral-900 border border-neutral-750 focus:border-amber-500 text-xs text-neutral-100 focus:outline-none cursor-pointer"
+            >
+              <option value="gemini-3.5-flash">{t('geminiFlashStable')}</option>
+              <option value="gemini-3.8-flash">{t('geminiFlashFallback')}</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            {drawerKeySaved && (
+              <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>{t('apiKeySaved')}</span>
+              </span>
+            )}
+            {drawerKeyError && (
+              <span className="text-[11px] text-rose-400 text-xs">
+                {drawerKeyError}
+              </span>
+            )}
+            <button
+              onClick={handleSaveDrawerKey}
+              disabled={!drawerApiKey.trim() || drawerKeySaving}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-950 font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer ml-auto"
+            >
+              {drawerKeySaving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Key className="w-3.5 h-3.5" />
+              )}
+              <span>{t('saveApiKey')}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Body Area */}
       {isHistoryOpen ? (
@@ -749,7 +862,7 @@ export default function AiCopilotDrawer({
                           <div className="flex items-center gap-3 mt-2 text-[10px] text-neutral-500">
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {formatRelativeTime(conv.updated_at)}
+                              {formatRelativeTime(conv.updated_at, t)}
                             </span>
                             {conv.message_count > 0 && (
                               <span>• {conv.message_count} {conv.message_count === 1 ? 'msg' : 'msgs'}</span>
@@ -762,7 +875,7 @@ export default function AiCopilotDrawer({
                         <div className="flex items-center gap-1 shrink-0">
                           {isConfirmingDelete ? (
                             <div className="flex items-center gap-1 bg-rose-950/60 border border-rose-800/60 rounded px-1.5 py-0.5">
-                              <span className="text-[10px] text-rose-300">Excluir?</span>
+                              <span className="text-[10px] text-rose-300">{t('deleteConfirmPrompt')}</span>
                               <button
                                 onClick={() => handleDeleteConversation(conv.id)}
                                 className="p-1 text-rose-400 hover:text-rose-200 cursor-pointer"
@@ -856,7 +969,7 @@ export default function AiCopilotDrawer({
                   <div
                     onDoubleClick={() => handlePin && handlePin()}
                     className="group inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/15 border border-dashed border-amber-500/50 text-amber-200 text-[11px] max-w-full transition shadow-xs animate-fade-in"
-                    title={`${t('pinReference')} (duplo clique)`}
+                    title={`${t('pinReference')} (${t('doubleClick')})`}
                   >
                     <span className="truncate max-w-[190px] italic" title={effectiveTransient.text}>
                       "{effectiveTransient.text}"
@@ -997,9 +1110,20 @@ export default function AiCopilotDrawer({
             )}
 
             {chatError && (
-              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <span className="leading-relaxed">{chatError}</span>
+              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed flex-1">{chatError}</span>
+                </div>
+                {!hasApiKey && (
+                  <button
+                    onClick={() => setIsKeyConfigOpen(true)}
+                    className="self-start mt-0.5 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer transition"
+                  >
+                    <Key className="w-3 h-3 text-amber-400" />
+                    <span>{t('configureAiKey')}</span>
+                  </button>
+                )}
               </div>
             )}
 

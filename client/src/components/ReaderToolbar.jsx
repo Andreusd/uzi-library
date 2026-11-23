@@ -409,8 +409,8 @@ export default function ReaderToolbar({
             className={`h-7 w-7 flex items-center justify-center rounded-lg transition shrink-0 cursor-pointer ${
               moreMenuOpen ? btnActiveClass : btnClass
             }`}
-            title={t('moreOptions') || 'Mais opções'}
-            aria-label={t('moreOptions') || 'Mais opções'}
+            title={t('moreOptions') || 'More options'}
+            aria-label={t('moreOptions') || 'More options'}
           >
             <MoreVertical className="w-4 h-4" />
           </button>

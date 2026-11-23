@@ -39,12 +39,15 @@ export function SettingsProvider({ children }) {
 
   const [sidebarOpen, setSidebarOpenState] = useState(() => {
     try {
-      const saved = localStorage.getItem('sidebar_open');
+      const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+      const key = isDesktop ? 'sidebar_open_desktop' : 'sidebar_open_mobile';
+      const saved = localStorage.getItem(key);
       if (saved !== null) {
         return saved === 'true';
       }
+      return isDesktop;
     } catch {}
-    return typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+    return false;
   });
 
   const setTheme = useCallback((newTheme) => {
@@ -54,8 +57,9 @@ export function SettingsProvider({ children }) {
     } catch {}
     if (typeof document !== 'undefined') {
       document.documentElement.setAttribute('data-theme', newTheme);
+      document.documentElement.setAttribute('data-mode', mode);
     }
-  }, []);
+  }, [mode]);
 
   const setMode = useCallback((newMode) => {
     setModeState(newMode);
@@ -63,9 +67,10 @@ export function SettingsProvider({ children }) {
       localStorage.setItem('app_mode', newMode);
     } catch {}
     if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
       document.documentElement.setAttribute('data-mode', newMode);
     }
-  }, []);
+  }, [theme]);
 
   const setShowFileExtension = useCallback((enabled) => {
     setShowFileExtensionState(enabled);
@@ -85,7 +90,9 @@ export function SettingsProvider({ children }) {
     setSidebarOpenState((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('sidebar_open', String(next));
+        const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+        const key = isDesktop ? 'sidebar_open_desktop' : 'sidebar_open_mobile';
+        localStorage.setItem(key, String(next));
       } catch {}
       return next;
     });

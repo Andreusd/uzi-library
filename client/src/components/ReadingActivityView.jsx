@@ -163,6 +163,9 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
         setStats(data.stats);
         setHistory(data.history || []);
         setGoalInput(data.stats.daily_goal || 10);
+        try {
+          window.dispatchEvent(new CustomEvent('activity-stats-updated', { detail: data.stats }));
+        } catch {}
       }
     } catch (err) {
       console.error('[ReadingActivityView] Failed to load overview:', err);
@@ -392,7 +395,11 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
                 title={t('editGoal') || 'Ajustar Meta'}
               >
                 <Edit2 className="w-3 h-3" />
-                <span>{dailyGoal} pág/dia</span>
+                <span>
+                  {Number(dailyGoal) === 1
+                    ? (t('pagesPerDay_one', { count: dailyGoal }) || `${dailyGoal} page/day`)
+                    : (t('pagesPerDay', { count: dailyGoal }) || `${dailyGoal} pages/day`)}
+                </span>
               </button>
             ) : (
               <div className="flex items-center gap-1.5">
@@ -430,7 +437,7 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
                 {pagesToday}
               </span>
               <span className="text-sm font-semibold text-neutral-400">
-                / {dailyGoal} {t('pages') || 'págs hoje'}
+                / {dailyGoal} {t('pagesToday') || 'pages today'}
               </span>
             </div>
             <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
@@ -461,7 +468,7 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
               {t('totalPagesRead') || 'Total de Páginas'}
             </span>
             <span className="text-[11px] font-medium text-neutral-400 px-2 py-0.5 rounded-full bg-neutral-800/80">
-              {completedBooks.length} {t('completedBooks') || 'lidos'}
+              {completedBooks.length} {t('readBooksCountShort') || 'read'}
             </span>
           </div>
 
@@ -470,14 +477,19 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
               {totalPages.toLocaleString()}
             </span>
             <span className="text-sm font-semibold text-neutral-400">
-              {t('pages') || 'páginas no total'}
+              {t('pagesTotal') || 'pages in total'}
             </span>
           </div>
 
           <div className="mt-4 pt-3 border-t border-neutral-800/60 flex items-center justify-between text-xs text-neutral-400">
             <span>{t('averagePerDay') || 'Média diária'}:</span>
             <span className="font-semibold text-neutral-200">
-              {totalDays > 0 ? (totalPages / totalDays).toFixed(1) : '0'} págs/dia
+              {(() => {
+                const avg = totalDays > 0 ? (totalPages / totalDays).toFixed(1) : '0';
+                return Number(avg) === 1
+                  ? (t('pagesPerDay_one', { count: avg }) || `${avg} page/day`)
+                  : (t('pagesPerDay', { count: avg }) || `${avg} pages/day`);
+              })()}
             </span>
           </div>
         </div>
@@ -496,7 +508,7 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
                 {t('monthlyActivity') || 'Atividade Mensal'}
               </h2>
               <div className="flex items-center gap-2 text-xs text-neutral-400 mt-0.5">
-                <span>{monthStats.pages} {t('pages') || 'páginas'}</span>
+                <span>{monthStats.pages} {monthStats.pages === 1 ? t('pages_one') : t('pages')}</span>
                 <span>•</span>
                 <span>{monthStats.activeDays} {t('totalReadingDays') || 'dias lendo'}</span>
                 {monthStats.seconds > 0 && (
@@ -690,7 +702,7 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
                     </h4>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-neutral-400">
-                    <span>{b.pages_read} {b.pages_read === 1 ? 'página' : 'páginas'}</span>
+                    <span>{b.pages_read} {b.pages_read === 1 ? t('pages_one') : t('pages')}</span>
                     {b.reading_time_seconds > 0 && (
                       <>
                         <span>•</span>
@@ -742,7 +754,7 @@ export default function ReadingActivityView({ onSelectBook, books = [] }) {
                   </p>
                   <div className="flex items-center gap-1.5 mt-1 text-[10px] text-emerald-400 font-medium">
                     <CheckCircle2 className="w-3 h-3" />
-                    <span>{t('finished') || 'Concluído'}</span>
+                    <span>{t('finished') || 'Completed'}</span>
                   </div>
                 </div>
               </div>

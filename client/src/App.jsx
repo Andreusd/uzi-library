@@ -402,7 +402,12 @@ export default function App() {
       <>
         <LibrarySelector
           libraries={libraries}
-          onSelectLibrary={selectLibrary}
+          onSelectLibrary={(libId) => {
+            if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+              setSidebarOpen(false);
+            }
+            selectLibrary(libId);
+          }}
           onOpenSettings={() => modals.setSettingsOpen(true)}
           onAddNewLibrary={() => modals.setSettingsOpen(true)}
           currentUser={currentUser}
@@ -410,6 +415,9 @@ export default function App() {
           isOffline={isOffline}
           offlineBooksCount={offlineBooksCount}
           onSelectOffline={() => {
+            if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+              setSidebarOpen(false);
+            }
             selectLibrary(libraries[0]?.id || 'offline');
             navigateToShelf('downloaded');
           }}
@@ -442,6 +450,7 @@ export default function App() {
           continueReadingCount={continueReading.length}
           readCount={readBooks.length}
           downloadedCount={offlineBooksCount}
+          activityStreak={libraryData.activityStreak}
           selectedShelf={selectedShelf}
           onSelectShelf={(id) => {
             navigateToShelf(id);

@@ -67,6 +67,12 @@ export default function EpubToolbar({
   toggleUpDownFlip,
   mouseWheelFlipEnabled,
   toggleMouseWheelFlip,
+  chapterScrollModeEnabled,
+  toggleChapterScrollMode,
+  singlePageEnabled,
+  toggleSinglePage,
+  epubReadingMode,
+  changeEpubReadingMode,
 }) {
   const { t } = useI18n();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -376,14 +382,7 @@ export default function EpubToolbar({
           }`}
           title={commentsDrawerOpen ? t('hideComments') : (annotationsCount > 0 ? `${t('showComments')} (${annotationsCount})` : t('showComments'))}
         >
-          <div className="relative">
-            <MessageSquare className="w-4 h-4" />
-            {annotationsCount > 0 && (
-              <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ${
-                theme === 'dark' ? 'ring-neutral-900' : theme === 'sepia' ? 'ring-[#fbf0d9]' : 'ring-white'
-              }`} />
-            )}
-          </div>
+          <MessageSquare className="w-4 h-4" />
         </button>
 
         {/* Header Pin Toggle */}
@@ -443,6 +442,12 @@ export default function EpubToolbar({
             toggleUpDownFlip={toggleUpDownFlip}
             mouseWheelFlipEnabled={mouseWheelFlipEnabled}
             toggleMouseWheelFlip={toggleMouseWheelFlip}
+            chapterScrollModeEnabled={chapterScrollModeEnabled}
+            toggleChapterScrollMode={toggleChapterScrollMode}
+            singlePageEnabled={singlePageEnabled}
+            toggleSinglePage={toggleSinglePage}
+            epubReadingMode={epubReadingMode}
+            changeEpubReadingMode={changeEpubReadingMode}
             headerPinned={headerPinned}
             toggleHeaderPinned={toggleHeaderPinned}
             isFullscreen={isFullscreen}
@@ -457,8 +462,8 @@ export default function EpubToolbar({
             className={`p-1.5 rounded-lg border transition-colors flex items-center justify-center cursor-pointer ${
               moreMenuOpen ? ht.iconBtnActive : ht.iconBtn
             }`}
-            title={t('moreOptions') || 'Mais opções'}
-            aria-label={t('moreOptions') || 'Mais opções'}
+            title={t('moreOptions') || 'More options'}
+            aria-label={t('moreOptions') || 'More options'}
           >
             <MoreVertical className="w-4 h-4" />
           </button>

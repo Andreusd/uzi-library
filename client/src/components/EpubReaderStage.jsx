@@ -14,11 +14,14 @@ export default function EpubReaderStage({
   floatingButtonsEnabled,
   flipPrev,
   flipNext,
+  chapterScrollModeEnabled = false,
 }) {
   const { t } = useI18n();
 
   return (
-    <main className="relative flex-1 h-full flex items-center justify-center group/stage overscroll-none touch-pan-x min-w-0 overflow-hidden select-none">
+    <main className={`relative flex-1 h-full flex items-center justify-center group/stage overscroll-none min-w-0 overflow-hidden select-none ${
+      chapterScrollModeEnabled ? 'touch-pan-y' : 'touch-pan-x'
+    }`}>
       {/* Loading Spinner */}
       {loading && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-neutral-950/80 backdrop-blur-sm gap-3">

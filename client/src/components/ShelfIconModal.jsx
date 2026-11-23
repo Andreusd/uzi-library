@@ -21,7 +21,8 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const searchInputRef = useRef(null);
-  const { t, language } = useI18n();
+  const { t, lang, language } = useI18n();
+  const currentLang = lang || language || 'en';
 
   if (shelf !== prevShelf) {
     setPrevShelf(shelf);
@@ -192,7 +193,7 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
                       : 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-neutral-200'
                   }`}
                 >
-                  {language === 'pt' ? cat.labelPt : cat.labelEn}
+                  {currentLang === 'pt' ? cat.labelPt : cat.labelEn}
                 </button>
               );
             })}
@@ -224,7 +225,7 @@ export default function ShelfIconModal({ shelf, isOpen, onClose, onSave }) {
                         ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md ring-1 ring-amber-500/50'
                         : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:bg-neutral-800 hover:border-neutral-700 hover:text-neutral-100'}
                     `}
-                    title={`${item.name} - ${language === 'pt' ? item.label : item.labelEn}`}
+                    title={`${item.name} - ${currentLang === 'pt' ? item.label : item.labelEn}`}
                   >
                     <ShelfIcon 
                       icon={item.name} 

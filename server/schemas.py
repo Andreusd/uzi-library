@@ -117,6 +117,10 @@ class AIChatPayload(BaseModel):
     stream: Optional[bool] = True
     system_prompt: Optional[str] = None
 
+class AISettingsPayload(BaseModel):
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
 class CreateAIConversationPayload(BaseModel):
     book_id: str
     title: Optional[str] = None

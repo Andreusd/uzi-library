@@ -1,24 +1,51 @@
 import os
 import json
-import shutil
 import asyncio
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, List, Dict, Any, Optional
+from typing import AsyncIterator, List, Dict, Any, Optional, Callable, Awaitable
+
+from ..database import get_db, Database
+
+SEARCH_BOOK_TOOL: Dict[str, Any] = {
+    "functionDeclarations": [
+        {
+            "name": "search_book",
+            "description": (
+                "Searches earlier chapters or pages of the active book up to the reader's current location "
+                "for previous mentions of a character, term, event, or phrase. "
+                "Returns matching chapter names, pages, and context snippets."
+            ),
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "query": {
+                        "type": "STRING",
+                        "description": "The exact character name, term, keyword, or phrase to search for."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    ]
+}
 
 class BaseAIProvider(ABC):
     """Abstract interface for AI generation engines, keeping the backend provider-agnostic."""
+    engine_name: str = "base"
 
     @abstractmethod
     async def is_available(self) -> bool:
-        """Returns True if the underlying AI service or CLI is available."""
+        """Returns True if the underlying AI service is available."""
         pass
 
     @abstractmethod
     async def stream_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> AsyncIterator[Any]:
         """Streams text chunks or metadata events in response to the given prompt and instructions."""
         pass
@@ -26,157 +53,252 @@ class BaseAIProvider(ABC):
     @abstractmethod
     async def generate_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> str:
         """Generates a complete response for the given prompt."""
         pass
 
 
-class CLIProvider(BaseAIProvider):
+class GeminiProvider(BaseAIProvider):
     """
-    Decoupled command-line AI engine.
-    Executes a local AI CLI command non-interactively without vendor branding in logs or responses.
-    Supports session continuity via conversation IDs (e.g. agy --conversation <id>).
+    Direct Google Gemini API provider.
+    Streams via Google's official REST SSE endpoint without spawning CLI processes
+    or accessing any local files. Reads API key and model from SQLite settings.
     """
+    engine_name = "gemini_flash"
 
-    def __init__(self, cli_command: Optional[str] = None):
-        self.cli_command = cli_command or os.environ.get("UZI_AI_CLI_COMMAND", "agy")
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        db: Optional[Database] = None
+    ):
+        self._db = db
+        self._api_key = api_key
+        self._model = model
+
+    @property
+    def db(self) -> Database:
+        if self._db is None:
+            self._db = get_db()
+        return self._db
+
+    @property
+    def api_key(self) -> str:
+        if self._api_key is not None:
+            return self._api_key.strip()
+        try:
+            stored = self.db.get_setting("gemini_api_key")
+            if stored and isinstance(stored, str) and stored.strip():
+                return stored.strip()
+        except Exception:
+            pass
+        return os.environ.get("GEMINI_API_KEY", "").strip()
+
+    @api_key.setter
+    def api_key(self, val: Optional[str]):
+        self._api_key = val.strip() if val is not None else None
+
+    @property
+    def model(self) -> str:
+        if self._model is not None:
+            return self._model.strip()
+        try:
+            stored = self.db.get_setting("gemini_model")
+            if stored and isinstance(stored, str) and stored.strip():
+                return stored.strip()
+        except Exception:
+            pass
+        return os.environ.get("GEMINI_MODEL", "gemini-3.5-flash").strip()
+
+    @model.setter
+    def model(self, val: Optional[str]):
+        self._model = val.strip() if val is not None else None
 
     async def is_available(self) -> bool:
-        cmd_bin = self.cli_command.split()[0] if self.cli_command else ""
-        return bool(cmd_bin and shutil.which(cmd_bin))
+        return bool(self.api_key)
 
-    def _build_full_prompt(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        if system_prompt and system_prompt.strip():
-            return f"[Instruções do Sistema]\n{system_prompt.strip()}\n\n[Solicitação do Usuário]\n{prompt.strip()}"
-        return prompt.strip()
+    @staticmethod
+    def _format_gemini_contents(messages: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+        contents = []
+        for m in messages:
+            raw_role = m.get("role", "user")
+            role = "model" if raw_role in ("model", "assistant") else "user"
+            content = m.get("content", "").strip()
+            if not content:
+                continue
+            if contents and contents[-1]["role"] == role:
+                contents[-1]["parts"][0]["text"] += "\n\n" + content
+            else:
+                contents.append({"role": role, "parts": [{"text": content}]})
+        while contents and contents[0]["role"] != "user":
+            contents.pop(0)
+        return contents
 
     async def stream_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> AsyncIterator[Any]:
         if not await self.is_available():
-            yield "O motor de inteligência local não foi encontrado ou não está configurado no sistema."
+            yield "A chave da API Gemini não foi configurada. Abra as Configurações (ícone de engrenagem) ou o painel de IA para inserir sua chave gratuita do Google AI Studio."
             return
 
-        full_prompt = self._build_full_prompt(prompt, system_prompt)
-        cmd_parts = self.cli_command.split()
-        is_agy = bool(cmd_parts and os.path.basename(cmd_parts[0]) == "agy")
+        import httpx
 
-        # Security hardening: NEVER allow automatic tool permissions for chat users.
-        # Enforce sandbox and disable slash command / skill expansions.
-        clean_parts = [p for p in cmd_parts if p != "--dangerously-skip-permissions"]
-        if is_agy:
-            if "--sandbox" not in clean_parts:
-                clean_parts.append("--sandbox")
-            if "--disable-slash-commands" not in clean_parts:
-                clean_parts.append("--disable-slash-commands")
-            if "--output-format" not in clean_parts:
-                clean_parts.extend(["--output-format", "stream-json"])
-            
-            # Resume existing conversation if conversation_id is provided
-            if conversation_id:
-                clean_parts.extend(["--conversation", conversation_id])
-                args = [*clean_parts, "-p", prompt.strip()]
-            else:
-                args = [*clean_parts, "-p", full_prompt]
-        else:
-            args = [*clean_parts, "-p", full_prompt]
+        contents = []
+        if messages:
+            contents = self._format_gemini_contents(messages)
+        elif prompt and prompt.strip():
+            contents = [{"role": "user", "parts": [{"text": prompt.strip()}]}]
 
-        try:
-            # Run in isolated directory (/tmp) to prevent accidental filesystem access
-            proc = await asyncio.create_subprocess_exec(
-                *args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd="/tmp"
-            )
+        if not contents:
+            yield "[Nenhuma mensagem para processar]"
+            return
 
-            chunks_count = 0
-            if is_agy and "--output-format" in args:
-                # Read stream-json line by line
-                while True:
-                    line = await proc.stdout.readline()
-                    if not line:
-                        break
-                    raw = line.decode("utf-8", errors="replace").strip()
-                    if not raw:
-                        continue
-                    try:
-                        data = json.loads(raw)
-                        if isinstance(data, dict):
-                            event = data.get("event")
-                            if event == "init":
-                                cid = data.get("conversation_id")
-                                if cid:
-                                    yield {"conversation_id": cid}
-                            elif event == "step_update":
-                                delta = data.get("step_update", {}).get("text_delta")
-                                if delta:
-                                    chunks_count += 1
-                                    yield delta
-                            elif event == "result":
-                                cid = data.get("result", {}).get("conversation_id")
-                                if cid:
-                                    yield {"conversation_id": cid}
+        payload: Dict[str, Any] = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.7
+            }
+        }
+
+        if tool_executor is not None:
+            payload["tools"] = [SEARCH_BOOK_TOOL]
+
+        if system_prompt and system_prompt.strip():
+            payload["systemInstruction"] = {
+                "parts": [{"text": system_prompt.strip()}]
+            }
+
+        models_to_try = [self.model]
+        fallback_model = "gemini-3.8-flash" if self.model == "gemini-3.5-flash" else "gemini-3.5-flash"
+        if fallback_model not in models_to_try:
+            models_to_try.append(fallback_model)
+
+        last_error = ""
+        for current_model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:streamGenerateContent?alt=sse&key={self.api_key}"
+            try:
+                async with httpx.AsyncClient(timeout=45.0) as client:
+                    round_num = 0
+                    max_rounds = 2
+                    while round_num <= max_rounds:
+                        round_num += 1
+                        function_call = None
+                        model_parts = []
+
+                        async with client.stream("POST", url, json=payload) as response:
+                            if response.status_code != 200:
+                                err_body = await response.aread()
+                                try:
+                                    err_json = json.loads(err_body)
+                                    err_msg = err_json.get("error", {}).get("message", err_body.decode(errors="replace"))
+                                except Exception:
+                                    err_msg = err_body.decode(errors="replace")
+                                last_error = f"[Erro na API Gemini ({response.status_code}): {err_msg}]"
+                                # If 503 (high demand) or 404 (unavailable), try next fallback model
+                                if response.status_code in (503, 404) and current_model != models_to_try[-1]:
+                                    break
+                                yield last_error
+                                return
+
+                            async for line in response.aiter_lines():
+                                line = line.strip()
+                                if not line or not line.startswith("data: "):
+                                    continue
+                                data_str = line[6:].strip()
+                                if not data_str:
+                                    continue
+                                try:
+                                    data = json.loads(data_str)
+                                    for cand in data.get("candidates", []):
+                                        parts = cand.get("content", {}).get("parts", [])
+                                        for part in parts:
+                                            if "functionCall" in part:
+                                                function_call = part["functionCall"]
+                                                model_parts = parts
+                                            elif "text" in part:
+                                                yield part["text"]
+                                except Exception:
+                                    continue
+
+                        if function_call and tool_executor:
+                            call_name = function_call.get("name")
+                            call_args = function_call.get("args") or {}
+                            call_id = function_call.get("id")
+
+                            try:
+                                tool_result = await tool_executor(call_name, call_args)
+                            except Exception as e:
+                                tool_result = {"error": f"Tool execution failed: {str(e)}"}
+
+                            # Append model turn preserving exact parts (including thoughtSignature)
+                            contents.append({
+                                "role": "model",
+                                "parts": model_parts
+                            })
+
+                            # Append user turn containing functionResponse
+                            func_resp = {
+                                "name": call_name,
+                                "response": tool_result
+                            }
+                            if call_id:
+                                func_resp["id"] = call_id
+
+                            contents.append({
+                                "role": "user",
+                                "parts": [{"functionResponse": func_resp}]
+                            })
+
+                            payload["contents"] = contents
                             continue
-                    except Exception:
-                        pass
-                    # Fallback if non-JSON line appears
-                    chunks_count += 1
-                    yield raw + "\n"
-            else:
-                # Fallback for plain-text streaming
-                while True:
-                    chunk = await proc.stdout.read(256)
-                    if not chunk:
-                        break
-                    chunks_count += 1
-                    yield chunk.decode("utf-8", errors="replace")
-
-            await proc.wait()
-            stderr_output = (await proc.stderr.read()).decode("utf-8", errors="replace").strip()
-            if chunks_count == 0 and stderr_output:
-                if "auto-denied" in stderr_output or "permission" in stderr_output.lower():
-                    yield "Ação bloqueada por segurança: o assistente do Uzi Library opera exclusivamente como leitor de texto e não executa comandos nem acessa arquivos do sistema."
-                else:
-                    yield f"[Aviso do assistente: {stderr_output}]"
-            elif proc.returncode != 0 and stderr_output:
-                if "auto-denied" in stderr_output or "permission" in stderr_output.lower():
-                    yield "\n\n[Ação bloqueada: execução de ferramentas e comandos não é permitida no assistente de leitura.]"
-                else:
-                    yield f"\n\n[Aviso: O motor encerrou com aviso ({proc.returncode}): {stderr_output}]"
-        except Exception as e:
-            yield f"\n\n[Erro na comunicação com o assistente local: {str(e)}]"
+                        else:
+                            return
+            except Exception as e:
+                last_error = f"[Erro na comunicação com a API Gemini: {str(e)}]"
+                if current_model != models_to_try[-1]:
+                    continue
+                yield last_error
+                return
 
     async def generate_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> str:
         chunks = []
-        async for chunk in self.stream_chat(prompt, system_prompt, conversation_id):
+        async for chunk in self.stream_chat(prompt, system_prompt, conversation_id, messages=messages, tool_executor=tool_executor):
             if isinstance(chunk, str):
                 chunks.append(chunk)
         return "".join(chunks)
 
 
 class DummyProvider(BaseAIProvider):
-    """Fallback / Mock AI provider for testing or environments without a local LLM CLI."""
+    """Fallback / Mock AI provider for testing or environments without a configured API key."""
+    engine_name = "dummy"
 
     async def is_available(self) -> bool:
         return True
 
     async def stream_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> AsyncIterator[Any]:
         yield {"conversation_id": conversation_id or "dummy-conv-123"}
         yield "Olá! Sou o assistente de leitura com IA do Uzi Library. "
@@ -185,8 +307,10 @@ class DummyProvider(BaseAIProvider):
 
     async def generate_chat(
         self,
-        prompt: str,
+        prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        messages: Optional[List[Dict[str, str]]] = None,
+        tool_executor: Optional[Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]] = None
     ) -> str:
         return "Olá! Sou o assistente de leitura com IA do Uzi Library. Recebi seu trecho e estou pronto para auxiliar na leitura."
