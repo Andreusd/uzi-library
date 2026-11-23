@@ -96,7 +96,7 @@ async def synthesize_speech(text: str, voice: str = "Aoede", api_key: Optional[s
             {
                 "parts": [
                     {
-                        "text": f"Read the following text aloud naturally and expressively as a professional audiobook narrator. Speak only the exact text without any introductory or concluding comments:\n\n{clean_text}"
+                        "text": clean_text
                     }
                 ]
             }
