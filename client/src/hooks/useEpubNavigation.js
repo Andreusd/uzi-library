@@ -50,6 +50,7 @@ export function useEpubNavigation({
   const inertiaRafIdRef = useRef(null);
   const activeScrollerRef = useRef(null);
   const isDraggingChapterScrollRef = useRef(false);
+  const lastProcessedTouchMoveRef = useRef(null);
 
   const stopInertiaGlide = useCallback(() => {
     if (inertiaRafIdRef.current) {
@@ -703,13 +704,15 @@ export function useEpubNavigation({
       return;
     }
     if (e.touches && e.touches.length === 1) {
-      const clientX = e.touches[0].clientX;
-      const clientY = e.touches[0].clientY;
-      touchStartXRef.current = clientX;
-      touchStartYRef.current = clientY;
-      touchLastYRef.current = clientY;
+      const touch = e.touches[0];
+      const touchX = (touch.screenX !== undefined && touch.screenX !== 0) ? touch.screenX : touch.clientX;
+      const touchY = (touch.screenY !== undefined && touch.screenY !== 0) ? touch.screenY : touch.clientY;
+
+      touchStartXRef.current = touchX;
+      touchStartYRef.current = touchY;
+      touchLastYRef.current = touchY;
       touchStartTimeRef.current = Date.now();
-      touchHistoryRef.current = [{ y: clientY, t: Date.now() }];
+      touchHistoryRef.current = [{ y: touchY, t: Date.now() }];
       isDraggingChapterScrollRef.current = false;
       activeScrollerRef.current = getChapterScrollContainer();
     }
@@ -720,6 +723,9 @@ export function useEpubNavigation({
   }, [handleTouchStart]);
 
   const handleTouchMove = useCallback((e) => {
+    if (lastProcessedTouchMoveRef.current === e) return;
+    lastProcessedTouchMoveRef.current = e;
+
     if (!chapterScrollModeEnabledRef.current) return;
     if (
       e.target?.closest?.('header') ||
@@ -735,19 +741,33 @@ export function useEpubNavigation({
       return;
     }
     if (e.touches && e.touches.length === 1 && touchLastYRef.current !== null) {
-      const clientY = e.touches[0].clientY;
-      const deltaY = touchLastYRef.current - clientY;
-      touchLastYRef.current = clientY;
+      const touch = e.touches[0];
+      const touchY = (touch.screenY !== undefined && touch.screenY !== 0) ? touch.screenY : touch.clientY;
+      const deltaY = touchLastYRef.current - touchY;
+
+      // When the finger is held still or moved < 0.5px, avoid micro-jitter
+      if (Math.abs(deltaY) < 0.5) {
+        if (e.cancelable && isDraggingChapterScrollRef.current) {
+          e.preventDefault();
+        }
+        return;
+      }
+
+      touchLastYRef.current = touchY;
 
       const now = Date.now();
       const recent = touchHistoryRef.current.filter(p => now - p.t < 120);
-      recent.push({ y: clientY, t: now });
+      recent.push({ y: touchY, t: now });
       touchHistoryRef.current = recent;
 
       const scroller = activeScrollerRef.current || getChapterScrollContainer();
-      if (scroller && Math.abs(deltaY) > 0) {
+      if (scroller) {
         scroller.scrollTop += deltaY;
         isDraggingChapterScrollRef.current = true;
+      }
+
+      if (e.cancelable) {
+        e.preventDefault();
       }
     }
   }, [getChapterScrollContainer]);
@@ -817,8 +837,9 @@ export function useEpubNavigation({
     isDraggingChapterScrollRef.current = false;
 
     if (!touchStartXRef.current || !e.changedTouches || e.changedTouches.length === 0) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
+    const touch = e.changedTouches[0];
+    const touchEndX = (touch.screenX !== undefined && touch.screenX !== 0) ? touch.screenX : touch.clientX;
+    const touchEndY = (touch.screenY !== undefined && touch.screenY !== 0) ? touch.screenY : touch.clientY;
     const startX = touchStartXRef.current;
     const startY = touchStartYRef.current;
     const diffX = touchEndX - startX;
@@ -1056,11 +1077,8 @@ export function useEpubNavigation({
       handleTouchMoveRef.current?.(e);
     };
 
-    targetWin.addEventListener('touchstart', onTouchStart, { passive: true });
     targetDoc.addEventListener('touchstart', onTouchStart, { passive: true });
-    targetWin.addEventListener('touchmove', onTouchMove, { passive: true });
-    targetDoc.addEventListener('touchmove', onTouchMove, { passive: true });
-    targetWin.addEventListener('touchend', onTouchEnd, { passive: true });
+    targetDoc.addEventListener('touchmove', onTouchMove, { passive: false });
     targetDoc.addEventListener('touchend', onTouchEnd, { passive: true });
 
     targetDoc.addEventListener('mousemove', (e) => {
@@ -1178,7 +1196,7 @@ export function useEpubNavigation({
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd, { passive: true });
 
     return () => {

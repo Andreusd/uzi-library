@@ -320,6 +320,62 @@ describe('EPUB Chapter Scroll Mode', () => {
       // scrollTop should have increased further due to momentum
       expect(mockContainer.scrollTop).toBeGreaterThan(250);
     });
+
+    it('does not vibrate or jitter when finger is held stationary in chapter scroll mode', () => {
+      const renditionRef = { current: { next: vi.fn(), prev: vi.fn() } };
+      const mockContainer = {
+        scrollTop: 200,
+        scrollHeight: 3000,
+        clientHeight: 600,
+      };
+      const viewerRef = {
+        current: {
+          querySelector: vi.fn((sel) => (sel === '.epub-container' ? mockContainer : null)),
+        },
+      };
+
+      localStorage.setItem('reader_chapter_scroll_mode', 'true');
+
+      const { result } = renderHook(
+        () =>
+          useEpubNavigation({
+            renditionRef,
+            viewerRef,
+            themeRef: { current: 'dark' },
+          }),
+        { wrapper }
+      );
+
+      // Touch start at physical screen position Y: 300
+      act(() => {
+        result.current.handleTouchStartRef.current({
+          touches: [{ screenX: 100, screenY: 300, clientX: 100, clientY: 300 }],
+        });
+      });
+
+      // Move by 30px
+      act(() => {
+        result.current.handleTouchMoveRef.current({
+          touches: [{ screenX: 100, screenY: 270, clientX: 100, clientY: 270 }],
+          cancelable: true,
+          preventDefault: vi.fn(),
+        });
+      });
+
+      expect(mockContainer.scrollTop).toBe(230);
+
+      // Now user holds finger stationary at position 270
+      act(() => {
+        result.current.handleTouchMoveRef.current({
+          touches: [{ screenX: 100, screenY: 270, clientX: 100, clientY: 270 }],
+          cancelable: true,
+          preventDefault: vi.fn(),
+        });
+      });
+
+      // scrollTop must remain exactly 230 with zero flickering or oscillation
+      expect(mockContainer.scrollTop).toBe(230);
+    });
   });
 
   describe('ReaderSettingsPopover chapter scroll and up/down flip sub-option', () => {
