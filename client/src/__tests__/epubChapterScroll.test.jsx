@@ -130,7 +130,7 @@ describe('EPUB Chapter Scroll Mode', () => {
       expect(wheelEvt.defaultPrevented).toBe(true);
     });
 
-    it('triggers next chapter when scrolling past bottom boundary with deliberate effort', () => {
+    it('does not trigger next or prev chapter when scrolling past bottom or top boundary in chapter scroll mode', () => {
       const nextMock = vi.fn().mockReturnValue(Promise.resolve());
       const prevMock = vi.fn().mockReturnValue(Promise.resolve());
       const renditionRef = { current: { next: nextMock, prev: prevMock, flow: vi.fn() } };
@@ -157,6 +157,7 @@ describe('EPUB Chapter Scroll Mode', () => {
         { wrapper }
       );
 
+      // Scroll down while at bottom
       act(() => {
         const wheelEvt = new WheelEvent('wheel', {
           deltaX: 0,
@@ -167,37 +168,11 @@ describe('EPUB Chapter Scroll Mode', () => {
         window.dispatchEvent(wheelEvt);
       });
 
-      expect(nextMock).toHaveBeenCalledTimes(1);
+      expect(nextMock).not.toHaveBeenCalled();
       expect(prevMock).not.toHaveBeenCalled();
-    });
 
-    it('triggers prev chapter when scrolling past top boundary with deliberate effort', () => {
-      const nextMock = vi.fn().mockReturnValue(Promise.resolve());
-      const prevMock = vi.fn().mockReturnValue(Promise.resolve());
-      const renditionRef = { current: { next: nextMock, prev: prevMock, flow: vi.fn() } };
-      const mockContainer = {
-        scrollTop: 0, // at top
-        scrollHeight: 2000,
-        clientHeight: 600,
-      };
-      const viewerRef = {
-        current: {
-          querySelector: vi.fn((sel) => (sel === '.epub-container' ? mockContainer : null)),
-        },
-      };
-
-      localStorage.setItem('reader_chapter_scroll_mode', 'true');
-
-      renderHook(
-        () =>
-          useEpubNavigation({
-            renditionRef,
-            viewerRef,
-            themeRef: { current: 'dark' },
-          }),
-        { wrapper }
-      );
-
+      // Scroll up while at top
+      mockContainer.scrollTop = 0;
       act(() => {
         const wheelEvt = new WheelEvent('wheel', {
           deltaX: 0,
@@ -208,8 +183,8 @@ describe('EPUB Chapter Scroll Mode', () => {
         window.dispatchEvent(wheelEvt);
       });
 
-      expect(prevMock).toHaveBeenCalledTimes(1);
       expect(nextMock).not.toHaveBeenCalled();
+      expect(prevMock).not.toHaveBeenCalled();
     });
 
     it('scrolls container on touch move in chapter scroll mode', () => {

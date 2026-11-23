@@ -672,7 +672,8 @@ export function useEpubNavigation({
     }
 
     if (absY >= absX && absY > 2) {
-      // In chapter scroll mode, vertical wheel / two-finger trackpad swipe scrolls the chapter content.
+      // In chapter scroll mode, vertical wheel / two-finger trackpad swipe strictly scrolls the chapter content.
+      // Reaching the top or bottom of the chapter should NOT flip pages/chapters. Only left/right swiping flips chapters.
       if (chapterScrollModeEnabledRef.current) {
         stopInertiaGlide();
         const scroller = getChapterScrollContainer();
@@ -686,41 +687,7 @@ export function useEpubNavigation({
 
           const maxScroll = Math.max(0, (scroller.scrollHeight || 0) - (scroller.clientHeight || 0));
           const currentScroll = scroller.scrollTop || 0;
-          const isAtBottom = maxScroll > 0 && currentScroll >= maxScroll - 3;
-          const isAtTop = currentScroll <= 3;
-
-          if (isAtBottom && delta > 0) {
-            if (now - lastBoundaryFlipTimeRef.current > 600 && !isNavigatingRef.current) {
-              accumulatedBoundaryDeltaRef.current += delta;
-              if (clearBoundaryTimerRef.current) clearTimeout(clearBoundaryTimerRef.current);
-              clearBoundaryTimerRef.current = setTimeout(() => {
-                accumulatedBoundaryDeltaRef.current = 0;
-              }, 200);
-
-              if (accumulatedBoundaryDeltaRef.current >= 80) {
-                lastBoundaryFlipTimeRef.current = now;
-                accumulatedBoundaryDeltaRef.current = 0;
-                flipNext();
-              }
-            }
-          } else if (isAtTop && delta < 0) {
-            if (now - lastBoundaryFlipTimeRef.current > 600 && !isNavigatingRef.current) {
-              accumulatedBoundaryDeltaRef.current += delta;
-              if (clearBoundaryTimerRef.current) clearTimeout(clearBoundaryTimerRef.current);
-              clearBoundaryTimerRef.current = setTimeout(() => {
-                accumulatedBoundaryDeltaRef.current = 0;
-              }, 200);
-
-              if (accumulatedBoundaryDeltaRef.current <= -80) {
-                lastBoundaryFlipTimeRef.current = now;
-                accumulatedBoundaryDeltaRef.current = 0;
-                flipPrev();
-              }
-            }
-          } else {
-            accumulatedBoundaryDeltaRef.current = 0;
-            scroller.scrollTop += delta;
-          }
+          scroller.scrollTop = Math.max(0, Math.min(maxScroll, currentScroll + delta));
         }
         if (e.cancelable) e.preventDefault();
         return;
