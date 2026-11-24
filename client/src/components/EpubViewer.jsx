@@ -726,7 +726,6 @@ export default function EpubViewer({
 
           try {
             const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-            const sidePadding = isMobile ? '12px' : '28px';
             contents.addStylesheetCss(`
               *, *::before, *::after {
                 box-sizing: border-box !important;
@@ -734,32 +733,21 @@ export default function EpubViewer({
               html, body {
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
-                margin: 0 !important;
-                padding-left: ${sidePadding} !important;
-                padding-right: ${sidePadding} !important;
               }
-              @media (max-width: 640px) {
+              ${isMobile ? `
                 html, body {
-                  padding-left: 12px !important;
-                  padding-right: 12px !important;
+                  margin: 0 !important;
+                  padding-left: 10px !important;
+                  padding-right: 10px !important;
                 }
-              }
-              #book-content, #sbo-rt-content, .epub-container {
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-                max-width: 100% !important;
-              }
-              html, body {
-                scrollbar-width: none !important;
-                -ms-overflow-style: none !important;
-              }
-              html::-webkit-scrollbar, body::-webkit-scrollbar {
-                display: none !important;
-                width: 0 !important;
-                height: 0 !important;
-              }
+                #book-content, #sbo-rt-content, .epub-container {
+                  margin-left: 0 !important;
+                  margin-right: 0 !important;
+                  padding-left: 0 !important;
+                  padding-right: 0 !important;
+                  max-width: 100% !important;
+                }
+              ` : ''}
               .hl-annotation, .epubjs-hl, [ref="hl-annotation"] {
                 cursor: pointer !important;
                 transition: fill-opacity 0.15s ease;

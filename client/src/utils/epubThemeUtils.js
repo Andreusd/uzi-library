@@ -387,33 +387,16 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
         ${fontBodyCss}
         line-height: 1.8 !important;
         margin: 0 !important;
-        padding-left: 28px !important;
-        padding-right: 28px !important;
+        padding: 0 !important;
         font-weight: 400 !important;
-      }
-      @media (max-width: 640px) {
-        html, body {
-          padding-left: 12px !important;
-          padding-right: 12px !important;
-        }
       }
       *, *::before, *::after {
         box-sizing: border-box !important;
       }
       #book-content, #sbo-rt-content, .epub-container {
         margin: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
+        padding: 0 !important;
         max-width: 100% !important;
-      }
-      html, body {
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
-      }
-      html::-webkit-scrollbar, body::-webkit-scrollbar {
-        display: none !important;
-        width: 0 !important;
-        height: 0 !important;
       }
       div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
         background-color: transparent !important;
@@ -635,33 +618,16 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       ${fontBodyCss}
       line-height: 1.8 !important;
       margin: 0 !important;
-      padding-left: 28px !important;
-      padding-right: 28px !important;
+      padding: 0 !important;
       font-weight: 400 !important;
-    }
-    @media (max-width: 640px) {
-      html, body {
-        padding-left: 12px !important;
-        padding-right: 12px !important;
-      }
     }
     *, *::before, *::after {
       box-sizing: border-box !important;
     }
     #book-content, #sbo-rt-content, .epub-container {
       margin: 0 !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
+      padding: 0 !important;
       max-width: 100% !important;
-    }
-    html, body {
-      scrollbar-width: none !important;
-      -ms-overflow-style: none !important;
-    }
-    html::-webkit-scrollbar, body::-webkit-scrollbar {
-      display: none !important;
-      width: 0 !important;
-      height: 0 !important;
     }
     div, p, li, blockquote, dd, dt, article, section, label, header, footer, nav, table, tbody, thead, tr, td, th, caption {
       background-color: transparent !important;
@@ -811,9 +777,6 @@ export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
 
   // Direct element-level properties for instant consistency
   try {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-    const paddingX = isMobile ? '12px' : '28px';
-
     if (doc.documentElement) {
       doc.documentElement.style.setProperty('background-color', cfg.bg, 'important');
       doc.documentElement.style.setProperty('color', cfg.text, 'important');
@@ -826,10 +789,6 @@ export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
     if (doc.body) {
       doc.body.style.setProperty('background-color', cfg.bg, 'important');
       doc.body.style.setProperty('color', cfg.text, 'important');
-      doc.body.style.setProperty('padding-left', paddingX, 'important');
-      doc.body.style.setProperty('padding-right', paddingX, 'important');
-      doc.body.style.setProperty('margin-left', '0px', 'important');
-      doc.body.style.setProperty('margin-right', '0px', 'important');
       if (activeFont) {
         doc.body.style.setProperty('font-family', activeFont, 'important');
       } else {
