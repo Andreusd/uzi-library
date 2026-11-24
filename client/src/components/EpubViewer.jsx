@@ -726,7 +726,7 @@ export default function EpubViewer({
 
           try {
             const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-            const sidePadding = isMobile ? '10px' : '28px';
+            const sidePadding = isMobile ? '12px' : '28px';
             contents.addStylesheetCss(`
               *, *::before, *::after {
                 box-sizing: border-box !important;
@@ -740,8 +740,8 @@ export default function EpubViewer({
               }
               @media (max-width: 640px) {
                 html, body {
-                  padding-left: 10px !important;
-                  padding-right: 10px !important;
+                  padding-left: 12px !important;
+                  padding-right: 12px !important;
                 }
               }
               #book-content, #sbo-rt-content, .epub-container {

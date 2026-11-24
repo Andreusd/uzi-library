@@ -393,8 +393,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
       }
       @media (max-width: 640px) {
         html, body {
-          padding-left: 10px !important;
-          padding-right: 10px !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
         }
       }
       *, *::before, *::after {
@@ -641,8 +641,8 @@ export function buildThemeCss(themeName, cfg, fontId = 'default') {
     }
     @media (max-width: 640px) {
       html, body {
-        padding-left: 10px !important;
-        padding-right: 10px !important;
+        padding-left: 12px !important;
+        padding-right: 12px !important;
       }
     }
     *, *::before, *::after {
@@ -811,6 +811,9 @@ export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
 
   // Direct element-level properties for instant consistency
   try {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const paddingX = isMobile ? '12px' : '28px';
+
     if (doc.documentElement) {
       doc.documentElement.style.setProperty('background-color', cfg.bg, 'important');
       doc.documentElement.style.setProperty('color', cfg.text, 'important');
@@ -823,6 +826,10 @@ export const applyThemeToDoc = (doc, themeName, fontId = 'default') => {
     if (doc.body) {
       doc.body.style.setProperty('background-color', cfg.bg, 'important');
       doc.body.style.setProperty('color', cfg.text, 'important');
+      doc.body.style.setProperty('padding-left', paddingX, 'important');
+      doc.body.style.setProperty('padding-right', paddingX, 'important');
+      doc.body.style.setProperty('margin-left', '0px', 'important');
+      doc.body.style.setProperty('margin-right', '0px', 'important');
       if (activeFont) {
         doc.body.style.setProperty('font-family', activeFont, 'important');
       } else {
