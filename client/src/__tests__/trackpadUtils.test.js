@@ -15,6 +15,11 @@ describe('trackpadUtils - isLikelyTrackpad', () => {
     expect(isLikelyTrackpad({ deltaX: 0, deltaY: 120, deltaMode: 0, wheelDeltaY: -120 })).toBe(false);
     expect(isLikelyTrackpad({ deltaX: 0, deltaY: -120, deltaMode: 0, wheelDeltaY: 120 })).toBe(false);
 
+    // Common Linux/X11/Wayland/Firefox desktop mouse wheel steps
+    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 53, deltaMode: 0 })).toBe(false);
+    expect(isLikelyTrackpad({ deltaX: 0, deltaY: -53, deltaMode: 0 })).toBe(false);
+    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 40, deltaMode: 0 })).toBe(false);
+
     // Firefox line mode (deltaMode 1) is a physical mouse wheel
     expect(isLikelyTrackpad({ deltaX: 0, deltaY: 3, deltaMode: 1 })).toBe(false);
     expect(isLikelyTrackpad({ deltaX: 0, deltaY: -3, deltaMode: 1 })).toBe(false);
@@ -28,15 +33,14 @@ describe('trackpadUtils - isLikelyTrackpad', () => {
     expect(isLikelyTrackpad({ deltaX: -1, deltaY: 100, deltaMode: 0 })).toBe(true);
   });
 
+  it('returns true for pinch-to-zoom trackpad events with ctrlKey or metaKey', () => {
+    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 100, deltaMode: 0, ctrlKey: true })).toBe(true);
+    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 50, deltaMode: 0, metaKey: true })).toBe(true);
+  });
+
   it('returns true for trackpad events with fractional floating-point deltas', () => {
     expect(isLikelyTrackpad({ deltaX: 0, deltaY: 15.35, deltaMode: 0 })).toBe(true);
     expect(isLikelyTrackpad({ deltaX: 1.2, deltaY: 0, deltaMode: 0 })).toBe(true);
-  });
-
-  it('returns true for continuous smooth micro-deltas (< 50)', () => {
-    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 8, deltaMode: 0 })).toBe(true);
-    expect(isLikelyTrackpad({ deltaX: 0, deltaY: 25, deltaMode: 0 })).toBe(true);
-    expect(isLikelyTrackpad({ deltaX: 0, deltaY: -16, deltaMode: 0 })).toBe(true);
   });
 
   it('returns true for WebKit/Blink continuous wheelDeltaY not multiple of 120', () => {

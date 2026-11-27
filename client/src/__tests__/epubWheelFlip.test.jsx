@@ -266,21 +266,23 @@ describe('EPUB Mouse Wheel Page Flip', () => {
   });
 
   describe('ReaderSettingsPopover toggle item', () => {
-    it('renders the toggle item and triggers toggleMouseWheelFlip on click', () => {
+    it('renders the toggle item and triggers toggleMouseWheelFlip on click in dual and single page mode', () => {
       const toggleMouseWheelFlip = vi.fn();
 
-      render(
+      const { rerender } = render(
         <ReaderSettingsPopover
           isOpen={true}
           onClose={vi.fn()}
           theme="dark"
+          changeEpubReadingMode={vi.fn()}
+          epubReadingMode="dual"
           mouseWheelFlipEnabled={true}
           toggleMouseWheelFlip={toggleMouseWheelFlip}
         />,
         { wrapper }
       );
 
-      const toggleCheckbox = screen.getByRole('checkbox', {
+      let toggleCheckbox = screen.getByRole('checkbox', {
         name: /mouse wheel page flip|virar páginas com a roda do mouse/i,
       });
       expect(toggleCheckbox).toBeDefined();
@@ -288,6 +290,44 @@ describe('EPUB Mouse Wheel Page Flip', () => {
 
       fireEvent.click(toggleCheckbox);
       expect(toggleMouseWheelFlip).toHaveBeenCalledTimes(1);
+
+      // Verify it is also visible in single page mode
+      rerender(
+        <ReaderSettingsPopover
+          isOpen={true}
+          onClose={vi.fn()}
+          theme="dark"
+          changeEpubReadingMode={vi.fn()}
+          epubReadingMode="single"
+          mouseWheelFlipEnabled={true}
+          toggleMouseWheelFlip={toggleMouseWheelFlip}
+        />
+      );
+
+      expect(
+        screen.getByRole('checkbox', {
+          name: /mouse wheel page flip|virar páginas com a roda do mouse/i,
+        })
+      ).toBeDefined();
+
+      // Verify it is hidden in chapter scroll mode (where wheel scrolls the chapter instead)
+      rerender(
+        <ReaderSettingsPopover
+          isOpen={true}
+          onClose={vi.fn()}
+          theme="dark"
+          changeEpubReadingMode={vi.fn()}
+          epubReadingMode="chapterScroll"
+          mouseWheelFlipEnabled={true}
+          toggleMouseWheelFlip={toggleMouseWheelFlip}
+        />
+      );
+
+      expect(
+        screen.queryByRole('checkbox', {
+          name: /mouse wheel page flip|virar páginas com a roda do mouse/i,
+        })
+      ).toBeNull();
     });
   });
 });

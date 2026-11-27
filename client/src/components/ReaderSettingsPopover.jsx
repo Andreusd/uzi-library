@@ -378,6 +378,19 @@ export default function ReaderSettingsPopover({
             />
           )}
 
+          {/* Mouse Wheel Page Flip (Sub-option of Dual and Single Page Modes in EPUB) */}
+          {((changeEpubReadingMode && (epubReadingMode === 'dual' || epubReadingMode === 'single' || (!epubReadingMode && !chapterScrollModeEnabled))) ||
+            (!changeEpubReadingMode && !chapterScrollModeEnabled)) && toggleMouseWheelFlip && (
+            <ToggleItem
+              title={t('mouseWheelPageFlip')}
+              description={t('mouseWheelPageFlipDesc')}
+              checked={mouseWheelFlipEnabled}
+              onChange={toggleMouseWheelFlip}
+              theme={resolvedTheme}
+              nested={Boolean(changeEpubReadingMode || toggleSinglePage || toggleChapterScrollMode)}
+            />
+          )}
+
           {/* Zoom (PDF) */}
           {handleZoomIn && handleZoomOut && (
             <div className={`p-2.5 rounded-xl border mb-2 flex items-center justify-between ${
@@ -477,17 +490,6 @@ export default function ReaderSettingsPopover({
               description={t('floatingSideButtonsDesc')}
               checked={floatingButtonsEnabled}
               onChange={toggleFloatingButtons}
-              theme={resolvedTheme}
-            />
-          )}
-
-          {/* Mouse Wheel Page Flip */}
-          {toggleMouseWheelFlip && (
-            <ToggleItem
-              title={t('mouseWheelPageFlip')}
-              description={t('mouseWheelPageFlipDesc')}
-              checked={mouseWheelFlipEnabled}
-              onChange={toggleMouseWheelFlip}
               theme={resolvedTheme}
             />
           )}

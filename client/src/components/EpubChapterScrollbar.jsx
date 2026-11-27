@@ -191,7 +191,7 @@ export default function EpubChapterScrollbar({
     >
       <div
         onPointerDown={handlePointerDown}
-        className={`rounded-full cursor-grab active:cursor-grabbing transition-all duration-150 backdrop-blur-[2px] absolute ${
+        className={`rounded-full cursor-grab active:cursor-grabbing transition-[opacity,width,background-color] duration-150 backdrop-blur-[2px] absolute will-change-[top,height] ${
           isInteracting ? 'w-1.5 sm:w-2' : 'w-0.5 sm:w-1'
         } ${thumbColor}`}
         style={{
